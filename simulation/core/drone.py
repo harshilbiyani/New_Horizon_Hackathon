@@ -10,9 +10,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from config import (
     NUM_DRONES, GRID_WIDTH, GRID_HEIGHT, DRONE_DETECTION_RANGE,
     DRONE_MAX_BATTERY, BATTERY_DRAIN_HOVER, BATTERY_DRAIN_MOVE,
-    DRONE_CRUISE_ALTITUDE, DRONE_WIDTH, DRONE_HEIGHT
+    DRONE_CRUISE_ALTITUDE, DRONE_MAX_ALTITUDE, DRONE_SPEED_Z,
+    DRONE_WIDTH, DRONE_HEIGHT, DRONE_CLEARANCE_BUFFER_M,
 )
-from core.pathfinding import get_next_step
+from core.pathfinding import a_star
 
 
 class Drone:
@@ -41,6 +42,9 @@ class Drone:
         self.x = start_x
         self.y = start_y
         self.altitude = DRONE_CRUISE_ALTITUDE
+        self.max_altitude = DRONE_MAX_ALTITUDE
+        self.clearance_buffer_m = DRONE_CLEARANCE_BUFFER_M
+        self.target_altitude = DRONE_CRUISE_ALTITUDE
         
         # Hardware Specs (3D / Physical)
         self.battery = DRONE_MAX_BATTERY
@@ -50,6 +54,13 @@ class Drone:
         # Navigation
         self.target = None
         self.current_path = []
+        self._path_target = None
+        self.unreachable_targets = set()
+
+        # Environment adaptation state
+        self.environment_wind = 0.0
+        self.environment_visibility = 1.0
+        self.environment_battery_multiplier = 1.0
 
         # Region (set by set_region)
         self.x_min = 0
@@ -132,15 +143,114 @@ class Drone:
         if not candidates and map_obj is not None:
             candidates = self.get_global_unscanned_cells(map_obj)
 
-        if not candidates:
+        # Skip targets proven unreachable from recent positions.
+        filtered = [cell for cell in candidates if cell not in self.unreachable_targets]
+
+        # Dynamic environments: avoid temporary hazard cells when possible.
+        hazard_cells = getattr(map_obj, "dynamic_hazard_cells", set()) if map_obj is not None else set()
+        safer_targets = [cell for cell in filtered if cell not in hazard_cells]
+        if safer_targets:
+            filtered = safer_targets
+
+        if not filtered and candidates and self.unreachable_targets:
+            # Allow retries later because map traversal context may have changed.
+            self.unreachable_targets.clear()
+            filtered = candidates
+
+        if not filtered:
             self.target = None
             self.status = "idle"
             return
 
         # Nearest by Manhattan distance (fast)
-        self.target = min(candidates, key=lambda c: self._manhattan(*c))
+        self.target = min(filtered, key=lambda c: self._manhattan(*c))
         self.status = "active"
         self.current_path = []  # invalidate cached path
+        self._path_target = None
+
+    def _get_next_path_step(self, map_obj):
+        """Return next waypoint using cached A* path when possible."""
+        if self.target is None:
+            return None
+
+        start = (self.x, self.y)
+        needs_new_path = (
+            self._path_target != self.target
+            or not self.current_path
+            or self.current_path[0] != start
+            or self.current_path[-1] != self.target
+        )
+
+        if needs_new_path:
+            self.current_path = a_star(
+                start,
+                self.target,
+                map_obj,
+                drone_altitude_m=self.altitude,
+                clearance_buffer_m=self.clearance_buffer_m,
+            ) or []
+            self._path_target = self.target
+
+        if len(self.current_path) < 2:
+            return None
+
+        next_pos = self.current_path[1]
+        if map_obj.is_obstacle(*next_pos):
+            self.current_path = []
+            self._path_target = None
+            return None
+
+        # Advance path head to keep cache aligned with movement.
+        self.current_path.pop(0)
+        return next_pos
+
+    def _get_environment_state(self, map_obj):
+        if hasattr(map_obj, "get_environment_state"):
+            return map_obj.get_environment_state()
+        return {
+            "wind_factor": 0.0,
+            "visibility": 1.0,
+            "battery_multiplier": 1.0,
+            "hazard_ceiling_m": 0.0,
+        }
+
+    def _adapt_to_environment(self, map_obj):
+        """Adjust altitude and sensitivity to current environment conditions."""
+        env = self._get_environment_state(map_obj)
+        self.environment_wind = float(env.get("wind_factor", 0.0))
+        self.environment_visibility = float(env.get("visibility", 1.0))
+        self.environment_battery_multiplier = float(env.get("battery_multiplier", 1.0))
+
+        # Base response: stronger wind means safer, slightly higher cruise altitude.
+        wind_lift = self.environment_wind * 15.0
+        desired_altitude = DRONE_CRUISE_ALTITUDE + wind_lift
+
+        # Dynamic hazard zones can require temporary higher altitude.
+        hazard_cells = getattr(map_obj, "dynamic_hazard_cells", set())
+        if (self.x, self.y) in hazard_cells:
+            hazard_ceiling = float(env.get("hazard_ceiling_m", DRONE_CRUISE_ALTITUDE))
+            desired_altitude = max(desired_altitude, hazard_ceiling + self.clearance_buffer_m)
+
+        self.target_altitude = min(self.max_altitude, max(8.0, desired_altitude))
+
+        if self.altitude < self.target_altitude:
+            self.altitude = min(self.target_altitude, self.altitude + DRONE_SPEED_Z)
+        elif self.altitude > self.target_altitude:
+            self.altitude = max(self.target_altitude, self.altitude - DRONE_SPEED_Z)
+
+    def _attempt_altitude_boost_for_path(self, map_obj):
+        """Raise altitude and retry pathing before declaring a target unreachable."""
+        boosted = min(self.max_altitude, self.altitude + (DRONE_SPEED_Z * 6))
+        if boosted <= self.altitude:
+            return False
+        self.altitude = boosted
+        self.current_path = []
+        self._path_target = None
+        return True
+
+    def _energy_factor(self):
+        wind_penalty = 1.0 + (self.environment_wind * 0.4)
+        return max(0.75, self.environment_battery_multiplier * wind_penalty)
 
     # ------------------------------------------------------------------
     # Movement
@@ -152,38 +262,38 @@ class Drone:
             self.status = "low_battery"
             return False
 
+        self._adapt_to_environment(map_obj)
+        energy_factor = self._energy_factor()
+
         # Mark starting cell (handles first step)
         self._mark_and_detect(map_obj)
 
         if self.status in ["idle", "low_battery"]:
-            self.battery -= BATTERY_DRAIN_HOVER
+            self.battery = max(0, self.battery - (BATTERY_DRAIN_HOVER * energy_factor))
             return False
 
         # Ensure we have a target
         if self.target is None or (self.x, self.y) == self.target:
             self.choose_next_target(map_obj)
             if self.status == "idle":
-                self.battery -= BATTERY_DRAIN_HOVER
+                self.battery = max(0, self.battery - (BATTERY_DRAIN_HOVER * energy_factor))
                 return False
 
         # Drain battery for movement
-        self.battery -= BATTERY_DRAIN_MOVE
+        self.battery = max(0, self.battery - (BATTERY_DRAIN_MOVE * energy_factor))
 
-        # Ask pathfinding for next step
-        next_pos = get_next_step((self.x, self.y), self.target, map_obj)
+        # Use cached A* path to avoid recomputing whole routes every tick.
+        next_pos = self._get_next_path_step(map_obj)
+
+        if next_pos is None and self._attempt_altitude_boost_for_path(map_obj):
+            next_pos = self._get_next_path_step(map_obj)
 
         if next_pos is None:
-            # Pathfinding failed completely — target is enclosed by obstacles!
-            # We must permanently blacklist this target otherwise all drones 
-            # will continually try and fail to reach it.
-            if map_obj is not None:
-                # Mark as obstacle globally so no drone wastes time on it
-                map_obj.grid[self.target[1]][self.target[0]] = 1 # CELL_OBSTACLE
-                if self.target not in map_obj.obstacle_locations:
-                    map_obj.obstacle_locations.append(self.target)
-                    
+            # Keep unreachable targets out of candidate lists instead of mutating the map.
+            self.unreachable_targets.add(self.target)
             self.target = None
-            self._stuck_ticks = 0
+            self.current_path = []
+            self._path_target = None
             self.choose_next_target(map_obj)
             return False
 
@@ -193,6 +303,8 @@ class Drone:
         # Reached target — clear it so we find the next nearest
         if (self.x, self.y) == self.target:
             self.target = None
+            self.current_path = []
+            self._path_target = None
             
         self._mark_and_detect(map_obj)
         return True
@@ -203,15 +315,31 @@ class Drone:
         map_obj.mark_scanned(self.x, self.y)
         self.scanned_cells.add((self.x, self.y))
 
-        # Optionally scale detection with altitude:
-        # dynamic_range = int(DRONE_DETECTION_RANGE * (self.altitude / DRONE_CRUISE_ALTITUDE))
-        dynamic_range = DRONE_DETECTION_RANGE
+        visibility_factor = max(0.55, min(1.1, self.environment_visibility))
+        altitude_factor = max(0.6, min(1.2, DRONE_CRUISE_ALTITUDE / max(1.0, self.altitude)))
+        dynamic_range = int(round(DRONE_DETECTION_RANGE * visibility_factor * altitude_factor))
+        dynamic_range = max(1, dynamic_range)
 
         for dy in range(-dynamic_range, dynamic_range + 1):
             for dx in range(-dynamic_range, dynamic_range + 1):
                 sx, sy = self.x + dx, self.y + dy
                 if map_obj.is_valid(sx, sy) and map_obj.get_survivor_at(sx, sy):
-                    map_obj.mark_survivor_found(sx, sy)
+                    distance = abs(dx) + abs(dy)
+                    battery_ratio = self.battery / DRONE_MAX_BATTERY if DRONE_MAX_BATTERY else 0
+                    confidence = (
+                        0.67
+                        + (0.20 * battery_ratio)
+                        + (0.12 * self.environment_visibility)
+                        - (0.08 * self.environment_wind)
+                        - (0.04 * distance)
+                    )
+                    confidence = round(max(0.45, min(0.99, confidence)), 3)
+                    map_obj.mark_survivor_found(
+                        sx,
+                        sy,
+                        detected_by=f"D{self.id + 1}",
+                        confidence=confidence,
+                    )
 
     # ------------------------------------------------------------------
     # Query interface
@@ -228,9 +356,13 @@ class Drone:
             "x": self.x,
             "y": self.y,
             "z_altitude_m": self.altitude,
+            "z_target_altitude_m": self.target_altitude,
             "battery": self.battery,
             "hw_width_m": self.width_m,
             "hw_height_m": self.height_m,
+            "clearance_buffer_m": self.clearance_buffer_m,
+            "environment_wind": round(self.environment_wind, 3),
+            "environment_visibility": round(self.environment_visibility, 3),
             "status": self.status,
             "target": self.target,
             "scanned_count": len(self.scanned_cells),
