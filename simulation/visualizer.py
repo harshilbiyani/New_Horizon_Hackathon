@@ -255,7 +255,7 @@ class DroneVisualizer(tk.Tk):
             ("#e5ecd6", "Unscanned ground tile"),
             ("#d8f0d0", "Scanned ground tile"),
             ("#f6c7c7", "Dynamic hazard zone"),
-            ("#6f7685", "Obstacle block top"),
+            ("#8a7060", "Obstacle marker (flat)"),
             ("#ff5959", "Found survivor marker"),
             ("#2f91ff", "Drone marker"),
         ]
@@ -585,74 +585,34 @@ class DroneVisualizer(tk.Tk):
             area += (x1 * y2) - (x2 * y1)
         return abs(area) * 0.5
 
-    def _draw_obstacle_block(self, x, y, h_m):
-        base_a, base_b, base_c, base_d = self._tile_poly(x, y, 0.0)
-        top_a, top_b, top_c, top_d = self._tile_poly(x, y, h_m)
+    def _draw_obstacle_flat(self, x, y, h_m):
+        """Draw obstacle as a flat colored ground tile (no raised 3D block)."""
+        a, b, c, d = self._tile_poly(x, y, 0.0)
 
-        height_tint = min(96, int(max(0.0, h_m) * 1.4))
-        top_color = self._shade_color("#7a8598", height_tint // 10)
-        edge_color = "#2b3340"
-
-        sides = []
-        side_specs = [
-            (base_a, base_b, top_b, top_a, -34),
-            (base_b, base_c, top_c, top_b, -24),
-            (base_c, base_d, top_d, top_c, -30),
-            (base_d, base_a, top_a, top_d, -40),
-        ]
-        for p1, p2, p3, p4, shade_delta in side_specs:
-            quad = [p1, p2, p3, p4]
-            if self._poly_area(quad) < 2.0:
-                continue
-            avg_y = (p1[1] + p2[1] + p3[1] + p4[1]) / 4.0
-            sides.append((avg_y, quad, self._shade_color(top_color, shade_delta)))
-
-        sides.sort(key=lambda item: item[0])
-        for _, quad, color in sides:
-            p1, p2, p3, p4 = quad
-            self.canvas.create_polygon(
-                p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], p4[0], p4[1],
-                fill=color,
-                outline=edge_color,
-                width=1,
-            )
-
-            if h_m >= 12.0:
-                for t in (0.34, 0.67):
-                    sx1 = p1[0] + (p4[0] - p1[0]) * t
-                    sy1 = p1[1] + (p4[1] - p1[1]) * t
-                    sx2 = p2[0] + (p3[0] - p2[0]) * t
-                    sy2 = p2[1] + (p3[1] - p2[1]) * t
-                    self.canvas.create_line(
-                        sx1,
-                        sy1,
-                        sx2,
-                        sy2,
-                        fill=self._shade_color(color, 14),
-                        width=1,
-                    )
+        # Color by obstacle height intensity
+        height_tint = min(40, int(max(0.0, h_m) * 0.5))
+        tile_color = self._shade_color("#8a7060", -height_tint)
+        edge_color = "#4a3830"
 
         self.canvas.create_polygon(
-            top_a[0], top_a[1], top_b[0], top_b[1], top_c[0], top_c[1], top_d[0], top_d[1],
-            fill=top_color,
+            a[0], a[1], b[0], b[1], c[0], c[1], d[0], d[1],
+            fill=tile_color,
             outline=edge_color,
             width=1,
         )
+
+        # Draw a subtle X mark to indicate obstacle
+        cx = (a[0] + c[0]) / 2
+        cy = (a[1] + c[1]) / 2
+        mark_color = self._shade_color(tile_color, 20)
+        size = 2.5 * self.view_scale
         self.canvas.create_line(
-            top_a[0],
-            top_a[1],
-            top_c[0],
-            top_c[1],
-            fill=self._shade_color(top_color, 18),
-            width=1,
+            cx - size, cy - size, cx + size, cy + size,
+            fill=mark_color, width=1,
         )
         self.canvas.create_line(
-            top_b[0],
-            top_b[1],
-            top_d[0],
-            top_d[1],
-            fill=self._shade_color(top_color, 8),
-            width=1,
+            cx + size, cy - size, cx - size, cy + size,
+            fill=mark_color, width=1,
         )
 
     def _draw_legend(self, env_state, map_state, drones):
@@ -685,7 +645,7 @@ class DroneVisualizer(tk.Tk):
             ("#e5ecd6", "Unscanned ground tile"),
             ("#d8f0d0", "Scanned ground tile"),
             ("#f6c7c7", "Dynamic hazard zone"),
-            ("#6f7685", "Obstacle block top"),
+            ("#8a7060", "Obstacle marker (flat)"),
             ("#ff5959", "Found survivor marker"),
             ("#2f91ff", "Drone marker"),
         ]
@@ -838,7 +798,7 @@ class DroneVisualizer(tk.Tk):
 
                 if (x, y) in obstacle_cells:
                     h_m = float(obstacle_heights[y][x]) if obstacle_heights is not None else 12.0
-                    self._draw_obstacle_block(x, y, h_m)
+                    self._draw_obstacle_flat(x, y, h_m)
 
         for (sx, sy) in found_survivors:
             px, py = self._iso(sx + 0.5, sy + 0.5, 2.0)

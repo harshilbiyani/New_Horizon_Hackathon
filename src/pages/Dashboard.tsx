@@ -163,7 +163,12 @@ export default function Dashboard() {
           />
 
           <div className="grid grid-cols-1 xl:grid-cols-[2.3fr_1fr] gap-6 h-[420px]">
-            <LiveVideo selectedDrone={selectedDrone} connectionState={connectionState} />
+            <LiveVideo
+                selectedDrone={selectedDrone}
+                connectionState={connectionState}
+                drones={drones}
+                onSelectDrone={setSelectedDroneId}
+              />
             <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-5 overflow-hidden flex flex-col h-full">
               <h2 className="text-lg font-semibold mb-4 text-[#ff4a1c]">Live Detections</h2>
               <SurvivorFeed survivors={survivors} />

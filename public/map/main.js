@@ -5,369 +5,547 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
-// --- Set up Scene, Renderer & Camera ---
+// --- Follow Mode Detection ---
+const urlParams = new URLSearchParams(window.location.search);
+const followDroneId = urlParams.get('follow');
+const isFollowMode = !!followDroneId;
+let followTarget = { x: 0, y: 80, z: 0 };
+
+if (isFollowMode) {
+    const uiLayer = document.getElementById('ui-layer');
+    if (uiLayer) uiLayer.style.display = 'none';
+}
+
+// --- Scene Setup ---
 const container = document.getElementById('webgl-container');
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a101d);
-scene.fog = new THREE.FogExp2(0x0a101d, 0.0035);
+// Softer, more realistic night/dusk sky
+scene.background = new THREE.Color(0x060810);
+scene.fog = new THREE.FogExp2(0x060810, 0.002);
 
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1500);
-camera.position.set(0, 150, 250);
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2500);
+camera.position.set(0, 180, 300);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-renderer.setPixelRatio(window.devicePixelRatio);
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.3; // Boosted for visible colors
+renderer.toneMappingExposure = 1.0; // Reduced from 1.4 for clarity
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 container.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.05;
+controls.dampingFactor = 0.06;
 controls.maxPolarAngle = Math.PI / 2.1;
-controls.target.set(0, 20, 0);
+controls.target.set(0, 15, 0);
+controls.minDistance = 20;
+controls.maxDistance = 800;
+
+if (isFollowMode) {
+    controls.enabled = false;
+    // Follow camera: tilted slightly, not purely top-down, to avoid blinding flat reflections
+    camera.position.set(0, 100, 30);
+    camera.lookAt(0, 0, 0);
+    camera.fov = 55;
+    camera.updateProjectionMatrix();
+}
 
 // --- Post Processing ---
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-
-// Intensified bloom for glowing features
-const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.6, 0.2);
+// Significantly reduced bloom: Strength to 0.25 (from 1.2)
+const bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    0.25, 0.4, 0.8
+);
 composer.addPass(bloomPass);
+composer.addPass(new OutputPass());
 
-const outputPass = new OutputPass();
-composer.addPass(outputPass);
-
-// --- Advanced Lighting (Synthwave / Tech-Noir Dual Tone) ---
-const ambient = new THREE.AmbientLight(0x1a2135, 1.8); // Brighter ambient
+// --- Lighting ---
+// Natural, softer lighting
+const ambient = new THREE.AmbientLight(0x223344, 1.0);
 scene.add(ambient);
 
-// EXTREMELY intense Orange/Red Lava light from Left
-const lightRed = new THREE.DirectionalLight(0xff4411, 8.0);
-lightRed.position.set(-200, 60, 50);
-lightRed.castShadow = true;
-lightRed.shadow.mapSize.width = 2048;
-lightRed.shadow.mapSize.height = 2048;
-lightRed.shadow.camera.left = -150;
-lightRed.shadow.camera.right = 150;
-lightRed.shadow.camera.top = 150;
-lightRed.shadow.camera.bottom = -150;
-scene.add(lightRed);
+const sunLight = new THREE.DirectionalLight(0xfff0dd, 2.5);
+sunLight.position.set(-150, 250, 100);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(2048, 2048);
+sunLight.shadow.camera.left = -200;
+sunLight.shadow.camera.right = 200;
+sunLight.shadow.camera.top = 200;
+sunLight.shadow.camera.bottom = -200;
+scene.add(sunLight);
 
-// EXTREMELY intense Cyan/Teal Moonlight from Right
-const lightTeal = new THREE.DirectionalLight(0x00ffff, 6.0);
-lightTeal.position.set(200, 100, -50);
-lightTeal.castShadow = true;
-lightTeal.shadow.mapSize.width = 2048;
-lightTeal.shadow.mapSize.height = 2048;
-lightTeal.shadow.camera.left = -150;
-lightTeal.shadow.camera.right = 150;
-lightTeal.shadow.camera.top = 150;
-lightTeal.shadow.camera.bottom = -150;
-scene.add(lightTeal);
+const rimLight = new THREE.DirectionalLight(0x00ccff, 1.2);
+rimLight.position.set(200, 80, -80);
+scene.add(rimLight);
 
-const fillLight = new THREE.DirectionalLight(0x3355ee, 2.0);
-fillLight.position.set(0, 150, 0);
-scene.add(fillLight);
+const hemiLight = new THREE.HemisphereLight(0x88aacc, 0x112211, 0.6);
+scene.add(hemiLight);
 
-// --- Procedural Terrain Generation ---
-// Same high-quality noise generation
-function fract(n) { return n - Math.floor(n); }
-function random(x, y) { return fract(Math.sin(x * 12.9898 + y * 78.233) * 43758.5453123); }
-function noise(x, y) {
-    const ix = Math.floor(x); const iy = Math.floor(y);
-    const fx = fract(x); const fy = fract(y);
-    const ux = fx * fx * (3.0 - 2.0 * fx);
-    const uy = fy * fy * (3.0 - 2.0 * fy);
-    const a = random(ix, iy); const b = random(ix + 1, iy);
-    const c = random(ix, iy + 1); const d = random(ix + 1, iy + 1);
-    return a + (b - a) * ux + (c - a) * uy * (1.0 - ux) + (d - c) * ux * uy;
-}
-function fbm(x, y) {
-    let v = 0.0; let a = 0.5; let pX = x; let pY = y;
-    for (let i = 0; i < 6; i++) {
-        v += a * noise(pX, pY);
-        let nx = pX * 0.8 - pY * 0.6;
-        let ny = pX * 0.6 + pY * 0.8;
-        pX = nx * 2.0 + 100.0; pY = ny * 2.0 + 100.0;
-        a *= 0.5;
+// --- Elevation Color Helper (returns color by height) ---
+function getTerrainColor(height, maxHeight) {
+    const ratio = height / maxHeight;
+    const color = new THREE.Color();
+
+    if (ratio < 0.08) {
+        color.setHSL(0.58, 0.7, 0.18);
+    } else if (ratio < 0.15) {
+        color.lerpColors(new THREE.Color(0x1a4a5e), new THREE.Color(0x2a6040), (ratio - 0.08) / 0.07);
+    } else if (ratio < 0.35) {
+        const t = (ratio - 0.15) / 0.20;
+        color.lerpColors(new THREE.Color(0x1e5a28), new THREE.Color(0x3d7a3a), t);
+    } else if (ratio < 0.55) {
+        const t = (ratio - 0.35) / 0.20;
+        color.lerpColors(new THREE.Color(0x3d7a3a), new THREE.Color(0x6b5a3e), t);
+    } else if (ratio < 0.72) {
+        const t = (ratio - 0.55) / 0.17;
+        color.lerpColors(new THREE.Color(0x5a4a38), new THREE.Color(0x7a6a58), t);
+    } else if (ratio < 0.88) {
+        const t = (ratio - 0.72) / 0.16;
+        color.lerpColors(new THREE.Color(0x7a6a58), new THREE.Color(0x505058), t); // Making tall areas dark grey
+    } else {
+        const t = (ratio - 0.88) / 0.12;
+        color.lerpColors(new THREE.Color(0x505058), new THREE.Color(0x909095), t); // Very top is rocky/snowy
     }
-    return v;
-}
-function smoothstep(edge0, edge1, x) {
-    const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
-    return t * t * (3.0 - 2.0 * t);
-}
-
-const terrainSize = 600;
-const segments = 300;
-const terrainGeo = new THREE.PlaneGeometry(terrainSize, terrainSize, segments, segments);
-terrainGeo.rotateX(-Math.PI / 2);
-
-const pos = terrainGeo.attributes.position;
-for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i);
-    const z = pos.getZ(i);
     
-    let n = fbm(x * 0.005, z * 0.005);
-    let h = n * 160;
+    // Highlight impassable/very high matrix regions (Height > 55 usually)
+    // We mix a slight red/warning tint for these extreme heights so matrix obstacles are visible
+    if (height > 55) {
+        color.lerp(new THREE.Color(0x772222), 0.3); // Add a subtle dark red hue to "obstacle" terrain
+    }
     
-    let distFromCenter = Math.abs((x * 0.8) + (z * 0.6)); 
-    let valley = smoothstep(0, 120, distFromCenter);
-    
-    h = h * (0.05 + 0.95 * Math.pow(valley, 1.5));
-    h += fbm(x * 0.04, z * 0.04) * 10.0; 
-    h += fbm(x * 0.1, z * 0.1) * 2.5;
-
-    if (h < 5) h = h * 0.3; 
-    pos.setY(i, h);
+    return color;
 }
-terrainGeo.computeVertexNormals();
 
-// Make terrain lighter so it reflects the orange/teal lights intensely
-const terrainMat = new THREE.MeshStandardMaterial({
-    color: 0x333b4d, // Lighter base to catch colors well
-    roughness: 0.8,
-    metalness: 0.2,
-});
-const terrain = new THREE.Mesh(terrainGeo, terrainMat);
-terrain.receiveShadow = true;
-terrain.castShadow = true;
-scene.add(terrain);
+// --- Terrain Variables ---
+let terrain;
+let waterPlane;
+let gridSize = 64;
+let worldBoundary = 140;
+let storedHeightMap = null;
+const personGroup = new THREE.Group();
+const obstacleGroup = new THREE.Group();
+scene.add(personGroup);
+scene.add(obstacleGroup);
 
-// High-Tech Wireframe Overlay (Teal)
-const wireframeGeo = terrainGeo.clone();
-const wireframeMat = new THREE.MeshBasicMaterial({
-    color: 0x00ffff,
-    wireframe: true,
-    transparent: true,
-    opacity: 0.1,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false
-});
-const wireframe = new THREE.Mesh(wireframeGeo, wireframeMat);
-wireframe.position.y += 0.3;
-scene.add(wireframe);
+function mapPyCoord(v) {
+    return ((v - (gridSize / 2)) / (gridSize / 2)) * worldBoundary;
+}
 
-// --- Flooded Area / Cyber River ---
-const waterGeo = new THREE.PlaneGeometry(terrainSize, terrainSize);
-const waterMat = new THREE.MeshStandardMaterial({
-    color: 0x00ffee,
-    roughness: 0.0,
-    metalness: 1.0,
-    transparent: true,
-    opacity: 0.45,
-    emissive: 0x001122,
-    emissiveIntensity: 0.5
-});
-const water = new THREE.Mesh(waterGeo, waterMat);
-water.rotation.x = -Math.PI / 2;
-water.position.y = 8;
-water.receiveShadow = true;
-scene.add(water);
+function createPerson(x, y, z) {
+    const group = new THREE.Group();
+    
+    const torsoGeo = new THREE.BoxGeometry(1.5, 2.8, 1.0);
+    const bodyMat = new THREE.MeshStandardMaterial({ 
+        color: 0xff6633, roughness: 0.8, metalness: 0.1 
+    });
+    const torso = new THREE.Mesh(torsoGeo, bodyMat);
+    torso.position.y = 3.0;
+    group.add(torso);
+    
+    const headGeo = new THREE.SphereGeometry(0.8, 12, 10);
+    const headMat = new THREE.MeshStandardMaterial({ color: 0xdda87a });
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.y = 5.0;
+    group.add(head);
+    
+    const armGeo = new THREE.CylinderGeometry(0.25, 0.2, 2.4, 6);
+    const armMat = new THREE.MeshStandardMaterial({ color: 0xff5522 });
+    const leftArm = new THREE.Mesh(armGeo, armMat);
+    leftArm.position.set(-1.2, 4.2, 0);
+    leftArm.rotation.z = Math.PI / 4;
+    group.add(leftArm);
+    const rightArm = new THREE.Mesh(armGeo, armMat);
+    rightArm.position.set(1.0, 2.8, 0);
+    rightArm.rotation.z = -Math.PI / 12;
+    group.add(rightArm);
+    
+    const pillarGeo = new THREE.CylinderGeometry(0.2, 0.2, 40, 6);
+    const pillarMat = new THREE.MeshBasicMaterial({ 
+        color: 0xff3300, transparent: true, opacity: 0.25 
+    });
+    const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+    pillar.position.y = 20;
+    pillar.userData.isPillar = true;
+    group.add(pillar);
+    
+    group.position.set(x, z, y);
+    return group;
+}
 
-const waterGrid = new THREE.Mesh(
-    waterGeo,
-    new THREE.MeshBasicMaterial({
-        color: 0x00ffff, 
-        wireframe: true, 
-        transparent: true, 
-        opacity: 0.25, 
-        blending: THREE.AdditiveBlending
+fetch('http://localhost:3001/api/mission/map')
+    .then(res => res.json())
+    .then(data => {
+        const { heightMap, rawSurvivors, gridSize: gSize, worldBoundary: wBound } = data;
+        if (!heightMap || heightMap.length === 0) return;
+        gridSize = gSize;
+        worldBoundary = wBound;
+        storedHeightMap = heightMap;
+
+        const width = heightMap[0].length;
+        const height = heightMap.length;
+        const terrainSize = worldBoundary * 2;
+
+        const terrainGeo = new THREE.PlaneGeometry(terrainSize, terrainSize, width - 1, height - 1);
+        terrainGeo.rotateX(-Math.PI / 2);
+
+        const pos = terrainGeo.attributes.position;
+        let maxH = 0;
+        for (let row of heightMap) {
+            for (let v of row) {
+                if (v > maxH) maxH = v;
+            }
+        }
+        if (maxH === 0) maxH = 1;
+
+        const colors = new Float32Array(pos.count * 3);
+        const obstacleSpikes = []; // Will hold points for procedural rocks
+
+        for (let i = 0; i < pos.count; i++) {
+            const xi = i % width;
+            const yi = Math.floor(i / width);
+            const h = heightMap[yi][xi];
+            pos.setY(i, h);
+
+            const color = getTerrainColor(h, maxH);
+            colors[i * 3] = color.r;
+            colors[i * 3 + 1] = color.g;
+            colors[i * 3 + 2] = color.b;
+
+            // Generate procedural rocks/spikes on very high terrain to emphasize Matrix height obstacles
+            if (h > 55 && Math.random() < 0.15) {
+                const worldX = (xi / (width - 1)) * terrainSize - terrainSize/2;
+                const worldZ = (yi / (height - 1)) * terrainSize - terrainSize/2;
+                obstacleSpikes.push({x: worldX, y: h, z: worldZ});
+            }
+        }
+
+        terrainGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        terrainGeo.computeVertexNormals();
+
+        const terrainMat = new THREE.MeshStandardMaterial({
+            vertexColors: true,
+            roughness: 0.9,
+            metalness: 0.05,
+            flatShading: true,
+        });
+        terrain = new THREE.Mesh(terrainGeo, terrainMat);
+        terrain.receiveShadow = true;
+        terrain.castShadow = true;
+        scene.add(terrain);
+
+        // Render Matrix height terrain obstacles
+        const rockGeo = new THREE.DodecahedronGeometry(2);
+        const rockMat = new THREE.MeshStandardMaterial({ color: 0x443333, roughness: 1.0 });
+        obstacleSpikes.forEach(p => {
+            const rock = new THREE.Mesh(rockGeo, rockMat);
+            rock.scale.set(1 + Math.random(), 3 + Math.random()*4, 1 + Math.random());
+            rock.position.set(p.x, p.y + rock.scale.y, p.z);
+            rock.rotation.y = Math.random() * Math.PI;
+            rock.castShadow = true;
+            obstacleGroup.add(rock);
+        });
+
+        const waterGeo = new THREE.PlaneGeometry(terrainSize * 1.3, terrainSize * 1.3, 64, 64);
+        const waterMat = new THREE.MeshStandardMaterial({
+            color: 0x051a2e,
+            roughness: 0.1,
+            metalness: 0.8,
+            transparent: true,
+            opacity: 0.8,
+        });
+        waterPlane = new THREE.Mesh(waterGeo, waterMat);
+        waterPlane.rotation.x = -Math.PI / 2;
+        waterPlane.position.y = 5;
+        scene.add(waterPlane);
+
+        rawSurvivors.forEach(surv => {
+            const px = surv[0];
+            const py = surv[1];
+            const worldX = mapPyCoord(px);
+            const worldZ = mapPyCoord(py);
+            const h = heightMap[py] ? (heightMap[py][px] || 0) : 0;
+            const person = createPerson(worldX, worldZ, Math.max(h, 6));
+            personGroup.add(person);
+        });
     })
-);
-waterGrid.rotation.x = -Math.PI / 2;
-waterGrid.position.y = 8.2;
-scene.add(waterGrid);
+    .catch(err => console.error('Map data fetch error:', err));
 
-// --- Controllable Drone Framework ---
+// --- Telemetry Obstacle System ---
+const obstacleMeshes = {};
+function updateObstacles(obsList) {
+    if (!obsList) return;
+    const keepKeys = new Set(obsList.map(o => o.id));
+    for (const id in obstacleMeshes) {
+        if (!keepKeys.has(id)) {
+            obstacleGroup.remove(obstacleMeshes[id]);
+            delete obstacleMeshes[id];
+        }
+    }
+    
+    obsList.forEach(obs => {
+        if (!obstacleMeshes[obs.id]) {
+            const group = new THREE.Group();
+            
+            // Tower/Barrier to represent telemetry obstacle
+            const geo = new THREE.CylinderGeometry(obs.radius * 0.5, obs.radius * 0.8, 40, 8);
+            const colorHex = obs.severity === 'high' ? 0xff2222 : (obs.severity === 'medium' ? 0xffaa00 : 0x22ff22);
+            const mat = new THREE.MeshStandardMaterial({
+                color: colorHex,
+                roughness: 0.7,
+                metalness: 0.3
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.y = 20;
+            mesh.castShadow = true;
+            group.add(mesh);
+            
+            // Warning ring
+            const ringGeo = new THREE.TorusGeometry(obs.radius + 1, 0.4, 4, 16);
+            const ringMat = new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.5 });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = Math.PI / 2;
+            ring.position.y = 2;
+            group.add(ring);
+            
+            obstacleGroup.add(group);
+            obstacleMeshes[obs.id] = group;
+        }
+        
+        // Find terrain height at this coordinate roughly
+        const group = obstacleMeshes[obs.id];
+        let h = 5;
+        if (storedHeightMap) {
+            const mapX = Math.round((obs.x / worldBoundary) * (gridSize/2) + (gridSize/2));
+            const mapY = Math.round((obs.y / worldBoundary) * (gridSize/2) + (gridSize/2));
+            if (storedHeightMap[mapY] && storedHeightMap[mapY][mapX]) {
+                h = storedHeightMap[mapY][mapX];
+            }
+        }
+        group.position.set(obs.x, h, obs.y); // Set Y to 0 or height based on terrain mapping
+    });
+}
 
-// Drone Object
-const playerDrone = new THREE.Group();
-playerDrone.position.set(0, 60, 0);
+// --- Drone System ---
+const droneMeshes = {};
 
-// Core geometry
-const droneCoreGeo = new THREE.OctahedronGeometry(2, 1);
-const droneCoreMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.9, roughness: 0.1 });
-const droneCore = new THREE.Mesh(droneCoreGeo, droneCoreMat);
-playerDrone.add(droneCore);
+function createDroneGroup() {
+    const group = new THREE.Group();
+    
+    // Core mainframe
+    const bodyMat = new THREE.MeshStandardMaterial({
+        color: 0x111111,
+        metalness: 0.8,
+        roughness: 0.4,
+    });
+    const mainBody = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 3.5), bodyMat);
+    group.add(mainBody);
+    
+    // Camera dome
+    const domeMat = new THREE.MeshStandardMaterial({ color: 0x000000, metalness: 0.9, roughness: 0.1 });
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 16, 0, Math.PI*2, 0, Math.PI/2), domeMat);
+    dome.position.set(0, -0.4, 1.2);
+    dome.rotation.x = Math.PI;
+    group.add(dome);
 
-// Glowing Halo ring around core
-const droneHaloGeo = new THREE.RingGeometry(3.5, 4, 32);
-const droneHaloMat = new THREE.MeshBasicMaterial({ 
-    color: 0x00ff88, side: THREE.DoubleSide, 
-    transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending 
+    // Arms & Rotors
+    const armGeo = new THREE.CylinderGeometry(0.1, 0.1, 3.5, 8);
+    armGeo.rotateZ(Math.PI / 2);
+    
+    const rotorPositions = [
+        [1.8, 0.2, 1.5], [-1.8, 0.2, 1.5],
+        [1.8, 0.2, -1.5], [-1.8, 0.2, -1.5]
+    ];
+    
+    rotorPositions.forEach((pos, i) => {
+        // Arm
+        const arm = new THREE.Mesh(armGeo, bodyMat);
+        arm.position.set(pos[0]/2, 0, pos[2]);
+        if (i % 2 === 0) arm.scale.x = 0.8; 
+        group.add(arm);
+        
+        // Motor
+        const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.6, 12), bodyMat);
+        motor.position.set(...pos);
+        group.add(motor);
+        
+        // Spinning Blades (visual blur)
+        const bladeGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.05, 16);
+        const bladeMat = new THREE.MeshBasicMaterial({ color: 0x8899aa, transparent: true, opacity: 0.3 });
+        const blade = new THREE.Mesh(bladeGeo, bladeMat);
+        blade.position.set(pos[0], pos[1] + 0.3, pos[2]);
+        blade.userData.isRotor = true;
+        group.add(blade);
+    });
+    
+    // Downward Spotlight - much softer and realistic
+    const light = new THREE.SpotLight(0xaaddff, 3, 100, Math.PI / 6, 0.6, 1.5);
+    light.position.set(0, -0.5, 1.2);
+    light.target.position.set(0, -40, 1.2);
+    group.add(light);
+    group.add(light.target);
+
+    // Drone Navigation Light (Red/Green blinking)
+    const navGeo = new THREE.SphereGeometry(0.15, 8, 8);
+    const navMat = new THREE.MeshBasicMaterial({ color: 0xff1111 });
+    const navLight = new THREE.Mesh(navGeo, navMat);
+    navLight.position.set(0, 0.6, -1.5);
+    navLight.userData.isNavLight = true;
+    group.add(navLight);
+    
+    return group;
+}
+
+function updateDrones(drones) {
+    const keepKeys = new Set(drones.map(d => d.id));
+    for (const id in droneMeshes) {
+        if (!keepKeys.has(id)) {
+            scene.remove(droneMeshes[id]);
+            delete droneMeshes[id];
+        }
+    }
+
+    drones.forEach(d => {
+        if (!droneMeshes[d.id]) {
+            const group = createDroneGroup();
+            scene.add(group);
+            droneMeshes[d.id] = group;
+        }
+        const droneGroup = droneMeshes[d.id];
+        droneGroup.position.set(d.x, Math.max(d.z, 20), d.y);
+        
+        // Drone heading smoothly mapped
+        const rad = (-d.heading * Math.PI) / 180 + Math.PI/2; 
+        droneGroup.rotation.y = rad;
+        
+        if (isFollowMode && d.id === followDroneId) {
+            followTarget = { x: d.x, y: Math.max(d.z, 20), z: d.y };
+        }
+    });
+}
+
+// --- Telemetry Polling ---
+function fetchTelemetry() {
+    fetch('http://localhost:3001/api/mission/snapshot')
+        .then(res => res.json())
+        .then(data => {
+            if (data.drones) updateDrones(data.drones);
+            if (data.obstacles) updateObstacles(data.obstacles);
+            
+            if (!isFollowMode && data.missionData) {
+                const activeCount = data.drones ? data.drones.filter(d => d.status === 'active').length : 0;
+                const el = (id) => document.getElementById(id);
+                
+                const hudDrones = el('hud-drone-count');
+                if (hudDrones) hudDrones.textContent = `🚁 ${activeCount} / ${data.drones.length} Drones Active`;
+                
+                const hudCoverage = el('hud-coverage');
+                if (hudCoverage) hudCoverage.textContent = `📡 Coverage: ${data.missionData.coverage}%`;
+                
+                const hudBattery = el('hud-battery');
+                if (hudBattery) hudBattery.textContent = `🔋 Avg Battery: ${data.missionData.avgBattery.toFixed(0)}%`;
+                
+                const hudSignal = el('hud-signal');
+                if (hudSignal) hudSignal.textContent = `📶 Signal: ${data.missionData.avgSignal.toFixed(0)}%`;
+                
+                const hudTime = el('hud-time');
+                if (hudTime) hudTime.textContent = `⏱ Mission: ${data.missionData.missionTimeSec}s`;
+                
+                const hudSurvivors = el('hud-survivors');
+                if (hudSurvivors) hudSurvivors.textContent = `👤 Found: ${data.missionData.foundSurvivors} Targets`;
+            }
+        })
+        .catch(err => console.error('Telemetry fetch error:', err));
+}
+setInterval(fetchTelemetry, 700);
+
+// --- Ambient Particles (dust/snow) ---
+const particleCount = 600;
+const particlesGeo = new THREE.BufferGeometry();
+const particlePositions = new Float32Array(particleCount * 3);
+for (let i = 0; i < particleCount; i++) {
+    particlePositions[i * 3] = (Math.random() - 0.5) * 400;
+    particlePositions[i * 3 + 1] = Math.random() * 150 + 5;
+    particlePositions[i * 3 + 2] = (Math.random() - 0.5) * 400;
+}
+particlesGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+const particlesMat = new THREE.PointsMaterial({
+    color: 0xffffff,
+    size: 0.8,
+    transparent: true,
+    opacity: 0.15,
+    depthWrite: false,
 });
-const droneHalo = new THREE.Mesh(droneHaloGeo, droneHaloMat);
-droneHalo.rotation.x = Math.PI / 2;
-playerDrone.add(droneHalo);
+const particles = new THREE.Points(particlesGeo, particlesMat);
+scene.add(particles);
 
-// 4 Rotor Indicators
-const axes = [
-    [3.5, 3.5], [-3.5, 3.5], [3.5, -3.5], [-3.5, -3.5]
-];
-const rotors = [];
-axes.forEach(pos => {
-    const rotor = new THREE.Mesh(
-        new THREE.RingGeometry(1, 1.5, 16),
-        new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.8, side: THREE.DoubleSide })
-    );
-    rotor.position.set(pos[0], 0, pos[1]);
-    rotor.rotation.x = Math.PI / 2;
-    rotors.push(rotor);
-    playerDrone.add(rotor);
-});
-
-// Drone Pointlight & Spotlight pointing down
-const dronePointLight = new THREE.PointLight(0x00ff88, 3, 40);
-playerDrone.add(dronePointLight);
-
-const droneSpotLight = new THREE.SpotLight(0x00ff88, 10, 150, Math.PI / 8, 0.5, 1);
-droneSpotLight.position.set(0, 0, 0);
-droneSpotLight.target.position.set(0, -20, 0); // Point down
-playerDrone.add(droneSpotLight);
-playerDrone.add(droneSpotLight.target);
-
-scene.add(playerDrone);
-
-// Movement logic variables
-const movementSpeed = 60.0; // Units per second
-const velocity = new THREE.Vector3();
-const keyState = {
-    w: false, a: false, s: false, d: false, 
-    arrowUp: false, arrowDown: false,
-    space: false, shift: false,
-    arrowLeft: false, arrowRight: false
-};
-
-window.addEventListener('keydown', (e) => {
-    const key = e.key.toLowerCase();
-    if (key === 'w') keyState.w = true;
-    if (key === 's') keyState.s = true;
-    if (key === 'a') keyState.a = true;
-    if (key === 'd') keyState.d = true;
-    if (key === ' ') keyState.space = true;
-    if (e.key === 'Shift') keyState.shift = true;
-    if (e.key === 'ArrowUp') keyState.arrowUp = true;
-    if (e.key === 'ArrowDown') keyState.arrowDown = true;
-    if (e.key === 'ArrowLeft') keyState.arrowLeft = true;
-    if (e.key === 'ArrowRight') keyState.arrowRight = true;
-});
-
-window.addEventListener('keyup', (e) => {
-    const key = e.key.toLowerCase();
-    if (key === 'w') keyState.w = false;
-    if (key === 's') keyState.s = false;
-    if (key === 'a') keyState.a = false;
-    if (key === 'd') keyState.d = false;
-    if (key === ' ') keyState.space = false;
-    if (e.key === 'Shift') keyState.shift = false;
-    if (e.key === 'ArrowUp') keyState.arrowUp = false;
-    if (e.key === 'ArrowDown') keyState.arrowDown = false;
-    if (e.key === 'ArrowLeft') keyState.arrowLeft = false;
-    if (e.key === 'ArrowRight') keyState.arrowRight = false;
-});
-
-// Markers & 'Secret Base' Pin
-const baseGeo = new THREE.SphereGeometry(1.5, 32, 32);
-const baseMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-const basePeak = new THREE.Mesh(baseGeo, baseMat);
-basePeak.position.set(-60, 85, -80); 
-scene.add(basePeak);
-
-const baseLight = new THREE.PointLight(0xffffff, 50, 200);
-baseLight.position.copy(basePeak.position);
-scene.add(baseLight);
-
-const floatingLabel = document.querySelector('.floating-label');
-const labelTarget = basePeak.position.clone();
-
-
-// --- Resize Handling ---
-window.addEventListener('resize', onWindowResize, false);
-function onWindowResize() {
+// --- Resize ---
+window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
     composer.setSize(window.innerWidth, window.innerHeight);
-}
+}, false);
 
 // --- Animation Loop ---
 const clock = new THREE.Clock();
 
 function animate() {
     requestAnimationFrame(animate);
-    
-    const delta = clock.getDelta();
-    const time = clock.getElapsedTime();
+    const elapsed = clock.getElapsedTime();
 
-    // 1. Water animation
-    water.position.y = 8 + Math.sin(time * 0.8) * 0.5;
-    waterGrid.position.y = water.position.y + 0.2;
-
-    // 2. Secret Base Marker animation
-    // baseRing.scale.setScalar(1.0 + Math.sin(time * 3) * 0.1);
-
-    // 3. Drone Movement System
-    velocity.set(0, 0, 0);
-
-    // Forward/Backward (relative to World for simple W A S D) 
-    // Usually developers want W to go "forward" along Z axis.
-    if (keyState.w || keyState.arrowUp) velocity.z -= movementSpeed * delta;
-    if (keyState.s || keyState.arrowDown) velocity.z += movementSpeed * delta;
-    
-    // Left/Right
-    if (keyState.a || keyState.arrowLeft) velocity.x -= movementSpeed * delta;
-    if (keyState.d || keyState.arrowRight) velocity.x += movementSpeed * delta;
-
-    // Up/Down Height
-    if (keyState.space) velocity.y += movementSpeed * delta;
-    if (keyState.shift) velocity.y -= movementSpeed * delta;
-
-    // Apply movement
-    playerDrone.position.add(velocity);
-
-    // Prevent drone from going below ground (simple mock bounding)
-    if (playerDrone.position.y < 12) playerDrone.position.y = 12;
-
-    // Drone visual animations
-    droneHalo.rotation.z -= delta * 3;
-    rotors.forEach(r => r.rotation.z += delta * 15);
-    
-    // Tilt drone slightly based on velocity
-    playerDrone.rotation.x = THREE.MathUtils.lerp(playerDrone.rotation.x, velocity.z * 0.3, 0.1);
-    playerDrone.rotation.z = THREE.MathUtils.lerp(playerDrone.rotation.z, -velocity.x * 0.3, 0.1);
-
-    // Make the spotlight target track below it
-    droneSpotLight.target.position.set(
-        playerDrone.position.x, 
-        playerDrone.position.y - 20, 
-        playerDrone.position.z
-    );
-
-    // 4. Update UI label projection
-    if (floatingLabel) {
-        const p = labelTarget.clone();
-        p.project(camera);
-        if (p.z < 1) { 
-            const x = (p.x *  .5 + .5) * window.innerWidth;
-            const y = (p.y * -.5 + .5) * window.innerHeight;
-            floatingLabel.style.transform = `translate(-50%, -150%)`;
-            floatingLabel.style.left = `${x}px`;
-            floatingLabel.style.top = `${y}px`;
-            floatingLabel.style.opacity = '1';
-        } else {
-            floatingLabel.style.opacity = '0';
-        }
+    if (waterPlane) {
+        waterPlane.position.y = 4.5 + Math.sin(elapsed * 0.8) * 0.3;
     }
 
-    // Smoothly follow the drone slightly if it moves
-    controls.target.lerp(playerDrone.position, 0.05);
+    personGroup.children.forEach(person => {
+        person.children.forEach(child => {
+            if (child.userData.isPillar) {
+                child.material.opacity = 0.1 + Math.sin(elapsed * 3) * 0.15;
+            }
+        });
+    });
 
-    controls.update();
+    for (const id in droneMeshes) {
+        const group = droneMeshes[id];
+        // Bobbing effect
+        group.position.y += Math.sin(elapsed * 4 + parseFloat(id || "0")) * 0.05;
+        // Pitch mapping for "movement"
+        group.rotation.x = Math.sin(elapsed * 2) * 0.05; 
+        
+        group.children.forEach(child => {
+            if (child.userData.isRotor) {
+                child.rotation.y += 0.4; 
+            }
+            if (child.userData.isNavLight) {
+                child.material.color.setHex((Math.floor(elapsed * 2) % 2 === 0) ? 0xff0000 : 0x00ff00);
+            }
+        });
+    }
+
+    const pPos = particles.geometry.attributes.position;
+    for (let i = 0; i < particleCount; i++) {
+        let y = pPos.getY(i);
+        y -= 0.12;
+        if (y < 5) y = 150;
+        pPos.setY(i, y);
+        pPos.setX(i, pPos.getX(i) + Math.sin(elapsed + i) * 0.02);
+    }
+    pPos.needsUpdate = true;
+
+    if (isFollowMode) {
+        const camTargetX = followTarget.x;
+        const camTargetZ = followTarget.z;
+        // Camera smoothly follows but stays behind and above the drone (like a chase cam)
+        camera.position.lerp(new THREE.Vector3(camTargetX, followTarget.y + 40, camTargetZ + 20), 0.1);
+        camera.lookAt(camTargetX, followTarget.y - 10, camTargetZ - 30);
+    } else {
+        controls.update();
+    }
+
     composer.render();
 }
-
 animate();

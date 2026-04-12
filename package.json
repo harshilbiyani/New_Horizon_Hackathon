@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "concurrently \"node server.js\" \"vite --open\"",
-    "dev": "vite",
+    "dev": "concurrently \"node server.js\" \"vite --open\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

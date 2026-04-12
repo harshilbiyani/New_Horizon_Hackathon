@@ -25,6 +25,39 @@ function obstacleColor(severity: Obstacle['severity']) {
   return '#22c55e';
 }
 
+function DroneFOV({ drone, selectedId }: { drone: Drone; selectedId?: string }) {
+  const isSelected = drone.id === selectedId;
+  const lengthWorld = 20; 
+  const fovDeg = 60; 
+  
+  const headingRad = (drone.heading * Math.PI) / 180;
+  const halfFovRad = ((fovDeg / 2) * Math.PI) / 180;
+  
+  const cx = worldToPercent(drone.x);
+  const cy = 100 - worldToPercent(drone.y);
+  const ptDist = (lengthWorld / (WORLD_BOUNDARY * 2)) * 100;
+  
+  const a1 = headingRad - halfFovRad;
+  const a2 = headingRad + halfFovRad;
+  
+  const x1 = cx + Math.cos(a1) * ptDist;
+  const y1 = cy - Math.sin(a1) * ptDist;
+  
+  const x2 = cx + Math.cos(a2) * ptDist;
+  const y2 = cy - Math.sin(a2) * ptDist;
+  
+  return (
+    <path
+      d={`M ${cx},${cy} L ${x1},${y1} L ${x2},${y2} Z`}
+      fill={isSelected ? '#00ffcc' : '#facc15'}
+      fillOpacity={isSelected ? 0.3 : 0.1}
+      stroke={isSelected ? '#00ffcc' : 'none'}
+      strokeWidth={isSelected ? 0.2 : 0}
+      style={{ pointerEvents: 'none' }}
+    />
+  );
+}
+
 export default function MissionMap({
   drones,
   obstacles,
@@ -112,6 +145,7 @@ export default function MissionMap({
 
           {drones.map((drone) => (
             <g key={drone.id}>
+              <DroneFOV drone={drone} selectedId={selectedDroneId} />
               <circle
                 cx={worldToPercent(drone.x)}
                 cy={100 - worldToPercent(drone.y)}
