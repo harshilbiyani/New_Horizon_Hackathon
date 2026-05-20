@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { XAIDroneState, XAIWorldState } from '../types/xai';
 import DroneXAICard from './XAIDroneCard';
 
@@ -26,6 +27,7 @@ export default function XAIDecisionPanel({
   droneStates,
   worldState,
 }: XAIDecisionPanelProps) {
+  const [showNarratives, setShowNarratives] = useState(false);
   const survivorsFound =
     worldState.survivors?.filter((s) => s.discovered).length ?? 0;
   const totalSurvivors = worldState.survivors?.length ?? 0;
@@ -346,8 +348,27 @@ export default function XAIDecisionPanel({
             <div style={{ fontSize: 12, color: C.textPri, letterSpacing: '0.08em' }}>
               DECISION CARDS
             </div>
-            <div style={{ fontSize: 9, color: C.textMut, letterSpacing: '0.1em' }}>
-              ● HIGH ≥70% · ● MED ≥40% · ● LOW &lt;40% · ε = EXPLORATION RATE
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ fontSize: 9, color: C.textMut, letterSpacing: '0.1em' }}>
+                ● HIGH ≥70% · ● MED ≥40% · ● LOW &lt;40% · ε = EXPLORATION RATE
+              </div>
+              <button
+                onClick={() => setShowNarratives((prev) => !prev)}
+                style={{
+                  background: 'none',
+                  border: `1px solid ${showNarratives ? C.teal : C.cardBord}`,
+                  borderRadius: 4,
+                  padding: '3px 8px',
+                  cursor: 'pointer',
+                  fontFamily: C.mono,
+                  fontSize: 9,
+                  color: showNarratives ? C.teal : C.textMut,
+                  letterSpacing: '0.12em',
+                  transition: 'border-color 0.2s, color 0.2s',
+                }}
+              >
+                {showNarratives ? 'HIDE AI NARRATIVES' : 'SHOW AI NARRATIVES'}
+              </button>
             </div>
           </div>
 
@@ -364,6 +385,7 @@ export default function XAIDecisionPanel({
                 drone={drone}
                 worldState={worldState}
                 entryDelay={i * 100}
+                forceNarrativeOpen={showNarratives}
               />
             ))}
           </div>

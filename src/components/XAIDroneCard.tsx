@@ -28,12 +28,14 @@ interface DroneXAICardProps {
   drone: XAIDroneState;
   worldState: XAIWorldState;
   entryDelay: number;
+  forceNarrativeOpen?: boolean;
 }
 
 export default function DroneXAICard({
   drone,
   worldState,
   entryDelay,
+  forceNarrativeOpen,
 }: DroneXAICardProps) {
   const [visible, setVisible] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -46,6 +48,12 @@ export default function DroneXAICard({
     const t = setTimeout(() => setVisible(true), entryDelay);
     return () => clearTimeout(t);
   }, [entryDelay]);
+
+  useEffect(() => {
+    if (typeof forceNarrativeOpen === 'boolean') {
+      setShowNarrative(forceNarrativeOpen);
+    }
+  }, [forceNarrativeOpen]);
 
   const battColor =
     drone.battery < 25 ? C.red : drone.battery < 50 ? C.amber : C.teal;
