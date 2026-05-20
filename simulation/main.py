@@ -10,7 +10,7 @@ import time
 # Add the package root to the path so we can run directly
 sys.path.insert(0, os.path.dirname(__file__))
 
-from config import SIMULATION_SPEED, MAX_STEPS
+from config import SIMULATION_SPEED, MAX_STEPS, DEFAULT_ENVIRONMENT, ENVIRONMENT_PROFILES
 from core.map import Map
 from core.drone import create_drones
 
@@ -21,12 +21,39 @@ class DroneSwarmSimulation:
     Provides the required interfaces for Teams B (Visualization) and C (Detection).
     """
 
-    def __init__(self, seed=None):
+    def __init__(self, seed=None, environment_name=DEFAULT_ENVIRONMENT):
         """Initialize the entire simulation."""
-        self.map_obj = Map(seed=seed)
+        self.seed = seed
+        self.environment_name = environment_name if environment_name in ENVIRONMENT_PROFILES else DEFAULT_ENVIRONMENT
+        self.map_obj = Map(seed=seed, environment_name=self.environment_name)
         self.drones = create_drones(self.map_obj)
         self.step_counter = 0
         self.running = True
+        self.last_step_detections = []
+
+    def reset(self, seed=None, environment_name=None):
+        """Reset simulation state with optional seed/environment changes."""
+        if seed is not None:
+            self.seed = seed
+        if environment_name is not None:
+            self.environment_name = (
+                environment_name if environment_name in ENVIRONMENT_PROFILES else DEFAULT_ENVIRONMENT
+            )
+
+        self.map_obj = Map(seed=self.seed, environment_name=self.environment_name)
+        self.drones = create_drones(self.map_obj)
+        self.step_counter = 0
+        self.running = True
+        self.last_step_detections = []
+
+    def set_environment(self, environment_name, seed=None):
+        """Switch simulation environment and restart the mission."""
+        self.reset(seed=seed, environment_name=environment_name)
+
+    @staticmethod
+    def get_environment_options():
+        """Return available environment profile keys."""
+        return list(ENVIRONMENT_PROFILES.keys())
 
     # ------------------------------------------------------------------
     # Core Logic
@@ -44,6 +71,7 @@ class DroneSwarmSimulation:
             return self.step_counter
 
         self.step_counter += 1
+        self.map_obj.start_new_step(self.step_counter)
         moved_any = False
 
         for drone in self.drones:
@@ -54,6 +82,8 @@ class DroneSwarmSimulation:
         # If no drones moved, the simulation is finished (all areas scanned)
         if not moved_any:
             self.running = False
+
+        self.last_step_detections = self.map_obj.get_recent_detections()
 
         return self.step_counter
 
@@ -77,12 +107,17 @@ class DroneSwarmSimulation:
         """
         Combined snapshot for debugging or full-state dashboards.
         """
+        map_state = self.get_map_state()
+        drones_state = self.get_drone_positions()
         return {
             "step": self.step_counter,
             "running": self.running,
             "coverage_percentage": self.map_obj.get_coverage_percentage(),
-            "map": self.get_map_state(),
-            "drones": self.get_drone_positions(),
+            "map": map_state,
+            "drones": drones_state,
+            "mission_board": self.map_obj.get_mission_board(drones_state),
+            "new_detections": list(self.last_step_detections),
+            "environment": self.map_obj.get_environment_state(),
         }
 
     # ------------------------------------------------------------------
@@ -97,6 +132,7 @@ class DroneSwarmSimulation:
         print("DRONE SWARM SIMULATION - TEAM A DEMO")
         print("=" * 60)
         print("Initializing Drone Swarm Simulation...")
+        print(f"Environment: {self.environment_name}")
         
         survivor_count = len(self.map_obj.survivor_locations)
         drone_count = len(self.drones)
@@ -137,6 +173,12 @@ class DroneSwarmSimulation:
         print(f"  Scanned cells: {len(self.map_obj.scanned_cells)}")
         print(f"  Active drones: {active}")
         print(f"  Survivors found: {len(self.map_obj.found_survivors)}")
+        if self.last_step_detections:
+            latest = self.last_step_detections[-1]
+            print(
+                f"  Latest detection: {latest['survivor_id']} by {latest['detected_by']} "
+                f"(confidence {latest['confidence']:.1%})"
+            )
 
 
 # =============================================================================

@@ -56,7 +56,7 @@ def reconstruct_path(came_from, current):
 # A* Core
 # ------------------------------------------------------------------
 
-def a_star(start, goal, map_obj):
+def a_star(start, goal, map_obj, drone_altitude_m=None, clearance_buffer_m=0.0):
     """
     A* shortest-path search on the grid.
 
@@ -70,10 +70,16 @@ def a_star(start, goal, map_obj):
         or None if no path exists.
     """
     # Edge cases
-    if map_obj.is_obstacle(*start):
-        return None
-    if map_obj.is_obstacle(*goal):
-        return None
+    if drone_altitude_m is None:
+        if map_obj.is_obstacle(*start):
+            return None
+        if map_obj.is_obstacle(*goal):
+            return None
+    else:
+        if not map_obj.is_navigable_3d(*start, drone_altitude_m, clearance_buffer_m):
+            return None
+        if not map_obj.is_navigable_3d(*goal, drone_altitude_m, clearance_buffer_m):
+            return None
     if start == goal:
         return [start]
 
@@ -110,7 +116,11 @@ def a_star(start, goal, map_obj):
 
         closed_set.add(current)
 
-        for neighbor in map_obj.get_neighbors(*current):
+        for neighbor in map_obj.get_neighbors(
+            *current,
+            drone_altitude_m=drone_altitude_m,
+            clearance_buffer_m=clearance_buffer_m,
+        ):
             if neighbor in closed_set:
                 continue
 
@@ -130,7 +140,7 @@ def a_star(start, goal, map_obj):
 # Convenience wrapper
 # ------------------------------------------------------------------
 
-def get_next_step(current_pos, goal_pos, map_obj):
+def get_next_step(current_pos, goal_pos, map_obj, drone_altitude_m=None, clearance_buffer_m=0.0):
     """
     Return the immediate next cell a drone should move to when heading
     from current_pos toward goal_pos, or None if unreachable / already there.
@@ -146,7 +156,13 @@ def get_next_step(current_pos, goal_pos, map_obj):
     if current_pos == goal_pos:
         return None
 
-    path = a_star(current_pos, goal_pos, map_obj)
+    path = a_star(
+        current_pos,
+        goal_pos,
+        map_obj,
+        drone_altitude_m=drone_altitude_m,
+        clearance_buffer_m=clearance_buffer_m,
+    )
     if path is None or len(path) < 2:
         return None
 
