@@ -19,9 +19,8 @@ if (isFollowMode) {
 // --- Scene Setup ---
 const container = document.getElementById('webgl-container');
 const scene = new THREE.Scene();
-// Softer, more realistic night/dusk sky
-scene.background = new THREE.Color(0x060810);
-scene.fog = new THREE.FogExp2(0x060810, 0.002);
+scene.background = new THREE.Color(0x040914);
+scene.fog = new THREE.FogExp2(0x060d1b, 0.0018);
 
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2500);
 camera.position.set(0, 180, 300);
@@ -84,6 +83,60 @@ scene.add(rimLight);
 
 const hemiLight = new THREE.HemisphereLight(0x88aacc, 0x112211, 0.6);
 scene.add(hemiLight);
+
+// --- Atmosphere and Tactical Rings ---
+const atmosphereUniforms = {
+    uTime: { value: 0 },
+};
+
+const skyDomeGeo = new THREE.SphereGeometry(1350, 48, 48);
+const skyDomeMat = new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    transparent: true,
+    uniforms: atmosphereUniforms,
+    vertexShader: `
+        varying vec3 vPos;
+        void main() {
+            vPos = position;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        varying vec3 vPos;
+        uniform float uTime;
+
+        void main() {
+            float h = normalize(vPos).y * 0.5 + 0.5;
+            vec3 night = vec3(0.014, 0.04, 0.09);
+            vec3 cyan = vec3(0.05, 0.29, 0.36);
+            vec3 ember = vec3(0.36, 0.13, 0.11);
+            float wave = 0.5 + 0.5 * sin((vPos.x + vPos.z) * 0.005 + uTime * 0.35);
+            vec3 grad = mix(night, cyan, smoothstep(0.1, 0.85, h));
+            grad = mix(grad, ember, smoothstep(0.25, 0.75, wave) * 0.35 * (1.0 - h));
+            float vignette = smoothstep(1.35, 0.25, length(vPos.xz) * 0.0014);
+            gl_FragColor = vec4(grad * vignette, 1.0);
+        }
+    `,
+});
+
+const skyDome = new THREE.Mesh(skyDomeGeo, skyDomeMat);
+scene.add(skyDome);
+
+const tacticalRingGroup = new THREE.Group();
+scene.add(tacticalRingGroup);
+for (let i = 0; i < 3; i++) {
+    const ringGeo = new THREE.TorusGeometry(130 + i * 24, 0.42, 8, 128);
+    const ringMat = new THREE.MeshBasicMaterial({
+        color: i % 2 === 0 ? 0x6ef0da : 0xff7b6b,
+        transparent: true,
+        opacity: 0.16 - i * 0.03,
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 4 + i * 8;
+    ring.userData.spin = (i % 2 === 0 ? 1 : -1) * (0.0008 + i * 0.0002);
+    tacticalRingGroup.add(ring);
+}
 
 // --- Elevation Color Helper (returns color by height) ---
 function getTerrainColor(height, maxHeight) {
@@ -228,14 +281,28 @@ fetch('http://localhost:3001/api/mission/map')
 
         const terrainMat = new THREE.MeshStandardMaterial({
             vertexColors: true,
-            roughness: 0.9,
-            metalness: 0.05,
+            roughness: 0.78,
+            metalness: 0.12,
+            emissive: new THREE.Color(0x041018),
+            emissiveIntensity: 0.45,
             flatShading: true,
         });
         terrain = new THREE.Mesh(terrainGeo, terrainMat);
         terrain.receiveShadow = true;
         terrain.castShadow = true;
         scene.add(terrain);
+
+        const wireTerrain = new THREE.Mesh(
+            terrainGeo.clone(),
+            new THREE.MeshBasicMaterial({
+                color: 0x9cf7f3,
+                transparent: true,
+                opacity: 0.06,
+                wireframe: true,
+            })
+        );
+        wireTerrain.position.y += 0.3;
+        scene.add(wireTerrain);
 
         // Render Matrix height terrain obstacles
         const rockGeo = new THREE.DodecahedronGeometry(2);
@@ -276,6 +343,149 @@ fetch('http://localhost:3001/api/mission/map')
 
 // --- Telemetry Obstacle System ---
 const obstacleMeshes = {};
+let lastAiFetchAt = 0;
+
+function createObstacleAsset(obs) {
+    const severityColor = obs.severity === 'high' ? 0xff5f5f : (obs.severity === 'medium' ? 0xffb85c : 0x8fe8bd);
+    const group = new THREE.Group();
+    const seed = Math.abs(Math.floor((obs.x * 31 + obs.y * 17 + obs.radius * 13) * 1000));
+    const scale = Math.max(0.9, obs.radius / 10);
+    const kind = obs.kind || ['boulder_field', 'deadwood', 'ruin_tower'][seed % 3];
+
+    if (kind === 'boulder_field') {
+        const clusterCount = 6 + (seed % 5);
+        for (let i = 0; i < clusterCount; i++) {
+            const size = (obs.radius * 0.24) + ((seed + i * 17) % 9) * 0.22;
+            const rock = new THREE.Mesh(
+                new THREE.DodecahedronGeometry(1 + size, 0),
+                new THREE.MeshStandardMaterial({
+                    color: 0x4a515f,
+                    roughness: 0.94,
+                    metalness: 0.06,
+                })
+            );
+            const rx = Math.sin(seed * 0.013 + i * 1.7) * obs.radius * 0.64;
+            const rz = Math.cos(seed * 0.009 + i * 1.2) * obs.radius * 0.62;
+            rock.position.set(rx, 1.7 + size * 2.05, rz);
+            rock.rotation.set(i * 0.4, i * 0.6, i * 0.2);
+            rock.castShadow = true;
+            group.add(rock);
+        }
+    } else if (kind === 'deadwood') {
+        const trunkCount = 4 + (seed % 4);
+        for (let i = 0; i < trunkCount; i++) {
+            const h = 10 + ((seed + i * 23) % 11);
+            const trunk = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.45, 0.8, h, 7),
+                new THREE.MeshStandardMaterial({
+                    color: 0x4c4036,
+                    roughness: 1.0,
+                    metalness: 0,
+                })
+            );
+            const rx = Math.sin(seed * 0.015 + i) * obs.radius * 0.58;
+            const rz = Math.cos(seed * 0.011 + i * 2) * obs.radius * 0.58;
+            trunk.position.set(rx, h / 2, rz);
+            trunk.rotation.z = 0.1 + (i % 2 ? 0.08 : -0.06);
+            trunk.castShadow = true;
+            group.add(trunk);
+        }
+    } else if (kind === 'wall_segment') {
+        const wallSegments = 2 + (seed % 3);
+        for (let i = 0; i < wallSegments; i++) {
+            const len = obs.radius * (0.75 + i * 0.2);
+            const wall = new THREE.Mesh(
+                new THREE.BoxGeometry(len, 6 + i * 2, 2.5),
+                new THREE.MeshStandardMaterial({ color: 0x5c6470, roughness: 0.82, metalness: 0.22 })
+            );
+            wall.position.set((i - 1) * (len * 0.3), 3 + i, (i % 2 === 0 ? -1 : 1) * obs.radius * 0.2);
+            wall.rotation.y = 0.3 + i * 0.2;
+            wall.castShadow = true;
+            group.add(wall);
+        }
+    } else if (kind === 'vehicle_wreck') {
+        const hull = new THREE.Mesh(
+            new THREE.BoxGeometry(obs.radius * 0.9, 3.2, obs.radius * 0.5),
+            new THREE.MeshStandardMaterial({ color: 0x646d79, roughness: 0.68, metalness: 0.4 })
+        );
+        hull.position.y = 2;
+        hull.rotation.y = (seed % 30) * 0.03;
+        hull.castShadow = true;
+        group.add(hull);
+
+        const antenna = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.12, 0.16, 7.5, 8),
+            new THREE.MeshStandardMaterial({ color: 0x8a939f, roughness: 0.6, metalness: 0.55 })
+        );
+        antenna.position.set(obs.radius * 0.2, 6.5, -obs.radius * 0.05);
+        antenna.rotation.z = 0.4;
+        antenna.castShadow = true;
+        group.add(antenna);
+    } else {
+        const tower = new THREE.Mesh(
+            new THREE.BoxGeometry(obs.radius * 0.75, 14 + obs.radius * 1.7, obs.radius * 0.75),
+            new THREE.MeshStandardMaterial({
+                color: 0x545d69,
+                roughness: 0.75,
+                metalness: 0.3,
+            })
+        );
+        tower.position.y = 8 + obs.radius * 0.58;
+        tower.castShadow = true;
+        group.add(tower);
+
+        const brace = new THREE.Mesh(
+            new THREE.TorusGeometry(obs.radius * 1.12, 0.35, 8, 28),
+            new THREE.MeshStandardMaterial({ color: 0x6d7885, roughness: 0.7, metalness: 0.35 })
+        );
+        brace.rotation.x = Math.PI / 2;
+        brace.position.y = 2.6;
+        group.add(brace);
+    }
+
+    const scar = new THREE.Mesh(
+        new THREE.CircleGeometry(obs.radius * 1.36, 36),
+        new THREE.MeshBasicMaterial({
+            color: 0x1a1516,
+            transparent: true,
+            opacity: obs.severity === 'high' ? 0.45 : 0.32,
+            side: THREE.DoubleSide,
+        })
+    );
+    scar.rotation.x = -Math.PI / 2;
+    scar.position.y = 0.04;
+    group.add(scar);
+
+    const baseRing = new THREE.Mesh(
+        new THREE.RingGeometry(obs.radius * 1.02, obs.radius * 1.38, 46),
+        new THREE.MeshBasicMaterial({
+            color: severityColor,
+            transparent: true,
+            opacity: obs.severity === 'high' ? 0.38 : 0.24,
+            side: THREE.DoubleSide,
+        })
+    );
+    baseRing.rotation.x = -Math.PI / 2;
+    baseRing.position.y = 0.15;
+    baseRing.userData.isHazardRing = true;
+    group.add(baseRing);
+
+    const beacon = new THREE.Mesh(
+        new THREE.SphereGeometry(0.35, 10, 10),
+        new THREE.MeshBasicMaterial({ color: severityColor })
+    );
+    beacon.position.y = 2.3;
+    beacon.userData.isHazardBeacon = true;
+    beacon.userData.baseColor = severityColor;
+    group.add(beacon);
+
+    group.scale.set(scale, 1, scale);
+
+    group.userData.seed = seed;
+    group.userData.severity = obs.severity;
+    return group;
+}
+
 function updateObstacles(obsList) {
     if (!obsList) return;
     const keepKeys = new Set(obsList.map(o => o.id));
@@ -288,29 +498,7 @@ function updateObstacles(obsList) {
     
     obsList.forEach(obs => {
         if (!obstacleMeshes[obs.id]) {
-            const group = new THREE.Group();
-            
-            // Tower/Barrier to represent telemetry obstacle
-            const geo = new THREE.CylinderGeometry(obs.radius * 0.5, obs.radius * 0.8, 40, 8);
-            const colorHex = obs.severity === 'high' ? 0xff2222 : (obs.severity === 'medium' ? 0xffaa00 : 0x22ff22);
-            const mat = new THREE.MeshStandardMaterial({
-                color: colorHex,
-                roughness: 0.7,
-                metalness: 0.3
-            });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.y = 20;
-            mesh.castShadow = true;
-            group.add(mesh);
-            
-            // Warning ring
-            const ringGeo = new THREE.TorusGeometry(obs.radius + 1, 0.4, 4, 16);
-            const ringMat = new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.5 });
-            const ring = new THREE.Mesh(ringGeo, ringMat);
-            ring.rotation.x = Math.PI / 2;
-            ring.position.y = 2;
-            group.add(ring);
-            
+            const group = createObstacleAsset(obs);
             obstacleGroup.add(group);
             obstacleMeshes[obs.id] = group;
         }
@@ -395,6 +583,31 @@ function createDroneGroup() {
     navLight.position.set(0, 0.6, -1.5);
     navLight.userData.isNavLight = true;
     group.add(navLight);
+
+    const scanRingGeo = new THREE.RingGeometry(2.2, 2.7, 36);
+    const scanRingMat = new THREE.MeshBasicMaterial({
+        color: 0x6bfaf4,
+        transparent: true,
+        opacity: 0.25,
+        side: THREE.DoubleSide,
+    });
+    const scanRing = new THREE.Mesh(scanRingGeo, scanRingMat);
+    scanRing.rotation.x = -Math.PI / 2;
+    scanRing.position.y = -0.8;
+    scanRing.userData.isScanRing = true;
+    group.add(scanRing);
+
+    const beamGeo = new THREE.CylinderGeometry(0.18, 1.8, 26, 16, 1, true);
+    const beamMat = new THREE.MeshBasicMaterial({
+        color: 0x55f5ff,
+        transparent: true,
+        opacity: 0.15,
+        side: THREE.DoubleSide,
+    });
+    const beam = new THREE.Mesh(beamGeo, beamMat);
+    beam.position.y = -13;
+    beam.userData.isBeam = true;
+    group.add(beam);
     
     return group;
 }
@@ -456,11 +669,55 @@ function fetchTelemetry() {
                 
                 const hudSurvivors = el('hud-survivors');
                 if (hudSurvivors) hudSurvivors.textContent = `👤 Found: ${data.missionData.foundSurvivors} Targets`;
+
+                const hudObstacles = el('hud-obstacles');
+                if (hudObstacles) {
+                    const obstacleCount = data.obstacles ? data.obstacles.length : 0;
+                    hudObstacles.textContent = `🪨 Obstacles: ${obstacleCount}`;
+                }
+            }
+
+            const now = Date.now();
+            if (!isFollowMode && now - lastAiFetchAt > 1800) {
+                lastAiFetchAt = now;
+                fetchAiInsights();
             }
         })
         .catch(err => console.error('Telemetry fetch error:', err));
 }
 setInterval(fetchTelemetry, 700);
+
+function fetchAiInsights() {
+    fetch('http://localhost:3001/api/mission/ai-insights')
+        .then(res => res.json())
+        .then(data => {
+            if (!data) return;
+            const topZone = data.topZones && data.topZones[0];
+            const command = data.commandSuggestions && data.commandSuggestions[0];
+            const health = data.health;
+
+            const el = (id) => document.getElementById(id);
+            const aiTopZone = el('hud-ai-top-zone');
+            const aiCommand = el('hud-ai-command');
+            const aiHealth = el('hud-ai-health');
+
+            if (aiTopZone) {
+                aiTopZone.textContent = topZone
+                    ? `Top Zone: Z${topZone.zone} (${topZone.label}) score ${Number(topZone.score).toFixed(2)}`
+                    : 'Top Zone: --';
+            }
+
+            if (aiCommand) {
+                aiCommand.textContent = command ? `Command: ${command}` : 'Command: --';
+            }
+
+            if (aiHealth) {
+                const healthPct = health ? Number(health.health_pct || 0).toFixed(1) : '--';
+                aiHealth.textContent = `🧠 AI Health: ${healthPct}%`;
+            }
+        })
+        .catch(err => console.error('AI insights fetch error:', err));
+}
 
 // --- Ambient Particles (dust/snow) ---
 const particleCount = 600;
@@ -493,13 +750,44 @@ window.addEventListener('resize', () => {
 // --- Animation Loop ---
 const clock = new THREE.Clock();
 
+function droneSeed(id) {
+    let sum = 0;
+    for (let i = 0; i < id.length; i++) sum += id.charCodeAt(i) * (i + 1);
+    return sum * 0.013;
+}
+
 function animate() {
     requestAnimationFrame(animate);
     const elapsed = clock.getElapsedTime();
+    atmosphereUniforms.uTime.value = elapsed;
 
     if (waterPlane) {
         waterPlane.position.y = 4.5 + Math.sin(elapsed * 0.8) * 0.3;
     }
+
+    tacticalRingGroup.children.forEach((ring, idx) => {
+        ring.rotation.z += ring.userData.spin;
+        ring.position.y = 4 + idx * 8 + Math.sin(elapsed * 0.5 + idx) * 0.7;
+    });
+
+    obstacleGroup.children.forEach((group, idx) => {
+        const wobble = Math.sin(elapsed * 1.8 + (group.userData.seed || idx) * 0.002);
+        group.children.forEach((child) => {
+            if (child.userData.isHazardRing) {
+                const pulse = 1 + 0.06 * wobble;
+                child.scale.set(pulse, pulse, pulse);
+                child.material.opacity = group.userData.severity === 'high'
+                    ? 0.28 + 0.08 * wobble
+                    : 0.18 + 0.06 * wobble;
+            }
+            if (child.userData.isHazardBeacon) {
+                const intensity = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(elapsed * 3.8 + idx));
+                const baseColor = new THREE.Color(child.userData.baseColor || 0xffffff);
+                child.material.color.copy(baseColor).multiplyScalar(0.7 + intensity * 0.6);
+                child.scale.setScalar(0.92 + intensity * 0.25);
+            }
+        });
+    });
 
     personGroup.children.forEach(person => {
         person.children.forEach(child => {
@@ -511,10 +799,9 @@ function animate() {
 
     for (const id in droneMeshes) {
         const group = droneMeshes[id];
-        // Bobbing effect
-        group.position.y += Math.sin(elapsed * 4 + parseFloat(id || "0")) * 0.05;
-        // Pitch mapping for "movement"
-        group.rotation.x = Math.sin(elapsed * 2) * 0.05; 
+        const seed = droneSeed(id);
+        group.position.y += Math.sin(elapsed * 4 + seed) * 0.05;
+        group.rotation.x = Math.sin(elapsed * 2 + seed) * 0.05;
         
         group.children.forEach(child => {
             if (child.userData.isRotor) {
@@ -522,6 +809,14 @@ function animate() {
             }
             if (child.userData.isNavLight) {
                 child.material.color.setHex((Math.floor(elapsed * 2) % 2 === 0) ? 0xff0000 : 0x00ff00);
+            }
+            if (child.userData.isScanRing) {
+                const pulse = 1 + (Math.sin(elapsed * 3 + seed) + 1) * 0.25;
+                child.scale.setScalar(pulse);
+                child.material.opacity = 0.18 + Math.sin(elapsed * 3 + seed) * 0.08;
+            }
+            if (child.userData.isBeam) {
+                child.material.opacity = 0.08 + (Math.sin(elapsed * 2.4 + seed) + 1) * 0.05;
             }
         });
     }

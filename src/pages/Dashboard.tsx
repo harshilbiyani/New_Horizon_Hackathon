@@ -7,8 +7,10 @@ import EventLogs from '../components/EventLogs';
 import LiveVideo from '../components/LiveVideo';
 import ChartsPanel from '../components/ChartsPanel';
 import MissionMap from '../components/MissionMap';
+import AICommandPanel from '../components/AICommandPanel';
 import type {
   Alert,
+  AiInsights,
   Drone,
   HiddenSurvivor,
   MissionData,
@@ -41,6 +43,7 @@ export default function Dashboard() {
   const [connectionState, setConnectionState] = useState<'connected' | 'disconnected'>('disconnected');
   const [lastSnapshotAt, setLastSnapshotAt] = useState<string | null>(null);
   const [selectedDroneId, setSelectedDroneId] = useState<string>();
+  const [aiInsights, setAiInsights] = useState<AiInsights | null>(null);
 
   useEffect(() => {
     const socket = io('http://localhost:3001', {
@@ -65,6 +68,9 @@ export default function Dashboard() {
       setAlerts(snapshot.alerts);
       setObstacles(snapshot.obstacles);
       setHiddenSurvivors(snapshot.hiddenSurvivors);
+      if (snapshot.aiInsights) {
+        setAiInsights(snapshot.aiInsights);
+      }
       setLastSnapshotAt(snapshot.timestamp);
 
       const timeKey = new Date(snapshot.timestamp).toLocaleTimeString('en-US', {
@@ -118,6 +124,10 @@ export default function Dashboard() {
 
     socket.on('alert', (alert: Alert) => {
       setAlerts((previous) => [alert, ...previous].slice(0, 250));
+    });
+
+    socket.on('aiInsights', (insights: AiInsights) => {
+      setAiInsights(insights);
     });
 
     return () => {
@@ -200,6 +210,8 @@ export default function Dashboard() {
               onSelectDrone={setSelectedDroneId}
             />
           </div>
+
+          <AICommandPanel aiInsights={aiInsights} />
 
           <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-5 overflow-hidden flex flex-col min-h-[320px]">
             <h2 className="text-lg font-semibold mb-4 text-gray-300">System Logs</h2>

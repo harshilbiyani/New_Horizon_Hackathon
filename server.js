@@ -2,6 +2,8 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
 
 const app = express();
 app.use(cors());
@@ -30,6 +32,8 @@ let foundSurvivors = [];
 let alerts = [];
 let scannedCells = new Set();
 let tickInterval = null;
+let aiInsightsCache = null;
+let aiInsightsCacheAt = 0;
 
 // Config defaults
 let simConfig = {
@@ -38,13 +42,61 @@ let simConfig = {
   startPositions: [],  // auto-distributed if empty
 };
 
-const obstacles = [
-  { id: 'OBS-001', x: -62, y: -4, radius: 9, severity: 'high' },
-  { id: 'OBS-002', x: 52, y: 34, radius: 7, severity: 'medium' },
-  { id: 'OBS-003', x: -15, y: 72, radius: 6, severity: 'low' },
-  { id: 'OBS-004', x: 8, y: -58, radius: 10, severity: 'high' },
-  { id: 'OBS-005', x: 85, y: -36, radius: 8, severity: 'medium' },
-];
+function buildObstacleField() {
+  const rng = seededRandom(91357);
+  const out = [];
+  let idCounter = 1;
+  const obstacleKinds = ['boulder_field', 'deadwood', 'ruin_tower', 'wall_segment', 'vehicle_wreck'];
+
+  // Hard barriers to force realistic pathing pressure around edges and valleys.
+  const ridgeBands = [
+    { x: -98, y: -42, count: 16, spreadX: 46, spreadY: 24, severity: 'high' },
+    { x: 76, y: 58, count: 14, spreadX: 42, spreadY: 28, severity: 'high' },
+    { x: 18, y: -92, count: 12, spreadX: 46, spreadY: 22, severity: 'medium' },
+  ];
+
+  ridgeBands.forEach((band) => {
+    for (let i = 0; i < band.count; i++) {
+      out.push({
+        id: `OBS-${String(idCounter++).padStart(3, '0')}`,
+        x: band.x + (rng() - 0.5) * band.spreadX,
+        y: band.y + (rng() - 0.5) * band.spreadY,
+        radius: Number((10 + rng() * 11).toFixed(2)),
+        severity: band.severity,
+        kind: obstacleKinds[Math.floor(rng() * obstacleKinds.length)],
+      });
+    }
+  });
+
+  // Scatter medium/low debris across the map with center exclusion for launch zone.
+  while (out.length < 96) {
+    const x = randomBetween(-WORLD_BOUNDARY + 10, WORLD_BOUNDARY - 10);
+    const y = randomBetween(-WORLD_BOUNDARY + 10, WORLD_BOUNDARY - 10);
+    const centerDist = Math.sqrt(x * x + y * y);
+    if (centerDist < 28) continue;
+
+    const p = rng();
+    const severity = p < 0.2 ? 'high' : p < 0.62 ? 'medium' : 'low';
+    const radius = severity === 'high'
+      ? randomBetween(12, 22)
+      : severity === 'medium'
+      ? randomBetween(8, 15)
+      : randomBetween(5, 10);
+
+    out.push({
+      id: `OBS-${String(idCounter++).padStart(3, '0')}`,
+      x: Number(x.toFixed(2)),
+      y: Number(y.toFixed(2)),
+      radius: Number(radius.toFixed(2)),
+      severity,
+      kind: obstacleKinds[Math.floor(rng() * obstacleKinds.length)],
+    });
+  }
+
+  return out;
+}
+
+const obstacles = buildObstacleField();
 
 const hiddenSurvivors = [
   { id: 'HSV-001', x: -50, y: 14, severity: 'critical' },
@@ -53,6 +105,10 @@ const hiddenSurvivors = [
   { id: 'HSV-004', x: -12, y: -76, severity: 'stable' },
   { id: 'HSV-005', x: 3, y: 2, severity: 'unknown' },
 ];
+
+const AI_INSIGHTS_TTL_MS = 2500;
+const AI_BRIDGE_SCRIPT = path.join(process.cwd(), 'simulation', 'ai_bridge.py');
+const PYTHON_EXECUTABLE = process.env.PYTHON_EXECUTABLE || 'python';
 
 // --- Helpers ---
 function randomBetween(min, max) {
@@ -173,6 +229,40 @@ function detectSurvivors(drone) {
   }
 }
 
+function applyObstacleAvoidance(drone) {
+  let nearest = null;
+  let nearestDist = Number.POSITIVE_INFINITY;
+
+  for (const obstacle of obstacles) {
+    const dx = drone.x - obstacle.x;
+    const dy = drone.y - obstacle.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance < nearestDist) {
+      nearestDist = distance;
+      nearest = obstacle;
+    }
+  }
+
+  if (!nearest) return;
+
+  const cautionRadius = nearest.radius + 12;
+  if (nearestDist < cautionRadius) {
+    const awayAngle = (Math.atan2(drone.y - nearest.y, drone.x - nearest.x) * 180) / Math.PI;
+    const blend = nearestDist < nearest.radius + 3 ? 0.78 : 0.42;
+    drone.heading = ((1 - blend) * drone.heading + blend * awayAngle + 360) % 360;
+    drone.task = 'evading';
+    drone.speed = clamp(drone.speed * 0.82, 7, 16);
+
+    // Hard push when entering core collision zone.
+    if (nearestDist < nearest.radius + 1.5) {
+      const push = nearest.radius + 2.2 - nearestDist;
+      const rad = (awayAngle * Math.PI) / 180;
+      drone.x += Math.cos(rad) * push;
+      drone.y += Math.sin(rad) * push;
+    }
+  }
+}
+
 function updateDrone(drone) {
   if (drone.status === 'failed') return;
 
@@ -192,6 +282,8 @@ function updateDrone(drone) {
   const previousY = drone.y;
   drone.x += Math.cos(radians) * distanceStep;
   drone.y += Math.sin(radians) * distanceStep;
+
+  applyObstacleAvoidance(drone);
 
   if (drone.x < -WORLD_BOUNDARY || drone.x > WORLD_BOUNDARY) {
     drone.heading = (180 - drone.heading + 360) % 360;
@@ -264,11 +356,83 @@ function buildSnapshot() {
   };
 }
 
+function buildFallbackAiInsights(snapshot, reason = 'fallback') {
+  const activeDrones = snapshot.drones.filter((drone) => drone.status === 'active').length;
+  const failedDrones = snapshot.drones.length - activeDrones;
+  const avgBattery = snapshot.drones.length
+    ? snapshot.drones.reduce((sum, drone) => sum + drone.battery, 0) / snapshot.drones.length
+    : 0;
+
+  const commandSuggestions = [];
+  if (failedDrones > 0) commandSuggestions.push('RECOVER_FAILED_DRONES');
+  if (avgBattery < 30) commandSuggestions.push('ROTATE_LOW_BATTERY_DRONES');
+  if (snapshot.foundSurvivors.length > 0) commandSuggestions.push('DISPATCH_EXTRACTION_TEAM');
+  if (commandSuggestions.length === 0) commandSuggestions.push('CONTINUE_AUTONOMOUS_SWEEP');
+
+  return {
+    ok: true,
+    source: 'node-fallback',
+    reason,
+    timestamp: new Date().toISOString(),
+    health: {
+      total_drones: snapshot.drones.length,
+      healthy: activeDrones,
+      failed: failedDrones,
+      health_pct: snapshot.drones.length ? Number(((activeDrones / snapshot.drones.length) * 100).toFixed(1)) : 0,
+    },
+    missionStats: {
+      detections: snapshot.foundSurvivors.length,
+      warnings: snapshot.alerts.filter((a) => a.type === 'warning').length,
+      alerts: snapshot.alerts.filter((a) => a.type === 'critical').length,
+    },
+    topZones: [],
+    assignments: snapshot.drones.slice(0, 5).map((drone, idx) => ({
+      drone: drone.id,
+      taskId: `AUTO-${idx + 1}`,
+      zone: idx,
+      fitness: Number((0.5 - idx * 0.06).toFixed(2)),
+      targetWorld: { x: drone.x, y: drone.y },
+    })),
+    commandSuggestions,
+  };
+}
+
+function computeAiInsights(snapshot, force = false) {
+  const now = Date.now();
+  if (!force && aiInsightsCache && now - aiInsightsCacheAt < AI_INSIGHTS_TTL_MS) {
+    return aiInsightsCache;
+  }
+
+  try {
+    const result = spawnSync(PYTHON_EXECUTABLE, [AI_BRIDGE_SCRIPT], {
+      input: JSON.stringify(snapshot),
+      encoding: 'utf8',
+      timeout: 1800,
+      maxBuffer: 1024 * 1024,
+    });
+
+    if (result.error) {
+      aiInsightsCache = buildFallbackAiInsights(snapshot, result.error.message);
+    } else if (result.status !== 0) {
+      aiInsightsCache = buildFallbackAiInsights(snapshot, (result.stderr || 'ai bridge failed').trim());
+    } else {
+      const parsed = JSON.parse(result.stdout || '{}');
+      aiInsightsCache = parsed.ok ? { ...parsed, source: 'python-ai-bridge' } : buildFallbackAiInsights(snapshot, parsed.error || 'invalid ai payload');
+    }
+  } catch (error) {
+    aiInsightsCache = buildFallbackAiInsights(snapshot, error instanceof Error ? error.message : 'unknown ai error');
+  }
+
+  aiInsightsCacheAt = now;
+  return aiInsightsCache;
+}
+
 function emitSnapshot() {
   const snapshot = buildSnapshot();
   io.emit('telemetrySnapshot', snapshot);
   io.emit('missionData', snapshot.missionData);
   io.emit('drones', snapshot.drones);
+  io.emit('aiInsights', computeAiInsights(snapshot));
 }
 
 function startSimulationTick() {
@@ -321,6 +485,12 @@ app.get('/api/mission/snapshot', (_req, res) => {
 
 app.get('/api/mission/status', (_req, res) => {
   res.json({ simulationRunning, config: simConfig });
+});
+
+app.get('/api/mission/ai-insights', (_req, res) => {
+  const snapshot = buildSnapshot();
+  const insights = computeAiInsights(snapshot, true);
+  res.json({ ...insights, snapshotTimestamp: snapshot.timestamp });
 });
 
 // Configure simulation (drone count, battery, etc.)

@@ -15,24 +15,43 @@
     </script>
 </head>
 <body>
-    <!-- Minimal Live HUD overlay -->
     <div id="ui-layer">
-        <!-- Top Status Bar -->
         <div class="hud-top">
             <div class="hud-left">
                 <span class="hud-badge live">● LIVE</span>
                 <span class="hud-label" id="hud-drone-count">🚁 5 Drones Active</span>
             </div>
             <div class="hud-center">
-                <span class="hud-title">TERRAIN VISUALIZATION</span>
+                <span class="hud-title">TACTICAL MOUNTAIN THEATER</span>
             </div>
             <div class="hud-right">
                 <span class="hud-label" id="hud-survivors">👤 Targets: 8</span>
                 <span class="hud-label" id="hud-coverage">📡 Coverage: 0%</span>
+                <span class="hud-label" id="hud-obstacles">🪨 Obstacles: --</span>
+                <span class="hud-label" id="hud-ai-health">🧠 AI Health: --</span>
             </div>
         </div>
 
-        <!-- Bottom telemetry strip -->
+        <div class="mission-strip">
+            <div class="mission-pill">
+                <span>Sector Base XX</span>
+                <span class="mission-dot"></span>
+                <span id="hud-ai-top-zone">Top Zone: --</span>
+            </div>
+            <div class="mission-actions">
+                <span class="action-pill emphasis" id="hud-ai-command">Command: --</span>
+                <span class="action-pill">Mark As Priority</span>
+                <span class="action-pill">Whitelist Corridor</span>
+                <span class="action-pill danger">Disrupt Signal</span>
+            </div>
+        </div>
+
+        <div class="floating-actions">
+            <div class="action-node left">View Actions</div>
+            <div class="action-node right">Engage Now</div>
+            <div class="action-node right secondary">Cancel Target</div>
+        </div>
+
         <div class="hud-bottom">
             <span class="hud-label" id="hud-time">⏱ Mission: 0s</span>
             <span class="hud-label" id="hud-battery">🔋 Avg Battery: 100%</span>
