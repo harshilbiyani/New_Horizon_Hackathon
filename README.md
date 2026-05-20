@@ -1,73 +1,59 @@
-# React + TypeScript + Vite
+# DroneShield
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Real-time flood-rescue drone swarm telemetry and 3D situational awareness for the New Horizon Hackathon 2026.
 
-Currently, two official plugins are available:
+## Features
+- **Swarm Command Dashboard** with live mission KPIs, drone table, and selectable telemetry.
+- **Tactical Mission Map** showing drone trails, obstacles by severity, and survivor locations.
+- **Survivor Detection Feed** with confidence and coordinates.
+- **Event Logs** for critical/warning/info alerts.
+- **Coverage and Battery Charts** plus fleet allocation by task.
+- **3D Terrain Visualization** with post-processing, animated drone, and keyboard controls.
+- **Dual Telemetry Modes**: local simulation or live Socket.IO feed.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Routes
+- `/` Home landing page
+- `/dashboard` Command center
+- `/map` 3D visualization (iframe from `/public/map`)
 
-## React Compiler
+## Tech Stack
+- React + TypeScript + Vite
+- Tailwind CSS, Framer Motion, Recharts
+- Express + Socket.IO
+- Three.js
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Running Locally
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 1. Install dependencies
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 2. Start the app (frontend + server)
+```bash
+npm run start
 ```
+- Vite dev server: http://localhost:5173  
+- Telemetry server: http://localhost:3001  
+
+### 3. Switch telemetry mode (optional)
+- **Simulation** mode runs locally by default in the dashboard.
+- **Live** mode connects to the Socket.IO server at `http://localhost:3001`.
+
+### 4. Run separately (optional)
+```bash
+# Frontend only
+npm run dev
+
+# Server only
+node server.js
+```
+
+## Build and Preview
+```bash
+npm run build
+npm run preview
+```
+
+## Notes
+- The 3D visualization depends on `three`. If you see Vite dependency errors, re-run `npm install`.

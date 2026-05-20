@@ -74,4 +74,7 @@ export interface TelemetrySnapshot {
   alerts: Alert[];
   obstacles: Obstacle[];
   hiddenSurvivors: HiddenSurvivor[];
+  zoneCoverage?: Record<string, number>;
 }
+
+export type ZoneCoverage = Record<string, number>;
