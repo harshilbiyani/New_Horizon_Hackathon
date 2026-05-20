@@ -4,7 +4,7 @@ const C = {
   cyan: '#00d4ff',
   teal: '#00e5a0',
   amber: '#ffb020',
-  textMut: '#1e3a52',
+  textMut: '#b9cfe0',
   zone: '#060f18',
   zoneBord: '#0d2030',
   mono: "'Share Tech Mono', monospace",
@@ -52,12 +52,12 @@ export default function FactorBreakdown({
           const val = factors[key] ?? 0;
           const max =
             key === 'coverage'
-              ? 40
+              ? 35
               : key === 'survivor'
-                ? 35
+                ? 30
                 : key === 'clearance'
                   ? 15
-                  : 10;
+                  : 20;
           const pct = Math.round((val / max) * 100);
           return (
             <div key={key}>

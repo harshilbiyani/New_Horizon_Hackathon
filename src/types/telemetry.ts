@@ -66,6 +66,42 @@ export interface HiddenSurvivor {
   severity: 'stable' | 'critical' | 'unknown';
 }
 
+export interface AiZone {
+  zone: number;
+  rank: number;
+  label: string;
+  score: number;
+  centerGrid?: { x: number; y: number };
+}
+
+export interface AiAssignment {
+  drone: string;
+  taskId: string;
+  zone: number;
+  fitness: number;
+  targetWorld?: { x: number; y: number };
+}
+
+export interface AiInsights {
+  ok: boolean;
+  source?: string;
+  timestamp: string;
+  health?: {
+    total_drones: number;
+    healthy: number;
+    failed: number;
+    health_pct: number;
+  };
+  missionStats?: {
+    detections?: number;
+    warnings?: number;
+    alerts?: number;
+  };
+  topZones: AiZone[];
+  assignments: AiAssignment[];
+  commandSuggestions: string[];
+}
+
 export interface TelemetrySnapshot {
   timestamp: string;
   missionData: MissionData;
@@ -75,6 +111,7 @@ export interface TelemetrySnapshot {
   obstacles: Obstacle[];
   hiddenSurvivors: HiddenSurvivor[];
   zoneCoverage?: Record<string, number>;
+  aiInsights?: AiInsights;
 }
 
 export type ZoneCoverage = Record<string, number>;

@@ -13,9 +13,9 @@ const C = {
   teal: '#00e5a0',
   amber: '#ffb020',
   red: '#ff4444',
-  textPri: '#dde8f0',
-  textMut: '#1e3a52',
-  textSec: '#4a7a9a',
+  textPri: '#f1f7ff',
+  textMut: '#b9cfe0',
+  textSec: '#cfe1ef',
   zoneBord: '#0d2030',
   mono: "'Share Tech Mono', monospace",
 };
@@ -39,7 +39,7 @@ export default function ZoneBar({ zone, maxScore, rank, animDelay }: ZoneBarProp
     : '#1a3248';
 
   const labelColor = isTop ? C.textPri : C.textMut;
-  const scoreColor = isTop ? C.textPri : '#1e3a52';
+  const scoreColor = isTop ? C.textPri : C.textMut;
 
   return (
     <div style={{ marginBottom: 7 }}>

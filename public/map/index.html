@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Tactical Flood Rescue</title>
+    <title>Drone Swarm — 3D Terrain Visualization</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Three.js + PostProcessing map -->
     <script type="importmap">
         {
             "imports": {
@@ -17,121 +16,51 @@
 </head>
 <body>
     <div id="ui-layer">
-        <!-- Top Bar -->
-        <header class="top-nav">
-            <div class="logo">
-                <span class="icon">⬡</span>
-                <span>DRONESHIELD</span>
+        <div class="hud-top">
+            <div class="hud-left">
+                <span class="hud-badge live">● LIVE</span>
+                <span class="hud-label" id="hud-drone-count">🚁 5 Drones Active</span>
             </div>
-            <div class="controls-top">
-                <div class="dropdown">📌 Secret Base XX ▼</div>
-                <div class="dropdown">🚁 Drones: 1 Active / 4 Total ▼</div>
-                <div class="dropdown">⚙️ System Mode: Auto ▼</div>
+            <div class="hud-center">
+                <span class="hud-title">TACTICAL MOUNTAIN THEATER</span>
             </div>
-            <div class="status-top">
-                <span class="alert-icon">⚠️</span>
-                <span>⚙️</span>
-                <span>👤</span>
+            <div class="hud-right">
+                <span class="hud-label" id="hud-survivors">👤 Targets: 8</span>
+                <span class="hud-label" id="hud-coverage">📡 Coverage: 0%</span>
+                <span class="hud-label" id="hud-obstacles">🪨 Obstacles: --</span>
+                <span class="hud-label" id="hud-ai-health">🧠 AI Health: --</span>
             </div>
-        </header>
+        </div>
 
-        <!-- Main Workspace Overlay -->
-        <div class="main-overlay">
-            
-            <!-- Left Info Panel -->
-            <div class="panel left-panel">
-                <div class="radar-box">
-                    <div class="radar-sweep"></div>
-                    <div class="radar-content">
-                        <span class="danger-marker" style="top: 30%; left: 40%;">⚠️</span>
-                        <span class="danger-marker" style="top: 70%; left: 20%;">⚠️</span>
-                        <div class="radar-dist">286 m</div>
-                    </div>
-                </div>
-                <div class="drone-sentry">
-                    <h3>DroneSentry</h3>
-                    <div class="sentry-stats">
-                        <div class="stat-card">
-                            <span class="icon">⬡</span>
-                            <div class="details">
-                                <label>RF DJI LightBridge</label>
-                                <span>Frq 2465.5 MHz</span>
-                                <div class="signal-bar"><span></span><span></span><span></span></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="status-grid">
-                        <div class="grid-item">
-                            <label>Targets Detected</label>
-                            <span class="val" id="target-count">3 Drones</span>
-                        </div>
-                        <div class="grid-item">
-                            <label>Threat Level</label>
-                            <span class="val danger">High</span>
-                        </div>
-                        <div class="grid-item">
-                            <label>Disruption Status</label>
-                            <span class="val safe">Ready</span>
-                        </div>
-                    </div>
-                </div>
+        <div class="mission-strip">
+            <div class="mission-pill">
+                <span>Sector Base XX</span>
+                <span class="mission-dot"></span>
+                <span id="hud-ai-top-zone">Top Zone: --</span>
             </div>
-
-            <!-- Tracking Label (JavaScript Positioned) -->
-            <div class="floating-label" id="secret-base-label">
-                <span class="tag">Secret Base XX</span>
-                <span class="sub">The location's classified</span>
+            <div class="mission-actions">
+                <span class="action-pill emphasis" id="hud-ai-command">Command: --</span>
+                <span class="action-pill">Mark As Priority</span>
+                <span class="action-pill">Whitelist Corridor</span>
+                <span class="action-pill danger">Disrupt Signal</span>
             </div>
+        </div>
 
-            <!-- Right Action Panel -->
-            <div class="panel right-panel">
-                <div class="action-buttons">
-                    <button class="btn warning"><span class="icon">⏱</span> Mark as Priority</button>
-                    <button class="btn success"><span class="icon">✓</span> Whitelist</button>
-                    <button class="btn danger"><span class="icon">⚡</span> Disrupt Signal</button>
-                    <button class="btn danger-outline"><span class="icon">🎯</span> Engage Now</button>
-                    <button class="btn dark"><span class="icon">✖</span> Cancel Target</button>
-                    <div class="zoom-controls">
-                        <button>+</button>
-                        <button>-</button>
-                    </div>
-                </div>
-            </div>
+        <div class="floating-actions">
+            <div class="action-node left">View Actions</div>
+            <div class="action-node right">Engage Now</div>
+            <div class="action-node right secondary">Cancel Target</div>
+        </div>
 
-            <!-- Bottom Control Panel -->
-            <div class="panel bottom-panel">
-                <h3>Disruption Control</h3>
-                <div class="control-grid">
-                    <button class="btn-grid"><span class="icon">✜</span> Auto Disrupt</button>
-                    <button class="btn-grid"><span class="icon">⭕</span> Pulse Burst</button>
-                    <button class="btn-grid"><span class="icon">◎</span> Sweep Area</button>
-                    <button class="btn-grid"><span class="icon">▦</span> Disrupt All</button>
-                    <button class="btn-grid"><span class="icon">⌖</span> Disrupt Target</button>
-                    <button class="btn-grid dark"><span class="icon">🖧</span> DS-X MK2</button>
-                </div>
-                <div class="sliders">
-                    <div class="slider-row">
-                        <label>Altitude</label>
-                        <div class="track"></div>
-                        <span>350 m</span>
-                    </div>
-                    <div class="slider-row">
-                        <label>Pulse Power</label>
-                        <div class="track"><div class="fill" style="width: 80%"></div></div>
-                        <span>80%</span>
-                    </div>
-                    <div class="slider-row">
-                        <label>Detection Radius</label>
-                        <div class="track"></div>
-                        <span>670 m</span>
-                    </div>
-                </div>
-            </div>
-
+        <div class="hud-bottom">
+            <span class="hud-label" id="hud-time">⏱ Mission: 0s</span>
+            <span class="hud-label" id="hud-battery">🔋 Avg Battery: 100%</span>
+            <span class="hud-label" id="hud-signal">📶 Signal: 95%</span>
+            <span class="hud-hint">Scroll to zoom · Drag to rotate · Right-drag to pan</span>
         </div>
     </div>
-    
-    <!-- Setup WebGL Canvas Here -->
+
+    <!-- WebGL Canvas -->
     <div id="webgl-container"></div>
     <script type="module" src="main.js"></script>
 </body>

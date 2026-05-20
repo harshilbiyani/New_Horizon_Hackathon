@@ -39,6 +39,14 @@ export default function Layout() {
           >
             VISUALIZATION
           </Link>
+          <Link
+            to="/xai"
+            className={`text-sm font-semibold tracking-wide border-b-2 transition-colors pb-1 ${
+              path === '/xai' ? 'border-[#00ffcc] text-white' : 'border-transparent text-gray-500 hover:text-white'
+            }`}
+          >
+            XAI MATRIX
+          </Link>
         </div>
       </nav>
       <main className="flex-grow flex flex-col w-full relative">

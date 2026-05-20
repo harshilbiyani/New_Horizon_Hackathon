@@ -34,6 +34,7 @@ export interface XAIDecision {
   allScores: ZoneScore[];
   confidence: number;
   reasons: string[];
+  detailedReasoning: string;
   epsilon: number;
   mode: ExplorationMode;
   topFactors: FactorBreakdown;
@@ -54,6 +55,8 @@ export interface XAIDroneState {
   y: number;
   battery: number;
   signal: number;
+  speed?: number;
+  heading?: number;
   status?: string;
   task?: string;
 }

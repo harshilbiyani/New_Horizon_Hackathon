@@ -12,7 +12,7 @@ import type {
   XAIDroneState,
   XAIWorldState,
   ExplorationMode,
-} from '../types/xai';
+} from './types/xai';
 
 const ZONES: Zone[] = [
   { id: 'Z1', label: 'Alpha', col: 0, row: 0 },
@@ -32,8 +32,7 @@ const GRID_ROWS = 2;
  */
 export function deriveZoneCoverage(
   scannedCells: Set<string>,
-  gridSize: number,
-  worldBoundary: number
+  gridSize: number
 ): Record<ZoneId, number> {
   const zoneCellCounts = new Map<ZoneId, number>();
   const cellsPerZone = (gridSize / GRID_COLS) * (gridSize / GRID_ROWS);
@@ -91,19 +90,19 @@ function scoreZone(
     proximity: 0,
   };
 
-  // Factor 1: Coverage gap (0–40 pts)
+  // Factor 1: Coverage gap (0–35 pts)
   const coverage = zoneCoverage[zone.id as ZoneId] ?? 0.3;
   const gap = 1 - Math.min(1, Math.max(0, coverage));
-  breakdown.coverage = Math.round(gap * 40);
+  breakdown.coverage = Math.round(gap * 35);
 
-  // Factor 2: Survivor proximity (0–35 pts)
+  // Factor 2: Survivor proximity (0–30 pts)
   const undiscovered = survivors.filter((s) => !s.discovered);
   if (undiscovered.length > 0) {
     const closestDist = Math.min(
       ...undiscovered.map((s) => Math.hypot(s.x - cx, s.y - cy))
     );
     breakdown.survivor =
-      closestDist < 200 ? Math.round((1 - closestDist / 200) * 35) : 0;
+      closestDist < 200 ? Math.round((1 - closestDist / 200) * 30) : 0;
   }
 
   // Factor 3: Obstacle clearance (0–15 pts)
@@ -116,9 +115,12 @@ function scoreZone(
   );
   breakdown.clearance = Math.max(0, 15 - obsPenalty);
 
-  // Factor 4: Drone travel cost (0–10 pts)
+  // Factor 4: Drone travel cost (0–20 pts)
   const droneDist = Math.hypot(drone.x - cx, drone.y - cy);
-  breakdown.proximity = Math.round(Math.max(0, 10 - (droneDist / mapWidth) * 14));
+  const batteryBias = drone.battery < 35 ? 0.75 : drone.battery < 50 ? 0.9 : 1;
+  breakdown.proximity = Math.round(
+    Math.max(0, 20 - (droneDist / mapWidth) * 28) * batteryBias
+  );
 
   const rawScore =
     breakdown.coverage +
@@ -130,7 +132,7 @@ function scoreZone(
 }
 
 /**
- * Generate contextual reasoning text
+ * Generate contextual reasoning text (brief bullets)
  */
 function generateReasons(
   drone: XAIDroneState,
@@ -139,18 +141,23 @@ function generateReasons(
   survivors: Array<{ x: number; y: number; discovered: boolean }>
 ): string[] {
   const reasons: string[] = [];
+  const distance = Math.hypot(drone.x - topZone.cx, drone.y - topZone.cy);
+  const speed = drone.speed ?? 12;
+  const eta = speed > 0 ? Math.round(distance / speed) : null;
+  const signalStatus =
+    drone.signal < 45 ? 'weak' : drone.signal < 70 ? 'moderate' : 'strong';
 
   if (drone.battery < 25) {
     reasons.push('CRITICAL BATTERY — RTB override');
-    reasons.push(`${topZone.label} sector is nearest base`);
+    reasons.push(`${topZone.label} sector is nearest safe zone`);
   } else {
     const pct = Math.round((1 - (zoneCoverage[topZone.id as ZoneId] ?? 0.5)) * 100);
 
-    if (topZone.breakdown.coverage > 20) {
+    if (topZone.breakdown.coverage > 16) {
       reasons.push(`${pct}% area unexplored`);
     }
 
-    if (topZone.breakdown.survivor > 15) {
+    if (topZone.breakdown.survivor > 12) {
       const undiscovered = survivors.filter((s) => !s.discovered);
       if (undiscovered.length > 0) {
         reasons.push(
@@ -174,7 +181,65 @@ function generateReasons(
     }
   }
 
+  reasons.push(
+    `Distance to ${topZone.label}: ${Math.round(distance)}m${eta !== null ? ` · ETA ${eta}s` : ''}`
+  );
+  reasons.push(
+    `Battery ${Math.round(drone.battery)}% · Signal ${Math.round(drone.signal)}% (${signalStatus})`
+  );
+  if (drone.task) {
+    reasons.push(`Task ${drone.task.toUpperCase()} · Holding course`);
+  }
+
   return reasons;
+}
+
+/**
+ * Generate detailed narrative reasoning explaining the decision
+ */
+function generateDetailedReasoning(
+  drone: XAIDroneState,
+  topZone: ZoneScore,
+  allZones: ZoneScore[],
+  zoneCoverage: Record<ZoneId, number>,
+  survivors: Array<{ x: number; y: number; discovered: boolean }>
+): string {
+  const distance = Math.hypot(drone.x - topZone.cx, drone.y - topZone.cy);
+  const speed = drone.speed ?? 12;
+  const eta = speed > 0 ? Math.round(distance / speed) : null;
+  const coverage = zoneCoverage[topZone.id as ZoneId] ?? 0.5;
+  const unexploredPct = Math.round((1 - coverage) * 100);
+  const undiscovered = survivors.filter((s) => !s.discovered);
+  const secondRankedZone = allZones[1];
+
+  let narrative = '';
+
+  if (drone.battery < 25) {
+    narrative = `EMERGENCY PROTOCOL ACTIVATED: Battery critical at ${Math.round(drone.battery)}%. ${drone.id} must return to base (${topZone.label}) immediately to prevent mission loss. All zone assignments overridden to prioritize RTB safety. Estimated time to base: ${eta !== null ? `${eta}s` : 'calculating'}`;
+  } else if (drone.battery < 45) {
+    narrative = `${drone.id} is operating in efficiency mode with ${Math.round(drone.battery)}% battery. Assigned to ${topZone.label} sector (${unexploredPct}% unexplored) as optimal balance between coverage gains and safe return margin. If battery drops below 25%, RTB override will activate. Signal strength is ${Math.round(drone.signal)}% (${drone.signal < 45 ? 'degraded' : drone.signal < 70 ? 'nominal' : 'excellent'}).`;
+  } else {
+    narrative = `${drone.id} is assigned to ${topZone.label} sector. `;
+
+    if (topZone.breakdown.coverage > 16) {
+      narrative += `This zone has ${unexploredPct}% of its coverage area still unexplored, making it a high-priority sector for continued systematic scan operations. `;
+    }
+
+    if (topZone.breakdown.survivor > 12 && undiscovered.length > 0) {
+      narrative += `Thermal analysis detected ${undiscovered.length} undiscovered target${undiscovered.length > 1 ? 's' : ''} in this sector, indicating significant survivor concentration requiring immediate investigation. `;
+    } else if (topZone.breakdown.survivor > 12) {
+      narrative += `Thermal anomalies have been detected in this zone, suggesting potential survivor activity requiring close examination. `;
+    }
+
+    if (topZone.breakdown.clearance > 10) {
+      narrative += `Obstacle density is low in this sector, allowing efficient high-speed navigation and comprehensive coverage scanning. `;
+    }
+
+    narrative += `The ${topZone.label} assignment provides a ${Math.round(topZone.score)} point tactical advantage over the next priority, ${secondRankedZone?.label || 'secondary'} (${Math.round(secondRankedZone?.score || 0)} pts). `;
+    narrative += `At current speed of ${Math.round(speed)} m/s, ${drone.id} will reach the sector center in approximately ${eta !== null ? `${eta} seconds` : 'unknown time'}. Battery is at ${Math.round(drone.battery)}% with ${Math.round(drone.signal)}% signal strength.`;
+  }
+
+  return narrative;
 }
 
 /**
@@ -185,6 +250,10 @@ export function deriveXAI(
   worldState: XAIWorldState
 ): XAIDecision {
   const { tick = 0, zoneCoverage = {}, survivors = [] } = worldState;
+  const droneIdNumeric =
+    typeof drone.id === 'number'
+      ? drone.id
+      : Number.parseInt(String(drone.id).replace(/\D+/g, ''), 10) || 0;
 
   // Score all zones
   const zoneScores: ZoneScore[] = ZONES.map((zone) => {
@@ -196,8 +265,7 @@ export function deriveXAI(
 
     // Deterministic jitter to avoid all drones converging
     const jitter =
-      Math.sin((drone.id as any) * 13.7 + zone.col * 5.3 + zone.row * 7.1) *
-      3.5;
+      Math.sin(droneIdNumeric * 13.7 + zone.col * 5.3 + zone.row * 7.1) * 3.5;
 
     const score = Math.max(0, Math.round(rawScore * emergencyMult + jitter));
 
@@ -232,12 +300,21 @@ export function deriveXAI(
     survivors
   );
 
+  const detailedReasoning = generateDetailedReasoning(
+    drone,
+    zoneScores[0],
+    zoneScores,
+    zoneCoverage,
+    survivors
+  );
+
   return {
     assignedZone: zoneScores[0],
     zoneScores: zoneScores.slice(0, 5),
     allScores: zoneScores,
     confidence,
     reasons,
+    detailedReasoning,
     epsilon: epsilonPct,
     mode,
     topFactors: zoneScores[0].breakdown,
