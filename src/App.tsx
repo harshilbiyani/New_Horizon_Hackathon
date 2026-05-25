@@ -4,6 +4,7 @@ import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Visualization from "./pages/Visualization";
 import MissionControl from "./pages/MissionControl";
+import XAIDecisions from "./pages/XAIDecisions";
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="map" element={<Visualization />} />
           <Route path="mission-control" element={<MissionControl />} />
+          <Route path="xai" element={<XAIDecisions />} />
         </Route>
       </Routes>
     </BrowserRouter>

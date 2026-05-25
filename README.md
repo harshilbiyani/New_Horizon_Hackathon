@@ -1,84 +1,77 @@
-# Autonomous Drone Swarm Platform
+# DroneShield — Autonomous Drone Swarm Platform
 
-Integrated high-level solution for autonomous search, rescue, and reconnaissance in disaster, forest, and GPS-denied environments.
+Real-time flood-rescue drone swarm telemetry, AI insights, and 3D situational awareness for the New Horizon Hackathon 2026.
 
-This repository now connects all three development branches into one deployable stack:
+## Features
+- **Swarm Command Dashboard** with live mission KPIs, drone table, and tactical overlays.
+- **Tactical Mission Map** showing drone trails, obstacles by severity, and survivor locations.
+- **Survivor Detection Feed** with confidence and coordinates.
+- **Event Logs** for critical/warning/info alerts.
+- **Coverage & Battery Charts** plus fleet allocation by task.
+- **3D Terrain Visualization** with post-processing, animated drone, and keyboard controls.
+- **AI Insights Bridge** via Python (fallbacks to heuristic insights if Python is unavailable).
+- **XAI Decision Matrix** (Explainable AI) with zone scores, confidence, and reasoning.
+- **Dual Telemetry Modes**: local simulation or live Socket.IO feed.
 
-- `main`: React command dashboard + Node mission server
-- `origin/kosada`: 3D terrain and drone visualization (Three.js)
-- `origin/trupti`: AI swarm coordination modules (Python)
-
-## What Is Implemented
-
-- Live multi-drone mission simulation with obstacle zones and survivor detections
-- Real-time dashboard via Socket.IO (telemetry, logs, map, trends)
-- Improved 3D tactical scene under `public/map/` with live HUD
-- AI bridge (`simulation/ai_bridge.py`) that converts mission snapshots into:
-  - zone ranking and mission priority
-  - drone assignment recommendations
-  - command suggestions and swarm health
-- AI insights available via REST and websocket
+## Routes
+- `/` Home landing page
+- `/dashboard` Command center
+- `/map` 3D visualization (iframe from `/public/map`)
+- `/xai` XAI Decision Matrix
 
 ## Architecture
-
-1. `server.js` runs mission simulation and broadcasts telemetry.
-2. React app consumes telemetry and renders command UI.
-3. Three.js scene (`/map`) renders terrain, drones, and AI HUD overlays.
-4. Python AI bridge (`simulation/ai_bridge.py`) uses modules in `drone_swarm/` and returns mission intelligence.
+1. `server.js` runs mission simulation, telemetry, and AI insight generation.
+2. React app renders the command UI and XAI views.
+3. Three.js scene (`public/map/`) renders terrain and drone visuals.
+4. Python AI bridge (`simulation/ai_bridge.py`) uses modules in `drone_swarm/` (optional).
 
 ## API Endpoints
-
 - `GET /health`
+- `GET /api/mission/snapshot`
 - `GET /api/mission/status`
+- `GET /api/mission/ai-insights`
 - `POST /api/mission/configure`
 - `POST /api/mission/start`
 - `POST /api/mission/stop`
 - `POST /api/mission/reset`
-- `GET /api/mission/snapshot`
 - `GET /api/mission/map`
-- `GET /api/mission/ai-insights`
 
-## Local Setup
+## Running Locally
 
 ### 1) Install JavaScript dependencies
-
 ```bash
 npm install
 ```
 
-### 2) Install Python dependencies (for full AI branch demos/tests)
-
+### 2) (Optional) Install Python dependencies for AI bridge
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-### 3) Run full stack
-
+### 3) Run full stack (frontend + server)
 ```bash
-npm run dev
+npm run start
 ```
 
 This starts:
-
 - Mission server on `http://localhost:3001`
 - Frontend on Vite dev server (default `http://localhost:5173`)
 
-## Project Layout
+### 4) Run separately (optional)
+```bash
+# Frontend only
+npm run dev
 
-- `src/`: React control center and pages
-- `public/map/`: Three.js 3D visualization
-- `server.js`: telemetry + mission orchestration
-- `simulation/`: Team A simulation logic and AI bridge
-- `drone_swarm/`: Team C AI coordination and integration modules from branch 3
+# Server only
+node server.js
+```
 
 ## Notes
-
-- If Python is unavailable or AI bridge fails, the server falls back to built-in heuristic insights so the UI remains operational.
+- If Python is unavailable, the server falls back to built-in heuristic insights so the UI remains operational.
 - For deterministic Python selection, set `PYTHON_EXECUTABLE` before running the server.
 
 Example:
-
 ```bash
 set PYTHON_EXECUTABLE=python
-npm run dev
+npm run start
 ```
