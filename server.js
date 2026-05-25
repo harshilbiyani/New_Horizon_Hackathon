@@ -661,3 +661,137 @@ server.listen(PORT, () => {
   console.log(`Simulation Server running on port ${PORT}`);
   console.log(`Simulation status: IDLE (waiting for /api/mission/start)`);
 });
+
+
+// ==========================================
+// AI Mission Control Feature
+// ==========================================
+
+
+let missionState = { active: false };
+
+async function askOllama(prompt) {
+    try {
+        const res = await fetch('http://localhost:11434/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: 'kimi-k2.5:cloud',
+                messages: [{ role: 'system', content: prompt }],
+                stream: false
+            })
+        });
+        const data = await res.json();
+        if (data.message && data.message.content) return data.message.content;
+        console.error("Ollama error:", data);
+        return '{"target_type":"person", "zone":"ALL", "urgency":"high", "reallocation_count": 3, "summary":"Fallback executed due to LLM error."}';
+    } catch (err) {
+        console.error("Ollama network error:", err.message);
+        return '{"target_type":"person", "zone":"ALL", "urgency":"high", "reallocation_count": 3, "summary":"Fallback executed due to network error."}';
+    }
+}
+
+// Phase 1: API for mission command
+app.post('/api/mission/command', async (req, res) => {
+    const { query } = req.body;
+    console.log(`[LLM] Processing Command: ${query}`);
+    const prompt = `Act as a drone mission parser. Return only valid JSON with no explanation, no markdown, and no backticks.
+Schema:
+{
+  "target_type": "person", "kid", or "fire",
+  "zone": "NE", "NW", "SE", "SW", or "ALL",
+  "urgency": "low", "medium", or "high",
+  "reallocation_count": number 1 to 3,
+  "summary": "One sentence raw intent summary"
+}
+Command: ${query}`;
+
+    const llmResponse = await askOllama(prompt);
+    try {
+        const parsed = JSON.parse(llmResponse.trim());
+        missionState = { ...parsed, active: true };
+        io.emit('mission_command_parsed', parsed);
+        res.json({ message: "Command parsed", state: missionState });
+    } catch (e) {
+        res.status(500).json({ error: "Failed to parse LLM output", raw: llmResponse });
+    }
+});
+
+// Phase 2 & 3: Mission Loop
+setInterval(async () => {
+    if (!missionState.active) return;
+
+    // Send stdin to mission_bridge.py
+    const bridgeInput = JSON.stringify({
+        missionState,
+        dronePositions: Array.from(drones.values()).map(d => ({ id: d.id, x: d.x, y: d.y }))
+    });
+
+    const pythonResult = spawnSync('python', ['drone_swarm/mission_bridge.py'], {
+        input: bridgeInput,
+        encoding: 'utf-8'
+    });
+
+    if (pythonResult.error) {
+        console.error("Bridge Error:", pythonResult.error);
+        return;
+    }
+
+    try {
+        const data = JSON.parse(pythonResult.stdout);
+        const detections = data.detections || [];
+        
+        for (const det of detections) {
+            det.timestamp = new Date().toISOString();
+            io.emit('mission_detection', det);
+        }
+
+        if (detections.length > 0) {
+            // Phase 3: Tactical Report
+            const reportPrompt = `Act as a military drone analyst. Write a two sentence tactical field intelligence report based on: Target Type: ${missionState.target_type}, Priority Zone: ${missionState.zone}, Detections: ${JSON.stringify(detections)}. Be concise.`;
+            const report = await askOllama(reportPrompt);
+            if (report) {
+                io.emit('mission_field_report', { report: report.trim() });
+            }
+
+            // Phase 3: Reallocation if high confidence
+            const highConfDets = detections.filter(d => d.confidence > 0.85);
+            if (highConfDets.length > 0) {
+                const droneIds = Array.from(drones.keys());
+                const reallocPrompt = `Return only JSON. Given active drones ${JSON.stringify(droneIds)} and high-confidence detection: ${JSON.stringify(highConfDets[0])}. Which two drones should converge on the target and a one sentence reason? Schema: {"drones": [id1, id2], "reason": "string"}`;
+                const reallocRes = await askOllama(reallocPrompt);
+                try {
+                    const reallocJson = JSON.parse(reallocRes.trim());
+                    io.emit('mission_reallocation', reallocJson);
+                } catch(e) {}
+            }
+        }
+
+    } catch (parseErr) {
+        console.error("Parse error on python output", parseErr);
+    }
+}, 3000);
+
+// Add mobile registration socket listener
+io.on('connection', (socket) => {
+    socket.on('mission_mobile_register', (data) => {
+        socket.emit('mission_mobile_status', { connected: true });
+        io.emit('mission_mobile_status', { connected: true });
+        
+        // Push initial active state if present
+        if (missionState.active) {
+            socket.emit('mission_drone_command', {
+               heading: Math.floor(Math.random() * 360),
+               urgency: missionState.urgency
+            });
+        }
+    });
+
+    // Re-emit commands immediately if mission is active
+    if (missionState.active) {
+       socket.emit('mission_drone_command', {
+           heading: Math.floor(Math.random() * 360), // mock heading
+           urgency: missionState.urgency
+       });
+    }
+});
