@@ -4,6 +4,15 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+let loadedDroneModel = null;
+const _droneLoader = new GLTFLoader();
+_droneLoader.load('../drone.glb', (gltf) => {
+    loadedDroneModel = gltf.scene;
+    // Optional: scale your custom drone if it's too big/small
+    // loadedDroneModel.scale.set(5, 5, 5); 
+}, undefined, (err) => console.error('Error loading drone:', err));
 
 // --- Follow Mode Detection ---
 const urlParams = new URLSearchParams(window.location.search);
@@ -19,14 +28,14 @@ if (isFollowMode) {
 // --- Scene Setup ---
 const container = document.getElementById('webgl-container');
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x040914);
-scene.fog = new THREE.FogExp2(0x060d1b, 0.0018);
+scene.background = new THREE.Color(0xd9ebfa); // Matches horizon
+// Fog completely removed!
 
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2500);
 camera.position.set(0, 180, 300);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1)); // PERFORMANCE: Capped at 1 to prevent lag on 4K/Retina displays
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0; // Reduced from 1.4 for clarity
@@ -36,7 +45,7 @@ container.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.06;
+controls.dampingFactor = 0.12; // PERFORMANCE: Increased damping makes camera controls feel snappier and less "floaty"
 controls.maxPolarAngle = Math.PI / 2.1;
 controls.target.set(0, 15, 0);
 controls.minDistance = 20;
@@ -63,11 +72,11 @@ composer.addPass(bloomPass);
 composer.addPass(new OutputPass());
 
 // --- Lighting ---
-// Natural, softer lighting
-const ambient = new THREE.AmbientLight(0x223344, 1.0);
+// Clean, bright daytime lighting
+const ambient = new THREE.AmbientLight(0xffffff, 0.6);
 scene.add(ambient);
 
-const sunLight = new THREE.DirectionalLight(0xfff0dd, 2.5);
+const sunLight = new THREE.DirectionalLight(0xfff5e6, 3.2);
 sunLight.position.set(-150, 250, 100);
 sunLight.castShadow = true;
 sunLight.shadow.mapSize.set(2048, 2048);
@@ -77,11 +86,11 @@ sunLight.shadow.camera.top = 200;
 sunLight.shadow.camera.bottom = -200;
 scene.add(sunLight);
 
-const rimLight = new THREE.DirectionalLight(0x00ccff, 1.2);
+const rimLight = new THREE.DirectionalLight(0x99ccff, 0.8);
 rimLight.position.set(200, 80, -80);
 scene.add(rimLight);
 
-const hemiLight = new THREE.HemisphereLight(0x88aacc, 0x112211, 0.6);
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0x667788, 0.6);
 scene.add(hemiLight);
 
 // --- Atmosphere and Tactical Rings ---
@@ -107,20 +116,18 @@ const skyDomeMat = new THREE.ShaderMaterial({
 
         void main() {
             float h = normalize(vPos).y * 0.5 + 0.5;
-            vec3 night = vec3(0.014, 0.04, 0.09);
-            vec3 cyan = vec3(0.05, 0.29, 0.36);
-            vec3 ember = vec3(0.36, 0.13, 0.11);
-            float wave = 0.5 + 0.5 * sin((vPos.x + vPos.z) * 0.005 + uTime * 0.35);
-            vec3 grad = mix(night, cyan, smoothstep(0.1, 0.85, h));
-            grad = mix(grad, ember, smoothstep(0.25, 0.75, wave) * 0.35 * (1.0 - h));
-            float vignette = smoothstep(1.35, 0.25, length(vPos.xz) * 0.0014);
-            gl_FragColor = vec4(grad * vignette, 1.0);
+            // Clean daytime sky gradient
+            vec3 zenith = vec3(0.2, 0.55, 0.95);
+            vec3 horizon = vec3(0.85, 0.92, 0.98);
+            vec3 grad = mix(horizon, zenith, smoothstep(0.45, 0.9, h));
+            gl_FragColor = vec4(grad, 1.0);
         }
     `,
 });
 
 const skyDome = new THREE.Mesh(skyDomeGeo, skyDomeMat);
 scene.add(skyDome);
+// Floor completely removed!
 
 const tacticalRingGroup = new THREE.Group();
 scene.add(tacticalRingGroup);
@@ -290,7 +297,7 @@ fetch('http://localhost:3001/api/mission/map')
         terrain = new THREE.Mesh(terrainGeo, terrainMat);
         terrain.receiveShadow = true;
         terrain.castShadow = true;
-        scene.add(terrain);
+        // scene.add(terrain); // Disabled procedural terrain
 
         const wireTerrain = new THREE.Mesh(
             terrainGeo.clone(),
@@ -302,7 +309,58 @@ fetch('http://localhost:3001/api/mission/map')
             })
         );
         wireTerrain.position.y += 0.3;
-        scene.add(wireTerrain);
+        // scene.add(wireTerrain); // Disabled procedural wireframe
+
+        // --- Load Custom GLB Model ---
+        const loader = new GLTFLoader();
+        loader.load('../city_circular.glb', (gltf) => {
+            const cityModel = gltf.scene;
+            
+            // Auto-scale and auto-center the model to guarantee visibility
+            const box = new THREE.Box3().setFromObject(cityModel);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            
+            if (maxDim > 0) {
+                // To change the size, adjust the multiplier at the end of this line (currently * 4)
+                const scaleFactor = (250 / maxDim) * 4; 
+                cityModel.scale.setScalar(scaleFactor);
+            }
+
+            // Recalculate bounds after scaling to center it
+            const scaledBox = new THREE.Box3().setFromObject(cityModel);
+            const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+            
+            cityModel.position.x -= scaledCenter.x;
+            cityModel.position.y -= scaledBox.min.y; // Align bottom to Y=0
+            cityModel.position.z -= scaledCenter.z;
+            
+            // Make the city cast and receive shadows
+            cityModel.traverse((node) => {
+                if (node.isMesh) {
+                    // PERFORMANCE: Massive models casting shadows destroys FPS. 
+                    // We only let it receive shadows (so drones cast shadows on it).
+                    node.castShadow = false; 
+                    node.receiveShadow = true;
+                }
+            });
+
+            scene.add(cityModel);
+            window.cityModelForRaycasting = cityModel;
+        }, undefined, (error) => {
+            console.error('Error loading city.glb:', error);
+            const errDiv = document.createElement('div');
+            errDiv.style.position = 'absolute';
+            errDiv.style.top = '20%';
+            errDiv.style.left = '20%';
+            errDiv.style.color = 'red';
+            errDiv.style.background = 'black';
+            errDiv.style.padding = '20px';
+            errDiv.style.fontSize = '24px';
+            errDiv.style.zIndex = '9999';
+            errDiv.innerText = 'FAILED TO LOAD CITY.GLB: ' + error.message;
+            document.body.appendChild(errDiv);
+        });
 
         // Render Matrix height terrain obstacles
         const rockGeo = new THREE.DodecahedronGeometry(2);
@@ -313,7 +371,7 @@ fetch('http://localhost:3001/api/mission/map')
             rock.position.set(p.x, p.y + rock.scale.y, p.z);
             rock.rotation.y = Math.random() * Math.PI;
             rock.castShadow = true;
-            obstacleGroup.add(rock);
+            // obstacleGroup.add(rock); // Disabled old procedural rocks
         });
 
         const waterGeo = new THREE.PlaneGeometry(terrainSize * 1.3, terrainSize * 1.3, 64, 64);
@@ -327,17 +385,106 @@ fetch('http://localhost:3001/api/mission/map')
         waterPlane = new THREE.Mesh(waterGeo, waterMat);
         waterPlane.rotation.x = -Math.PI / 2;
         waterPlane.position.y = 5;
-        scene.add(waterPlane);
+        // scene.add(waterPlane); // Disabled old water plane
 
+        const peopleModels = ['../people/female2.glb'];
+        
+        // Helper to load, perfectly auto-scale, and auto-center any messy model
+        function spawnPerson(worldX, worldZ, isTarget) {
+            const randomModelPath = peopleModels[0];
+            const loader = new GLTFLoader();
+            
+            loader.load(randomModelPath, (gltf) => {
+                const rawMesh = gltf.scene;
+                
+                const box = new THREE.Box3().setFromObject(rawMesh);
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+                
+                if (maxDim > 0 && maxDim < Infinity) {
+                    rawMesh.scale.setScalar(0.025 / maxDim); 
+                } else {
+                    rawMesh.scale.setScalar(0.025);
+                }
+                
+                const scaledBox = new THREE.Box3().setFromObject(rawMesh);
+                const center = scaledBox.getCenter(new THREE.Vector3());
+                
+                if (isFinite(center.x)) {
+                    rawMesh.position.x = -center.x;
+                    rawMesh.position.y = -scaledBox.min.y; 
+                    rawMesh.position.z = -center.z;
+                }
+                
+                const wrapper = new THREE.Group();
+                wrapper.add(rawMesh);
+                
+                // Start them high in the sky so we can drop them onto the city mesh
+                wrapper.position.set(worldX, 2000, worldZ);
+                wrapper.rotation.y = Math.random() * Math.PI * 2;
+                
+                // Add a very prominent red pillar to ALL females so they are easy to spot
+                const pillarGeo = new THREE.CylinderGeometry(0.8, 0.8, 120, 8); // much thicker and taller
+                const pillarMat = new THREE.MeshBasicMaterial({ 
+                    color: 0xff0000, transparent: true, opacity: 0.8 // very opaque and bright red
+                });
+                const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+                pillar.position.y = 60; 
+                wrapper.add(pillar);
+                
+                personGroup.add(wrapper);
+                
+                // Raycast downward to put them precisely on the street or roof!
+                function dropToGround() {
+                    if (window.cityModelForRaycasting) {
+                        const raycaster = new THREE.Raycaster();
+                        raycaster.set(new THREE.Vector3(worldX, 2000, worldZ), new THREE.Vector3(0, -1, 0));
+                        const intersects = raycaster.intersectObject(window.cityModelForRaycasting, true);
+                        if (intersects.length > 0) {
+                            wrapper.position.y = intersects[0].point.y;
+                        } else {
+                            wrapper.visible = false; // Hide them if they spawned off the edge of the city!
+                        }
+                    } else {
+                        setTimeout(dropToGround, 250);
+                    }
+                }
+                dropToGround();
+                
+            }, undefined, (error) => {
+                console.error('FAILED TO LOAD PERSON:', randomModelPath, error);
+            });
+        }
+        
+        // Spawn the Mission Targets
         rawSurvivors.forEach(surv => {
-            const px = surv[0];
-            const py = surv[1];
-            const worldX = mapPyCoord(px);
-            const worldZ = mapPyCoord(py);
-            const h = heightMap[py] ? (heightMap[py][px] || 0) : 0;
-            const person = createPerson(worldX, worldZ, Math.max(h, 6));
-            personGroup.add(person);
+            const worldX = mapPyCoord(surv[0]);
+            const worldZ = mapPyCoord(surv[1]);
+            spawnPerson(worldX, worldZ, true); // true = isTarget
         });
+
+        // Spawn 40 females in small, spaced-out clusters across the ENTIRE map
+        let remaining = 40;
+        while (remaining > 0) {
+            // Clusters of 1 to 3 people max
+            const clusterSize = Math.min(remaining, Math.floor(Math.random() * 3) + 1); 
+            
+            // Polar coordinates guarantee they spawn on the outskirts too, not just clustered in the center
+            const r = Math.sqrt(Math.random()) * (worldBoundary * 0.95); // Uniform distribution across circle
+            const theta = Math.random() * 2 * Math.PI;
+            const cx = r * Math.cos(theta);
+            const cz = r * Math.sin(theta);
+            
+            for (let i = 0; i < clusterSize; i++) {
+                // Ensure they don't hug! Keep them 3 to 8 units apart from the cluster center
+                const angle = (Math.PI * 2 / clusterSize) * i + Math.random();
+                const dist = 3 + Math.random() * 5; 
+                const rx = cx + Math.cos(angle) * dist;
+                const rz = cz + Math.sin(angle) * dist;
+                spawnPerson(rx, rz, false);
+            }
+            remaining -= clusterSize;
+        }
     })
     .catch(err => console.error('Map data fetch error:', err));
 
@@ -499,7 +646,7 @@ function updateObstacles(obsList) {
     obsList.forEach(obs => {
         if (!obstacleMeshes[obs.id]) {
             const group = createObstacleAsset(obs);
-            obstacleGroup.add(group);
+            // obstacleGroup.add(group); // Disabled old generated obstacles (trees, wrecks, etc)
             obstacleMeshes[obs.id] = group;
         }
         
@@ -523,51 +670,22 @@ const droneMeshes = {};
 function createDroneGroup() {
     const group = new THREE.Group();
     
-    // Core mainframe
-    const bodyMat = new THREE.MeshStandardMaterial({
-        color: 0x111111,
-        metalness: 0.8,
-        roughness: 0.4,
-    });
-    const mainBody = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 3.5), bodyMat);
-    group.add(mainBody);
-    
-    // Camera dome
-    const domeMat = new THREE.MeshStandardMaterial({ color: 0x000000, metalness: 0.9, roughness: 0.1 });
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 16, 0, Math.PI*2, 0, Math.PI/2), domeMat);
-    dome.position.set(0, -0.4, 1.2);
-    dome.rotation.x = Math.PI;
-    group.add(dome);
-
-    // Arms & Rotors
-    const armGeo = new THREE.CylinderGeometry(0.1, 0.1, 3.5, 8);
-    armGeo.rotateZ(Math.PI / 2);
-    
-    const rotorPositions = [
-        [1.8, 0.2, 1.5], [-1.8, 0.2, 1.5],
-        [1.8, 0.2, -1.5], [-1.8, 0.2, -1.5]
-    ];
-    
-    rotorPositions.forEach((pos, i) => {
-        // Arm
-        const arm = new THREE.Mesh(armGeo, bodyMat);
-        arm.position.set(pos[0]/2, 0, pos[2]);
-        if (i % 2 === 0) arm.scale.x = 0.8; 
-        group.add(arm);
-        
-        // Motor
-        const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.6, 12), bodyMat);
-        motor.position.set(...pos);
-        group.add(motor);
-        
-        // Spinning Blades (visual blur)
-        const bladeGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.05, 16);
-        const bladeMat = new THREE.MeshBasicMaterial({ color: 0x8899aa, transparent: true, opacity: 0.3 });
-        const blade = new THREE.Mesh(bladeGeo, bladeMat);
-        blade.position.set(pos[0], pos[1] + 0.3, pos[2]);
-        blade.userData.isRotor = true;
-        group.add(blade);
-    });
+    if (loadedDroneModel) {
+        const customDrone = loadedDroneModel.clone();
+        customDrone.traverse((node) => {
+            if (node.isMesh) {
+                node.castShadow = true;
+                node.receiveShadow = true;
+            }
+        });
+        group.add(customDrone);
+    } else {
+        // Fallback box if model hasn't loaded yet
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+        const mainBody = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 3.5), bodyMat);
+        group.add(mainBody);
+        group.userData.isFallback = true;
+    }
     
     // Downward Spotlight - much softer and realistic
     const light = new THREE.SpotLight(0xaaddff, 3, 100, Math.PI / 6, 0.6, 1.5);
@@ -627,7 +745,24 @@ function updateDrones(drones) {
             scene.add(group);
             droneMeshes[d.id] = group;
         }
+        
         const droneGroup = droneMeshes[d.id];
+        
+        // Upgrade fallback drones once the custom model finishes downloading!
+        if (loadedDroneModel && droneGroup.userData.isFallback) {
+            const fallback = droneGroup.children.find(c => c.geometry && c.geometry.type === 'BoxGeometry');
+            if (fallback) droneGroup.remove(fallback);
+            
+            const customDrone = loadedDroneModel.clone();
+            customDrone.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                }
+            });
+            droneGroup.add(customDrone);
+            droneGroup.userData.isFallback = false;
+        }
         droneGroup.position.set(d.x, Math.max(d.z, 20), d.y);
         
         // Drone heading smoothly mapped

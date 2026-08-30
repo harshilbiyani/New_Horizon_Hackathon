@@ -14,6 +14,7 @@ import type {
   Drone,
   HiddenSurvivor,
   MissionData,
+  MeshLink,
   Obstacle,
   Survivor,
   TelemetrySnapshot,
@@ -110,6 +111,7 @@ export default function Dashboard() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [hiddenSurvivors, setHiddenSurvivors] = useState<HiddenSurvivor[]>([]);
+  const [meshLinks, setMeshLinks] = useState<MeshLink[]>([]);
   const [coverageHistory, setCoverageHistory] = useState<{ time: string; coverage: number }[]>([]);
   const [batteryHistory, setBatteryHistory] = useState<{ time: string; battery: number }[]>([]);
   const [connectionState, setConnectionState] = useState<'connected' | 'disconnected'>('disconnected');
@@ -352,6 +354,7 @@ export default function Dashboard() {
       setAlerts(snapshot.alerts);
       setObstacles(snapshot.obstacles);
       setHiddenSurvivors(snapshot.hiddenSurvivors);
+      setMeshLinks(snapshot.meshLinks ?? []);
       if (snapshot.aiInsights) {
         setAiInsights(snapshot.aiInsights);
       }
@@ -501,6 +504,7 @@ export default function Dashboard() {
               obstacles={obstacles}
               foundSurvivors={survivors}
               hiddenSurvivors={hiddenSurvivors}
+              meshLinks={meshLinks}
               selectedDroneId={selectedDroneId}
               onSelectDrone={setSelectedDroneId}
             />

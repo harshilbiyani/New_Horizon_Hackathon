@@ -1,15 +1,17 @@
-import type { Drone, HiddenSurvivor, Obstacle, Survivor } from '../types/telemetry';
+import type { Drone, HiddenSurvivor, MeshLink, Obstacle, Survivor } from '../types/telemetry';
 
 interface MissionMapProps {
   drones: Drone[];
   obstacles: Obstacle[];
   foundSurvivors: Survivor[];
   hiddenSurvivors: HiddenSurvivor[];
+  meshLinks?: MeshLink[];
   selectedDroneId?: string;
   onSelectDrone?: (droneId: string) => void;
 }
 
 const WORLD_BOUNDARY = 140;
+const COMMUNICATION_RANGE = 35;
 
 function worldToPercent(value: number) {
   return ((value + WORLD_BOUNDARY) / (WORLD_BOUNDARY * 2)) * 100;
@@ -23,6 +25,31 @@ function obstacleColor(severity: Obstacle['severity']) {
   if (severity === 'high') return '#ef4444';
   if (severity === 'medium') return '#f59e0b';
   return '#22c55e';
+}
+
+function buildMeshLinks(drones: Drone[]) {
+  const links: MeshLink[] = [];
+
+  for (let i = 0; i < drones.length; i++) {
+    const a = drones[i];
+    for (let j = i + 1; j < drones.length; j++) {
+      const b = drones[j];
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance > COMMUNICATION_RANGE) continue;
+
+      const signal = Math.max(0.1, 1.0 - (distance / COMMUNICATION_RANGE) * 0.9);
+      links.push({
+        from: a.id,
+        to: b.id,
+        distance: Number(distance.toFixed(2)),
+        signal: Number(signal.toFixed(2)),
+      });
+    }
+  }
+
+  return links;
 }
 
 function DroneFOV({ drone, selectedId }: { drone: Drone; selectedId?: string }) {
@@ -63,9 +90,13 @@ export default function MissionMap({
   obstacles,
   foundSurvivors,
   hiddenSurvivors,
+  meshLinks,
   selectedDroneId,
   onSelectDrone,
 }: MissionMapProps) {
+  const activeLinks = meshLinks?.length ? meshLinks : buildMeshLinks(drones);
+  const droneLookup = new Map(drones.map((drone) => [drone.id, drone]));
+
   return (
     <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-4 h-full flex flex-col">
       <div className="flex items-center justify-between mb-3">
@@ -143,6 +174,32 @@ export default function MissionMap({
             </g>
           ))}
 
+          {activeLinks.map((link, idx) => {
+            const from = droneLookup.get(link.from);
+            const to = droneLookup.get(link.to);
+            if (!from || !to) return null;
+
+            const isSelected =
+              link.from === selectedDroneId || link.to === selectedDroneId;
+            const baseOpacity = 0.25 + link.signal * 0.65;
+            const opacity = isSelected ? Math.min(0.95, baseOpacity + 0.2) : baseOpacity;
+            const strokeWidth = isSelected ? 0.65 : 0.4;
+
+            return (
+              <line
+                key={`${link.from}-${link.to}-${idx}`}
+                x1={worldToPercent(from.x)}
+                y1={100 - worldToPercent(from.y)}
+                x2={worldToPercent(to.x)}
+                y2={100 - worldToPercent(to.y)}
+                stroke="#22d3ee"
+                strokeOpacity={opacity}
+                strokeWidth={strokeWidth}
+                style={{ pointerEvents: 'none' }}
+              />
+            );
+          })}
+
           {drones.map((drone) => (
             <g key={drone.id}>
               <DroneFOV drone={drone} selectedId={selectedDroneId} />
@@ -181,6 +238,9 @@ export default function MissionMap({
         </div>
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-red-500"></span> High-Risk Obstacles
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-0.5 bg-cyan-300"></span> Mesh Links
         </div>
       </div>
     </div>

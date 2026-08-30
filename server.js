@@ -17,10 +17,11 @@ const io = new Server(server, {
   },
 });
 
-const WORLD_BOUNDARY = 140;
+const WORLD_BOUNDARY = 350; // Perfect fit: sqrt(350^2 + 350^2) = 494 radius, fitting inside the 500-radius city circle!
 const GRID_SIZE = 40;
 const TICK_MS = 700;
-const DRONE_DETECTION_RADIUS = 14;
+const DRONE_DETECTION_RADIUS = 35;
+const COMMUNICATION_RANGE = 90;
 const TOTAL_CELLS = GRID_SIZE * GRID_SIZE;
 
 // --- Simulation State (mutable, resettable) ---
@@ -99,11 +100,11 @@ function buildObstacleField() {
 const obstacles = buildObstacleField();
 
 const hiddenSurvivors = [
-  { id: 'HSV-001', x: -50, y: 14, severity: 'critical' },
-  { id: 'HSV-002', x: 28, y: 46, severity: 'stable' },
-  { id: 'HSV-003', x: 74, y: -26, severity: 'critical' },
-  { id: 'HSV-004', x: -12, y: -76, severity: 'stable' },
-  { id: 'HSV-005', x: 3, y: 2, severity: 'unknown' },
+  { id: 'HSV-001', x: -175, y: 49, severity: 'critical' },
+  { id: 'HSV-002', x: 98, y: 161, severity: 'stable' },
+  { id: 'HSV-003', x: 259, y: -91, severity: 'critical' },
+  { id: 'HSV-004', x: -42, y: -266, severity: 'stable' },
+  { id: 'HSV-005', x: 10, y: 7, severity: 'unknown' },
 ];
 
 const AI_INSIGHTS_TTL_MS = 2500;
@@ -130,9 +131,9 @@ function createDrone(index, x, y, heading, battery) {
     id: `DRN-${String(index + 1).padStart(3, '0')}`,
     x,
     y,
-    z: randomBetween(80, 130),
+    z: randomBetween(80, 160),
     heading,
-    speed: randomBetween(10, 18),
+    speed: randomBetween(35, 60),
     task: 'idle',
     status: 'active',
     battery: battery,
@@ -146,13 +147,14 @@ function createDrone(index, x, y, heading, battery) {
 function generateStartPositions(count) {
   const positions = [];
   const angleStep = (2 * Math.PI) / count;
-  const radius = 5; // Start closely clustered at center
   for (let i = 0; i < count; i++) {
     const angle = angleStep * i;
+    // Spread drones randomly across the whole map instead of central cluster
+    const radius = randomBetween(20, WORLD_BOUNDARY * 0.9); 
     positions.push({
       x: Math.cos(angle) * radius,
       y: Math.sin(angle) * radius,
-      heading: (angle * 180) / Math.PI, // Fly outward from center
+      heading: (angle * 180) / Math.PI, 
     });
   }
   return positions;
@@ -342,6 +344,31 @@ function buildMissionData() {
   };
 }
 
+function buildMeshLinks() {
+  const links = [];
+
+  for (let i = 0; i < drones.length; i++) {
+    const a = drones[i];
+    for (let j = i + 1; j < drones.length; j++) {
+      const b = drones[j];
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance > COMMUNICATION_RANGE) continue;
+
+      const signal = Math.max(0.1, 1.0 - (distance / COMMUNICATION_RANGE) * 0.9);
+      links.push({
+        from: a.id,
+        to: b.id,
+        distance: Number(distance.toFixed(2)),
+        signal: Number(signal.toFixed(2)),
+      });
+    }
+  }
+
+  return links;
+}
+
 function buildSnapshot() {
   return {
     timestamp: new Date().toISOString(),
@@ -353,6 +380,7 @@ function buildSnapshot() {
     alerts,
     obstacles,
     hiddenSurvivors,
+    meshLinks: buildMeshLinks(),
   };
 }
 
