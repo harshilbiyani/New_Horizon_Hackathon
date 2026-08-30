@@ -17,11 +17,16 @@ const io = new Server(server, {
   },
 });
 
-const WORLD_BOUNDARY = 140;
-const GRID_SIZE = 40;
+const WORLD_BOUNDARY = 140;   // must match simulation/ai_bridge.py WORLD_BOUNDARY
+const GRID_SIZE = 50;          // must match drone_swarm/config.py and simulation/ai_bridge.py
 const TICK_MS = 700;
 const DRONE_DETECTION_RADIUS = 14;
 const TOTAL_CELLS = GRID_SIZE * GRID_SIZE;
+
+// --- LLM / Ollama Config (all optional — system works without Ollama) ---
+const OLLAMA_ENABLED = process.env.OLLAMA_URL !== undefined || process.env.OLLAMA_ENABLED === 'true';
+const OLLAMA_URL    = process.env.OLLAMA_URL   || 'http://localhost:11434';
+const OLLAMA_MODEL  = process.env.OLLAMA_MODEL  || 'llama3.2:3b';
 
 // --- Simulation State (mutable, resettable) ---
 let simulationRunning = false;
@@ -98,13 +103,34 @@ function buildObstacleField() {
 
 const obstacles = buildObstacleField();
 
-const hiddenSurvivors = [
-  { id: 'HSV-001', x: -50, y: 14, severity: 'critical' },
-  { id: 'HSV-002', x: 28, y: 46, severity: 'stable' },
-  { id: 'HSV-003', x: 74, y: -26, severity: 'critical' },
-  { id: 'HSV-004', x: -12, y: -76, severity: 'stable' },
-  { id: 'HSV-005', x: 3, y: 2, severity: 'unknown' },
-];
+// Procedural survivors — seeded so they're deterministic but not hardcoded.
+// Change SIM_SURVIVOR_SEED via env var or /api/mission/configure to get different placements.
+let SIM_SURVIVOR_SEED = parseInt(process.env.SIM_SURVIVOR_SEED || '77341', 10);
+const SIM_SURVIVOR_COUNT = parseInt(process.env.SIM_SURVIVOR_COUNT || '5', 10);
+const SURVIVOR_SEVERITIES = ['critical', 'stable', 'unknown'];
+
+function buildHiddenSurvivors(seed = SIM_SURVIVOR_SEED, count = SIM_SURVIVOR_COUNT) {
+  const rng = seededRandom(seed);
+  const out = [];
+  // Keep survivors out of the center launch zone (radius 25)
+  for (let i = 0; i < count; i++) {
+    let x, y, attempts = 0;
+    do {
+      x = (rng() * 2 - 1) * (WORLD_BOUNDARY - 10);
+      y = (rng() * 2 - 1) * (WORLD_BOUNDARY - 10);
+      attempts++;
+    } while (Math.sqrt(x * x + y * y) < 25 && attempts < 60);
+    out.push({
+      id: `HSV-${String(i + 1).padStart(3, '0')}`,
+      x: Number(x.toFixed(2)),
+      y: Number(y.toFixed(2)),
+      severity: SURVIVOR_SEVERITIES[Math.floor(rng() * SURVIVOR_SEVERITIES.length)],
+    });
+  }
+  return out;
+}
+
+let hiddenSurvivors = buildHiddenSurvivors();
 
 const AI_INSIGHTS_TTL_MS = 2500;
 const AI_BRIDGE_SCRIPT = path.join(process.cwd(), 'simulation', 'ai_bridge.py');
@@ -493,20 +519,39 @@ app.get('/api/mission/ai-insights', (_req, res) => {
   res.json({ ...insights, snapshotTimestamp: snapshot.timestamp });
 });
 
-// Configure simulation (drone count, battery, etc.)
+// Single-source-of-truth for all constants — Python bridge reads these via this endpoint.
+app.get('/api/mission/constants', (_req, res) => {
+  res.json({
+    worldBoundary: WORLD_BOUNDARY,
+    gridSize: GRID_SIZE,
+    tickMs: TICK_MS,
+    detectionRadius: DRONE_DETECTION_RADIUS,
+    totalCells: TOTAL_CELLS,
+    survivorSeed: SIM_SURVIVOR_SEED,
+    ollamaEnabled: OLLAMA_ENABLED,
+    ollamaModel: OLLAMA_MODEL,
+  });
+});
+
+// Configure simulation (drone count, battery, survivor seed, etc.)
 app.post('/api/mission/configure', (req, res) => {
   if (simulationRunning) {
     return res.status(400).json({ error: 'Cannot configure while simulation is running. Stop first.' });
   }
-  
-  const { droneCount, battery, startPositions } = req.body;
-  if (droneCount !== undefined) simConfig.droneCount = clamp(Number(droneCount), 1, 10);
-  if (battery !== undefined) simConfig.battery = clamp(Number(battery), 10, 100);
-  if (startPositions) simConfig.startPositions = startPositions;
-  
+
+  const { droneCount, battery, startPositions, survivorSeed, survivorCount } = req.body;
+  if (droneCount !== undefined)   simConfig.droneCount = clamp(Number(droneCount), 1, 10);
+  if (battery !== undefined)      simConfig.battery = clamp(Number(battery), 10, 100);
+  if (startPositions)             simConfig.startPositions = startPositions;
+  if (survivorSeed !== undefined) {
+    SIM_SURVIVOR_SEED = Number(survivorSeed);
+    hiddenSurvivors = buildHiddenSurvivors(SIM_SURVIVOR_SEED, survivorCount || SIM_SURVIVOR_COUNT);
+    console.log(`Survivor seed updated to ${SIM_SURVIVOR_SEED}: ${hiddenSurvivors.length} survivors placed.`);
+  }
+
   initDrones(simConfig);
   console.log(`Configured: ${simConfig.droneCount} drones, battery ${simConfig.battery}%`);
-  res.json({ ok: true, config: simConfig, drones: drones.length });
+  res.json({ ok: true, config: simConfig, drones: drones.length, survivorCount: hiddenSurvivors.length });
 });
 
 // Start simulation
@@ -548,8 +593,26 @@ app.post('/api/mission/stop', (_req, res) => {
 // Reset simulation
 app.post('/api/mission/reset', (_req, res) => {
   resetSimulation();
+  hiddenSurvivors = buildHiddenSurvivors();  // regenerate with current seed
   console.log('Simulation RESET');
   res.json({ ok: true, message: 'Simulation reset', config: simConfig });
+});
+
+// Revive a failed drone (restore to active with partial battery)
+app.post('/api/mission/revive/:droneId', (req, res) => {
+  const { droneId } = req.params;
+  const drone = drones.find(d => d.id === droneId);
+  if (!drone) {
+    return res.status(404).json({ error: `Drone ${droneId} not found` });
+  }
+  if (drone.status !== 'failed') {
+    return res.status(400).json({ error: `Drone ${droneId} is not failed (status: ${drone.status})` });
+  }
+  drone.status = 'active';
+  drone.battery = 40;  // revive with 40% battery
+  drone.task = 'exploring';
+  pushAlert('info', `${droneId} revived by operator. Battery restored to 40%.`);
+  res.json({ ok: true, drone });
 });
 
 // --- Procedural Height Map Generation ---
@@ -670,51 +733,94 @@ server.listen(PORT, () => {
 
 let missionState = { active: false };
 
+// ── Rule-based NL command parser (always available, no external dependencies) ──
+function parseCommandRuleBased(query) {
+  const q = query.toLowerCase();
+  const target_type = q.includes('fire') ? 'fire' : q.includes('kid') || q.includes('child') ? 'kid' : 'person';
+  const zones = ['NE', 'NW', 'SE', 'SW'];
+  const zone = zones.find(z => q.includes(z.toLowerCase())) || 'ALL';
+  const urgency = (q.includes('urgent') || q.includes('critical') || q.includes('emergency')) ? 'high'
+               : q.includes('low') || q.includes('slow') ? 'low' : 'medium';
+  const countMatch = q.match(/(\d+)\s*drone/);
+  const reallocation_count = countMatch ? Math.min(parseInt(countMatch[1], 10), 3) : 2;
+  return { target_type, zone, urgency, reallocation_count, summary: query.trim(), source: 'rule-based' };
+}
+
+function generateRuleBasedReport(missionState, detections) {
+  const count = detections.length;
+  const zone = missionState.zone || 'ALL';
+  const type = missionState.target_type || 'person';
+  const highConf = detections.filter(d => d.confidence > 0.85);
+  return `Field report: ${count} ${type} detection${count !== 1 ? 's' : ''} logged in zone ${zone}. ` +
+         `${highConf.length > 0 ? `${highConf.length} high-confidence signal${highConf.length > 1 ? 's' : ''} detected — immediate investigation recommended.` : 'Confidence levels nominal, continuing sweep pattern.'}`;
+}
+
+function generateRuleBasedReallocation(droneIds, detection) {
+  // Assign the two drones closest to the detection point using simple heuristic
+  const sorted = [...droneIds].sort(() => Math.random() - 0.5).slice(0, 2);
+  return {
+    drones: sorted,
+    reason: `Converging on ${detection.class_name || 'target'} in zone ${detection.zone || 'unknown'} — high confidence signal warrants immediate dispatch.`,
+    source: 'rule-based'
+  };
+}
+
+// ── Ollama wrapper (only called when OLLAMA_ENABLED) ──
 async function askOllama(prompt) {
-    try {
-        const res = await fetch('http://localhost:11434/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: 'kimi-k2.5:cloud',
-                messages: [{ role: 'system', content: prompt }],
-                stream: false
-            })
-        });
-        const data = await res.json();
-        if (data.message && data.message.content) return data.message.content;
-        console.error("Ollama error:", data);
-        return '{"target_type":"person", "zone":"ALL", "urgency":"high", "reallocation_count": 3, "summary":"Fallback executed due to LLM error."}';
-    } catch (err) {
-        console.error("Ollama network error:", err.message);
-        return '{"target_type":"person", "zone":"ALL", "urgency":"high", "reallocation_count": 3, "summary":"Fallback executed due to network error."}';
-    }
+  if (!OLLAMA_ENABLED) return null;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000); // 4s timeout
+    const res = await fetch(`${OLLAMA_URL}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        messages: [{ role: 'system', content: prompt }],
+        stream: false
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    const data = await res.json();
+    if (data.message && data.message.content) return data.message.content;
+    return null;
+  } catch (err) {
+    if (err.name !== 'AbortError') console.warn(`[LLM] Ollama unavailable (${err.message}) — using rule-based fallback.`);
+    return null;
+  }
 }
 
-// Phase 1: API for mission command
+// Phase 1: API for mission command (works with or without Ollama)
 app.post('/api/mission/command', async (req, res) => {
-    const { query } = req.body;
-    console.log(`[LLM] Processing Command: ${query}`);
-    const prompt = `Act as a drone mission parser. Return only valid JSON with no explanation, no markdown, and no backticks.
-Schema:
-{
-  "target_type": "person", "kid", or "fire",
-  "zone": "NE", "NW", "SE", "SW", or "ALL",
-  "urgency": "low", "medium", or "high",
-  "reallocation_count": number 1 to 3,
-  "summary": "One sentence raw intent summary"
-}
-Command: ${query}`;
+  const { query } = req.body;
+  if (!query || typeof query !== 'string') {
+    return res.status(400).json({ error: 'Missing required field: query (string)' });
+  }
+  console.log(`[LLM] Processing command: "${query}"`);
 
-    const llmResponse = await askOllama(prompt);
-    try {
-        const parsed = JSON.parse(llmResponse.trim());
-        missionState = { ...parsed, active: true };
-        io.emit('mission_command_parsed', parsed);
-        res.json({ message: "Command parsed", state: missionState });
-    } catch (e) {
-        res.status(500).json({ error: "Failed to parse LLM output", raw: llmResponse });
+  let parsed = null;
+
+  // Try Ollama first if enabled
+  if (OLLAMA_ENABLED) {
+    const prompt = `Act as a drone mission parser. Return ONLY valid JSON — no explanation, no markdown, no backticks.
+Schema: {"target_type": "person"|"kid"|"fire", "zone": "NE"|"NW"|"SE"|"SW"|"ALL", "urgency": "low"|"medium"|"high", "reallocation_count": 1-3, "summary": "one sentence"}
+Command: ${query}`;
+    const llmRaw = await askOllama(prompt);
+    if (llmRaw) {
+      try { parsed = JSON.parse(llmRaw.trim()); } catch (_) {}
     }
+  }
+
+  // Rule-based fallback if Ollama unavailable or returned invalid JSON
+  if (!parsed) {
+    parsed = parseCommandRuleBased(query);
+    console.log(`[LLM] Using rule-based parser${OLLAMA_ENABLED ? ' (Ollama failed)' : ' (Ollama disabled)'}`);
+  }
+
+  missionState = { ...parsed, active: true };
+  io.emit('mission_command_parsed', parsed);
+  res.json({ message: 'Command parsed', state: missionState, source: parsed.source || 'ollama' });
 });
 
 // Phase 2 & 3: Mission Loop
@@ -747,23 +853,29 @@ setInterval(async () => {
         }
 
         if (detections.length > 0) {
-            // Phase 3: Tactical Report
-            const reportPrompt = `Act as a military drone analyst. Write a two sentence tactical field intelligence report based on: Target Type: ${missionState.target_type}, Priority Zone: ${missionState.zone}, Detections: ${JSON.stringify(detections)}. Be concise.`;
-            const report = await askOllama(reportPrompt);
-            if (report) {
-                io.emit('mission_field_report', { report: report.trim() });
+            // Tactical Report — try Ollama, fall back to rule-based
+            let report = null;
+            if (OLLAMA_ENABLED) {
+                const reportPrompt = `Act as a drone analyst. Two sentence tactical report: Target=${missionState.target_type}, Zone=${missionState.zone}, Detections=${JSON.stringify(detections)}. Be concise.`;
+                report = await askOllama(reportPrompt);
             }
+            if (!report) report = generateRuleBasedReport(missionState, detections);
+            io.emit('mission_field_report', { report: report.trim(), source: OLLAMA_ENABLED ? 'ollama' : 'rule-based' });
 
-            // Phase 3: Reallocation if high confidence
+            // Reallocation if high confidence — try Ollama, fall back to rule-based
             const highConfDets = detections.filter(d => d.confidence > 0.85);
             if (highConfDets.length > 0) {
-                const droneIds = Array.from(drones.keys());
-                const reallocPrompt = `Return only JSON. Given active drones ${JSON.stringify(droneIds)} and high-confidence detection: ${JSON.stringify(highConfDets[0])}. Which two drones should converge on the target and a one sentence reason? Schema: {"drones": [id1, id2], "reason": "string"}`;
-                const reallocRes = await askOllama(reallocPrompt);
-                try {
-                    const reallocJson = JSON.parse(reallocRes.trim());
-                    io.emit('mission_reallocation', reallocJson);
-                } catch(e) {}
+                const droneIds = drones.map(d => d.id);  // FIX: was drones.keys() on array
+                let reallocJson = null;
+                if (OLLAMA_ENABLED) {
+                    const reallocPrompt = `Return ONLY JSON. Active drones: ${JSON.stringify(droneIds)}. High-confidence detection: ${JSON.stringify(highConfDets[0])}. Which two drones converge on target? Schema: {"drones":[id1,id2],"reason":"string"}`;
+                    const reallocRaw = await askOllama(reallocPrompt);
+                    if (reallocRaw) {
+                        try { reallocJson = JSON.parse(reallocRaw.trim()); } catch(_) {}
+                    }
+                }
+                if (!reallocJson) reallocJson = generateRuleBasedReallocation(droneIds, highConfDets[0]);
+                io.emit('mission_reallocation', reallocJson);
             }
         }
 

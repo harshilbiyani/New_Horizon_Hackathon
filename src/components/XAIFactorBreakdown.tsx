@@ -43,9 +43,12 @@ export default function FactorBreakdown({
           color: C.textMut,
           letterSpacing: '0.14em',
           marginBottom: 7,
+          display: 'flex',
+          justifyContent: 'space-between',
         }}
       >
-        FACTOR BREAKDOWN
+        <span>FACTOR BREAKDOWN</span>
+        <span style={{ color: C.cyan }}>TOTAL: {totalScore}/100</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px 12px' }}>
         {items.map(({ key, label, color }) => {

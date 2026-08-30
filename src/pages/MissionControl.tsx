@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -11,7 +11,9 @@ export default function MissionControl() {
     const [mobileConnected, setMobileConnected] = useState(false);
     
     useEffect(() => {
-        const socket = io(); // Connects to the host where it's served
+        const socket = io('http://localhost:3001', {
+            transports: ['websocket', 'polling'],
+        });
         
         socket.on('mission_command_parsed', (data) => {
             setIntent(data);
@@ -34,6 +36,7 @@ export default function MissionControl() {
             socket.off('mission_detection');
             socket.off('mission_field_report');
             socket.off('mission_mobile_status');
+            socket.disconnect();
         };
     }, []);
 
