@@ -18,30 +18,6 @@ import type {
   Obstacle,
   Survivor,
   TelemetrySnapshot,
-} from '../types/telemetry';
-
-import { useEffect, useMemo, useState } from 'react';
-import { io } from 'socket.io-client';
-import StatsPanel from '../components/StatsPanel';
-import DroneGrid from '../components/DroneGrid';
-import SurvivorFeed from '../components/SurvivorFeed';
-import EventLogs from '../components/EventLogs';
-import LiveVideo from '../components/LiveVideo';
-import ChartsPanel from '../components/ChartsPanel';
-import MissionMap from '../components/MissionMap';
-import AICommandPanel from '../components/AICommandPanel';
-import type {
-  Alert,
-  AiInsights,
-  Drone,
-  HiddenSurvivor,
-  MissionData,
-  MeshLink,
-  Obstacle,
-  Survivor,
-  TelemetrySnapshot,
-} from '../types/telemetry';
-
 const EMPTY_MISSION_DATA: MissionData = {
   coverage: 0,
   scannedCells: 0,
