@@ -32,8 +32,14 @@ except Exception as exc:  # pragma: no cover - hard failure path
     raise SystemExit(1)
 
 
-WORLD_BOUNDARY = 140
-GRID_SIZE = 50
+try:
+    with open(os.path.join(ROOT_DIR, "shared", "simConfig.json")) as f:
+        _config = json.load(f)
+        WORLD_BOUNDARY = _config.get("WORLD_BOUNDARY", 350)
+        GRID_SIZE = _config.get("GRID_SIZE", 40)
+except Exception:
+    WORLD_BOUNDARY = 350
+    GRID_SIZE = 40
 
 
 def clamp(value: float, lo: float, hi: float) -> float:
@@ -141,6 +147,14 @@ def parse_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
             })
             allocations[idx] = fallback_task
 
+    # Dynamic reassignment: redistribute zones of failed drones to active neighbours
+    drone_statuses = {
+        idx: d.get("status", "active")
+        for idx, d in enumerate(drones, start=1)
+    }
+    reassigned = allocator.reassign_failed_drones(drone_statuses, drone_positions)
+    allocations.update(reassigned)
+
     failure = FailureRecoveryManager()
     for idx, d in enumerate(drones, start=1):
         failure.register_drone(idx)
@@ -197,6 +211,7 @@ def parse_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
                 "drone": f"DRN-{drone_id:03d}",
                 "taskId": task.task_id,
                 "zone": int(task.zone_id),
+                "assignedZoneId": f"Z{int(task.zone_id)}",
                 "fitness": round(float(task.fitness_score), 4),
                 "targetGrid": {"x": int(cx), "y": int(cy)},
                 "targetWorld": {"x": wx, "y": wy},

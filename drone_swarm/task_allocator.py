@@ -1,5 +1,6 @@
 # task_allocator.py
 
+import math
 import random
 from enum import Enum
 
@@ -210,7 +211,78 @@ class SwarmAllocator:
         
         self.completed_tasks.append(task)
         return task
-    
+
+    def reassign_failed_drones(self, drone_statuses, drone_positions):
+        """
+        Detect drones whose status == 'failed' and redistribute their
+        pending zone tasks to the nearest active drone with capacity.
+
+        Args:
+            drone_statuses  : dict[int, str]          — drone_id → status string ('active'/'failed')
+            drone_positions : list[(int, (int, int))] — (drone_id, (grid_x, grid_y)) tuples
+
+        Returns:
+            dict[int, DroneTask] of newly assigned tasks keyed by receiving drone_id
+        """
+        failed_ids = {did for did, st in drone_statuses.items() if st == "failed"}
+        active_ids = {did for did, st in drone_statuses.items() if st == "active"}
+
+        if not failed_ids:
+            return {}
+
+        # Build a quick lookup: drone_id → grid position
+        pos_lookup = {did: pos for did, pos in drone_positions}
+
+        new_assignments = {}
+
+        for failed_id in failed_ids:
+            task = self.drone_tasks.pop(failed_id, None)
+            if task is None:
+                continue  # No pending task to redistribute
+
+            task.status = "REASSIGNED"
+
+            # Find the nearest active drone that does NOT already have a pending task
+            nearest_id = None
+            nearest_dist = float("inf")
+            failed_pos = pos_lookup.get(failed_id, (0, 0))
+
+            for candidate_id in active_ids:
+                if candidate_id in self.drone_tasks or candidate_id in new_assignments:
+                    continue  # Already busy
+                cpos = pos_lookup.get(candidate_id, (0, 0))
+                dist = math.sqrt(
+                    (cpos[0] - failed_pos[0]) ** 2 + (cpos[1] - failed_pos[1]) ** 2
+                )
+                if dist < nearest_dist:
+                    nearest_dist = dist
+                    nearest_id = candidate_id
+
+            if nearest_id is None:
+                # All active drones are already busy — give it to the least-loaded one
+                for candidate_id in active_ids:
+                    cpos = pos_lookup.get(candidate_id, (0, 0))
+                    dist = math.sqrt(
+                        (cpos[0] - failed_pos[0]) ** 2 + (cpos[1] - failed_pos[1]) ** 2
+                    )
+                    if dist < nearest_dist:
+                        nearest_dist = dist
+                        nearest_id = candidate_id
+
+            if nearest_id is not None:
+                self.task_counter += 1
+                new_task = DroneTask(
+                    drone_id=nearest_id,
+                    task_id=f"TASK_REASSIGN_{self.task_counter}",
+                    zone_id=task.zone_id,
+                    zone_center=task.zone_center,
+                    fitness_score=task.fitness_score,
+                )
+                self.drone_tasks[nearest_id] = new_task
+                new_assignments[nearest_id] = new_task
+
+        return new_assignments
+
     def get_swarm_status(self):
         """Get current status of all drone assignments."""
         return {

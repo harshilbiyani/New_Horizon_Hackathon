@@ -1,13 +1,60 @@
-export function computeCommand(droneState, worldMap, missionState) {
-  // Pull obstacles from wherever they are injected (to be fully swapped in Phase 2)
-  const obstacles = (worldMap && worldMap.obstacles) || (missionState && missionState.obstacles) || [];
-  
+/**
+ * decisionEngine.js  (Phase 2 — waypoint-guided sweep with obstacle avoidance fallback)
+ *
+ * External API:
+ *   computeCommand(droneState, worldMap, missionState) → DroneCommand
+ *
+ * missionState may carry:
+ *   missionState.waypointQueues  — Map<droneId, {x,y,z}[]>  (from zonePlanner.buildZoneWaypoints)
+ *   missionState.obstacles       — obstacle[] (flat array, Phase 1 fallback)
+ *   missionState.allDroneIds     — string[]  (for zone label generation)
+ *
+ * The engine:
+ *   1. Checks if a waypoint queue exists for the drone.
+ *   2. Steers toward the head of the queue, popping waypoints on arrival.
+ *   3. Runs the obstacle avoidance check and overrides the heading/altitude if needed.
+ *   4. Returns a canonical DroneCommand object.
+ */
+
+// Arrival threshold: if the drone is within this distance of a waypoint, pop it.
+const WAYPOINT_ARRIVAL_RADIUS = 18; // world units
+
+/**
+ * Compute the bearing angle (degrees [0,360)) from the drone's current
+ * position toward a target (x, y).
+ */
+function bearingTo(drone, target) {
+  const dx = target.x - drone.x;
+  const dy = target.y - drone.y;
+  return ((Math.atan2(dy, dx) * 180) / Math.PI + 360) % 360;
+}
+
+/**
+ * Euclidean distance in the XY plane.
+ */
+function dist2D(a, b) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+/**
+ * Run the obstacle avoidance check. Returns a partial command override if
+ * the drone is dangerously close to an obstacle, otherwise null.
+ *
+ * @param {{ x,y,z,targetHeading,targetSpeed,targetZ }} drone
+ * @param {Object[]} obstacles
+ * @returns {Object|null}
+ */
+function obstacleAvoidanceOverride(drone, obstacles) {
+  if (!obstacles || obstacles.length === 0) return null;
+
   let nearest = null;
   let nearestDist = Number.POSITIVE_INFINITY;
 
   for (const obstacle of obstacles) {
-    const dx = droneState.x - obstacle.x;
-    const dy = droneState.y - obstacle.y;
+    const dx = drone.x - obstacle.x;
+    const dy = drone.y - obstacle.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     if (distance < nearestDist) {
       nearestDist = distance;
@@ -15,49 +62,115 @@ export function computeCommand(droneState, worldMap, missionState) {
     }
   }
 
-  // Default command values to continue current trajectory
+  if (!nearest) return null;
+
+  const cautionRadius = nearest.radius + 12;
+  const clearanceZ = nearest.height + 25;
+
+  if (nearestDist < cautionRadius && drone.z < clearanceZ) {
+    const awayAngle = (Math.atan2(drone.y - nearest.y, drone.x - nearest.x) * 180) / Math.PI;
+    const isCritical = nearestDist < nearest.radius + 3;
+    const blend = isCritical ? 0.78 : 0.42;
+
+    const override = {
+      targetHeading: ((1 - blend) * drone.targetHeading + blend * awayAngle + 360) % 360,
+      targetSpeed: Math.max(7, Math.min(16, drone.targetSpeed * 0.82)),
+      targetZ: Math.max(drone.targetZ, clearanceZ + 5),
+      reason: 'obstacle-avoidance',
+      priority: isCritical ? 'emergency' : 'high',
+    };
+
+    // Hard push if critically close
+    if (nearestDist < nearest.radius + 1.5) {
+      const push = nearest.radius + 2.2 - nearestDist;
+      const rad = (awayAngle * Math.PI) / 180;
+      override.positionAdjust = {
+        dx: Math.cos(rad) * push,
+        dy: Math.sin(rad) * push,
+      };
+    }
+
+    return override;
+  }
+
+  return null;
+}
+
+/**
+ * Pure function — no side effects, no globals.
+ *
+ * @param {Object} droneState    — current drone telemetry snapshot
+ * @param {Object|null} worldMap — Person A's occupancy grid (Phase 2+) or null
+ * @param {Object} missionState  — { waypointQueues, obstacles, allDroneIds }
+ * @returns {Object}             — DroneCommand per shared/command.schema.md
+ */
+export function computeCommand(droneState, worldMap, missionState) {
+  const obstacles =
+    (worldMap && worldMap.obstacles) ||
+    (missionState && missionState.obstacles) ||
+    [];
+
+  const waypointQueues =
+    (missionState && missionState.waypointQueues) || null;
+
+  const allDroneIds =
+    (missionState && missionState.allDroneIds) || [];
+
+  // Derive zone label for schema field
+  const zoneIdx = allDroneIds.indexOf(droneState.id);
+  const assignedZoneId = zoneIdx >= 0 ? `Z${zoneIdx + 1}` : undefined;
+
+  // --- Base command: maintain current trajectory ---
   const command = {
     droneId: droneState.id,
     targetHeading: droneState.targetHeading,
     targetSpeed: droneState.targetSpeed,
     targetZ: droneState.targetZ,
+    assignedZoneId,
     reason: 'exploring',
     priority: 'normal',
     issuedAt: new Date().toISOString(),
-    issuedBy: 'ai-bridge'
+    issuedBy: 'ai-bridge',
   };
 
-  if (!nearest) return command;
+  // --- Step 1: Waypoint pursuit steering ---
+  if (waypointQueues) {
+    const queue = waypointQueues.get(droneState.id);
 
-  const cautionRadius = nearest.radius + 12;
-  const clearanceZ = nearest.height + 25; // Minimum safe altitude to fly over
+    if (queue && queue.length > 0) {
+      const target = queue[0];
+      const distToWaypoint = dist2D(droneState, target);
 
-  // Only evade if we are within the horizontal circle AND below the safe clearance altitude (3D check!)
-  if (nearestDist < cautionRadius && droneState.z < clearanceZ) {
-    const awayAngle = (Math.atan2(droneState.y - nearest.y, droneState.x - nearest.x) * 180) / Math.PI;
-    const blend = nearestDist < nearest.radius + 3 ? 0.78 : 0.42;
-    
-    // Smoothly turn away by setting the target heading
-    command.targetHeading = ((1 - blend) * droneState.targetHeading + blend * awayAngle + 360) % 360;
-    
-    // Speed clamp equivalent to `clamp(drone.targetSpeed * 0.82, 7, 16)`
-    command.targetSpeed = Math.max(7, Math.min(16, droneState.targetSpeed * 0.82));
-    
-    // 3D Evasion: Also pitch up to fly over the obstacle!
-    command.targetZ = Math.max(droneState.targetZ, clearanceZ + 5);
-    
-    command.reason = 'obstacle-avoidance';
-    command.priority = nearestDist < nearest.radius + 3 ? 'emergency' : 'high';
+      if (distToWaypoint < WAYPOINT_ARRIVAL_RADIUS) {
+        // Pop the reached waypoint in-place (caller owns the queue reference)
+        queue.shift();
+      }
 
-    // Hard push only if absolutely critically close
-    if (nearestDist < nearest.radius + 1.5) {
-      const push = nearest.radius + 2.2 - nearestDist;
-      const rad = (awayAngle * Math.PI) / 180;
-      // Inject force dx/dy into the command so actution engine applies it immediately
-      command.positionAdjust = {
-        dx: Math.cos(rad) * push,
-        dy: Math.sin(rad) * push
-      };
+      // If there is still a waypoint to reach, steer toward it
+      const nextTarget = queue[0];
+      if (nextTarget) {
+        command.targetHeading = bearingTo(droneState, nextTarget);
+        // Match cruise altitude of the waypoint
+        command.targetZ = nextTarget.z;
+        // Fly at a purposeful speed during coverage
+        command.targetSpeed = Math.min(
+          droneState.targetSpeed + 1.5,
+          20
+        );
+        command.reason = 'sweeping';
+        command.priority = 'normal';
+      }
+    }
+    // If queue is exhausted, fall through to random-drift (inherited base values)
+  }
+
+  // --- Step 2: Obstacle avoidance (overrides waypoint steering when needed) ---
+  const avoidance = obstacleAvoidanceOverride(droneState, obstacles);
+  if (avoidance) {
+    Object.assign(command, avoidance);
+    // Preserve schema fields that avoidance doesn't touch
+    if (!command.assignedZoneId && assignedZoneId) {
+      command.assignedZoneId = assignedZoneId;
     }
   }
 
