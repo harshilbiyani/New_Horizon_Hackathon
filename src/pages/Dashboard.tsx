@@ -17,7 +17,8 @@ import type {
   MeshLink,
   Obstacle,
   Survivor,
-  TelemetrySnapshot,
+  } from '../types/telemetry';
+
 const EMPTY_MISSION_DATA: MissionData = {
   coverage: 0,
   scannedCells: 0,
