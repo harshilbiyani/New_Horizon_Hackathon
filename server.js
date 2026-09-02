@@ -329,7 +329,7 @@ app.get('/api/scenarios', (_req, res) => {
 // Configure simulation
 app.post('/api/mission/configure', (req, res) => {
   if (simulationRunning) return res.status(400).json({ error: 'Stop simulation first.' });
-  const { scenario_id, seed } = req.body;
+  const { scenario_id, seed } = req.body || {};
   if (scenario_id) currentScenarioId = scenario_id;
   if (seed) currentSeed = Number(seed);
   res.json({ ok: true, scenario_id: currentScenarioId, seed: currentSeed });
@@ -337,8 +337,9 @@ app.post('/api/mission/configure', (req, res) => {
 
 // Dynamic Mesh Synchronization (Frontend sends physical GLB boundaries)
 app.post('/api/mission/set-obstacles', (req, res) => {
-  if (req.body && Array.isArray(req.body.obstacles)) {
-    customObstacles = req.body.obstacles;
+  const body = req.body || {};
+  if (Array.isArray(body.obstacles)) {
+    customObstacles = body.obstacles;
     console.log(`[PHYSICS SYNC] Received ${customObstacles.length} physical building collisions from the frontend scanner!`);
     res.json({ ok: true, count: customObstacles.length });
   } else {
@@ -349,7 +350,7 @@ app.post('/api/mission/set-obstacles', (req, res) => {
 // Start simulation
 app.post('/api/mission/start', (req, res) => {
   if (simulationRunning) return res.status(400).json({ error: 'Already running' });
-  const { scenario_id, seed } = req.body;
+  const { scenario_id, seed } = req.body || {};
   if (scenario_id) currentScenarioId = scenario_id;
   if (seed) currentSeed = Number(seed);
 
@@ -375,7 +376,7 @@ app.post('/api/mission/stop', (_req, res) => {
 
 // Reset simulation
 app.post('/api/mission/reset', (req, res) => {
-  const { scenario_id, seed } = req.body;
+  const { scenario_id, seed } = req.body || {};
   if (scenario_id) currentScenarioId = scenario_id;
   if (seed) currentSeed = Number(seed);
   simulationRunning = false;
@@ -389,7 +390,7 @@ app.post('/api/mission/reset', (req, res) => {
 
 // Toggle GPS-denied mode
 app.post('/api/mission/gps-denied', (req, res) => {
-  const { enabled } = req.body;
+  const { enabled } = req.body || {};
   const result = pySetGpsDenied(!!enabled);
   res.json({ ok: true, gps_denied: !!enabled, ...result });
 });
