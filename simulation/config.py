@@ -134,3 +134,38 @@ CELL_SCANNED = 3
 
 # --- Pathfinding Settings ---
 A_STAR_MAX_ITERATIONS = 5000  # prevent infinite loops on unsolvable grids
+
+# =============================================================================
+# NEW: LiDAR Configuration
+# =============================================================================
+LIDAR_RANGE = 8            # cells — how far each drone's LiDAR can see
+LIDAR_NUM_RAYS = 72        # rays per scan (every 5°) — higher = more accurate
+LIDAR_FOV = 360.0          # degrees field of view (360 = omnidirectional)
+LIDAR_NOISE_PROB = 0.02    # false-positive probability (realism)
+
+# =============================================================================
+# NEW: GPS-Denied / Dead Reckoning
+# =============================================================================
+GPS_DENIED_MODE = False    # Set to True to enable dead reckoning drift
+                           # Can be toggled per-scenario
+DR_DRIFT_RATE = 0.05       # position drift per step (cells) when GPS denied
+DR_CORRECTION_RADIUS = 3   # cells — drones this close share position estimates
+
+# =============================================================================
+# NEW: Potential Field Navigation
+# =============================================================================
+POTENTIAL_FIELD_ENABLED = True   # Enable APF reactive avoidance layer
+POTENTIAL_FIELD_BLEND = 0.4      # How much APF deflects from A* heading (0=none, 1=full)
+APF_OBSTACLE_GAIN = 2.5          # Repulsion strength from obstacles
+APF_OBSTACLE_RADIUS = 4.0        # Influence radius in cells
+APF_DRONE_GAIN = 1.5             # Repulsion between drones
+APF_DRONE_RADIUS = 3.0           # Inter-drone influence radius
+
+# =============================================================================
+# NEW: Demo Scenario Identifiers
+# =============================================================================
+SCENARIO_EARTHQUAKE = "earthquake"      # urban_canyon + aftershock events
+SCENARIO_FLOOD = "flood_rescue"         # coastal_storm + rising water
+SCENARIO_NIGHT = "night_rescue"         # forest_canopy + thermal detection
+SCENARIO_HOSTILE = "hostile_zone"       # mountain_pass + GPS denial + jamming
+
