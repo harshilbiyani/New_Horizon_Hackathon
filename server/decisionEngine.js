@@ -164,6 +164,16 @@ export function computeCommand(droneState, worldMap, missionState) {
     // If queue is exhausted, fall through to random-drift (inherited base values)
   }
 
+  // --- Step 1.5: GPS-denied hold — reduce speed, freeze heading to limit drift ---
+  if (droneState.gpsMode === 'dead-reckoning') {
+    // Hold current heading (don't pursue waypoints we can't verify reaching)
+    command.targetHeading = droneState.heading;
+    // Slow down: drift error = speed × time, so cutting speed cuts uncertainty growth
+    command.targetSpeed = Math.max(7, droneState.targetSpeed * 0.55);
+    command.reason = 'gps-denied-hold';
+    command.priority = 'high';
+  }
+
   // --- Step 2: Obstacle avoidance (overrides waypoint steering when needed) ---
   const avoidance = obstacleAvoidanceOverride(droneState, obstacles);
   if (avoidance) {
