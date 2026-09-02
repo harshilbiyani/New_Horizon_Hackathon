@@ -1020,65 +1020,84 @@ animate();
 // --- Dynamic GLB Mesh Scanner & Heatmap ---
 function scanCityMesh() {
     if (!window.cityModelForRaycasting) return;
-    console.log("Scanning city mesh for collision boundaries...");
+    console.log("Scanning city mesh for full occupancy grid & collision boundaries...");
     
     const raycaster = new THREE.Raycaster();
     const scannedObstacles = [];
-    const scanStep = 25;
     const boundary = SIM_CONFIG.WORLD_BOUNDARY || 350;
+    const gridSize = SIM_CONFIG.GRID_SIZE || 40;
+    const cellSize = (boundary * 2) / gridSize;
     
     const heatmapGroup = new THREE.Group();
     heatmapGroup.position.y = 1.0; // Slightly above ground to prevent Z-fighting
     
-    // Scan a grid over the entire city
-    for (let x = -boundary; x <= boundary; x += scanStep) {
-        for (let y = -boundary; y <= boundary; y += scanStep) {
-            // Shoot ray down from high up
-            raycaster.set(new THREE.Vector3(x, 1500, y), new THREE.Vector3(0, -1, 0));
+    // Initialize worldMap 2D array [cellX][cellY]
+    const worldMap = Array.from({ length: gridSize }, () => Array(gridSize).fill(null));
+    
+    for (let cellX = 0; cellX < gridSize; cellX++) {
+        for (let cellY = 0; cellY < gridSize; cellY++) {
+            const worldX = -boundary + (cellX + 0.5) * cellSize;
+            const worldY = -boundary + (cellY + 0.5) * cellSize;
+            
+            raycaster.set(new THREE.Vector3(worldX, 1500, worldY), new THREE.Vector3(0, -1, 0));
             const intersects = raycaster.intersectObject(window.cityModelForRaycasting, true);
             
-            if (intersects.length > 0) {
-                const hitY = intersects[0].point.y;
+            const hitY = intersects.length > 0 ? intersects[0].point.y : 0;
+            const occupied = hitY > 10;
+            
+            worldMap[cellX][cellY] = {
+                height: Number(hitY.toFixed(2)),
+                occupied,
+                obstacleId: occupied ? `GLB-${cellX}-${cellY}` : null,
+            };
+            
+            if (occupied) {
+                scannedObstacles.push({
+                    id: `GLB-${cellX}-${cellY}`,
+                    x: Number(worldX.toFixed(2)),
+                    y: Number(worldY.toFixed(2)),
+                    radius: Number((cellSize * 0.7).toFixed(2)),
+                    height: Number(hitY.toFixed(2)),
+                    severity: hitY > 150 ? 'high' : hitY > 80 ? 'medium' : 'low',
+                });
                 
-                // If the hit point is taller than street level (y > 10)
-                if (hitY > 10) {
-                    scannedObstacles.push({
-                        id: `GLB-${x}-${y}`,
-                        x: x,
-                        y: y,
-                        radius: scanStep * 0.7, // Cover the grid cell
-                        height: hitY,
-                        severity: hitY > 150 ? 'high' : hitY > 80 ? 'medium' : 'low'
-                    });
-                    
-                    // Add tactical heatmap tile
-                    const tileGeo = new THREE.PlaneGeometry(scanStep * 0.9, scanStep * 0.9);
-                    const color = hitY > 150 ? 0xff0000 : hitY > 80 ? 0xffaa00 : 0xffff00;
-                    const tileMat = new THREE.MeshBasicMaterial({
-                        color: color,
-                        transparent: true,
-                        opacity: 0.28,
-                        side: THREE.DoubleSide,
-                        depthWrite: false
-                    });
-                    const tile = new THREE.Mesh(tileGeo, tileMat);
-                    tile.rotation.x = -Math.PI / 2;
-                    tile.position.set(x, 0, y);
-                    heatmapGroup.add(tile);
-                }
+                // Add tactical heatmap tile
+                const tileGeo = new THREE.PlaneGeometry(cellSize * 0.9, cellSize * 0.9);
+                const color = hitY > 150 ? 0xff0000 : hitY > 80 ? 0xffaa00 : 0xffff00;
+                const tileMat = new THREE.MeshBasicMaterial({
+                    color,
+                    transparent: true,
+                    opacity: 0.28,
+                    side: THREE.DoubleSide,
+                    depthWrite: false,
+                });
+                const tile = new THREE.Mesh(tileGeo, tileMat);
+                tile.rotation.x = -Math.PI / 2;
+                tile.position.set(worldX, 0, worldY);
+                heatmapGroup.add(tile);
             }
         }
     }
     
     scene.add(heatmapGroup);
     
-    // Post to Node.js backend to sync physics
+    // Post scanned obstacles to Node.js physics engine
     fetch('http://localhost:3001/api/mission/set-obstacles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ obstacles: scannedObstacles })
+        body: JSON.stringify({ obstacles: scannedObstacles }),
     }).then(res => res.json())
-      .then(data => console.log('Successfully synced ' + data.count + ' physical buildings with backend physics!'))
+      .then(data => console.log('[PHYSICS SYNC] Synced ' + data.count + ' physical building collisions!'))
       .catch(err => console.error('Failed to sync obstacles:', err));
+
+    // Post full worldMap matrix to Node.js backend
+    fetch('http://localhost:3001/api/mission/world-map', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ worldMap }),
+    }).then(res => res.json())
+      .then(data => console.log('[WORLD MAP SYNC] Synced full ' + gridSize + 'x' + gridSize + ' occupancy grid to server!'))
+      .catch(err => console.error('Failed to sync worldMap:', err));
 }
+
 

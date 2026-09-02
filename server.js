@@ -3,11 +3,17 @@ import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Ensure data and logs directories exist
+const DATA_DIR = path.join(__dirname, 'data');
+const LOGS_DIR = path.join(__dirname, 'logs');
+if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
+if (!existsSync(LOGS_DIR)) mkdirSync(LOGS_DIR, { recursive: true });
 
 // ─── Shared Config (single source of truth: shared/simConfig.json) ──────────
 const SIM_CONFIG = JSON.parse(
@@ -15,8 +21,8 @@ const SIM_CONFIG = JSON.parse(
 );
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+app.use(cors({ origin: '*' }));
+app.use(express.json({ limit: '10mb' }));
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -32,6 +38,23 @@ const TICK_MS = SIM_CONFIG.TICK_MS;
 const DRONE_DETECTION_RADIUS = SIM_CONFIG.DETECTION_RADIUS;
 const COMMUNICATION_RANGE = SIM_CONFIG.COMM_RANGE;
 const TOTAL_CELLS = GRID_SIZE * GRID_SIZE;
+
+// ─── World Map & Mission Logging Persistence State ───────────────────────────
+let currentWorldMap = null;
+const WORLD_MAP_FILE = path.join(DATA_DIR, 'worldMap.json');
+
+// Boot check: load cached worldMap if present
+if (existsSync(WORLD_MAP_FILE)) {
+  try {
+    currentWorldMap = JSON.parse(readFileSync(WORLD_MAP_FILE, 'utf8'));
+    console.log(`[BOOT] Loaded cached 3D city worldMap from disk (${WORLD_MAP_FILE})`);
+  } catch (err) {
+    console.error('[BOOT] Failed to load worldMap.json:', err);
+  }
+}
+
+let currentMissionId = null;
+let currentMissionLogPath = null;
 
 // --- Simulation State (mutable, resettable) ---
 let simulationRunning = false;
@@ -414,6 +437,7 @@ function buildSnapshot() {
   return {
     timestamp: new Date().toISOString(),
     simulationRunning,
+    missionId: currentMissionId,
     config: simConfig,
     missionData: buildMissionData(),
     drones,
@@ -422,6 +446,7 @@ function buildSnapshot() {
     obstacles,
     hiddenSurvivors,
     meshLinks: buildMeshLinks(drones),
+    worldMap: currentWorldMap,
   };
 }
 
@@ -460,7 +485,18 @@ function startSimulationTick() {
       }
     }
 
-    emitSnapshot();
+    const snapshot = buildSnapshot();
+
+    // Log tick to append-only JSONL file
+    if (currentMissionLogPath) {
+      try {
+        appendFileSync(currentMissionLogPath, JSON.stringify(snapshot) + '\n');
+      } catch (err) {
+        console.error('[LOGGER] Error writing tick log:', err);
+      }
+    }
+
+    emitSnapshot(snapshot);
   }, TICK_MS);
 }
 
@@ -492,7 +528,51 @@ app.get('/api/mission/snapshot', (_req, res) => {
 });
 
 app.get('/api/mission/status', (_req, res) => {
-  res.json({ simulationRunning, config: simConfig });
+  res.json({ simulationRunning, config: simConfig, missionId: currentMissionId });
+});
+
+// GET /api/mission/logs - list available mission log files
+app.get('/api/mission/logs', (_req, res) => {
+  try {
+    const files = readdirSync(LOGS_DIR)
+      .filter(f => f.endsWith('.jsonl'))
+      .sort((a, b) => b.localeCompare(a));
+    const logList = files.map(f => {
+      const logPath = path.join(LOGS_DIR, f);
+      const stat = existsSync(logPath) ? readFileSync(logPath, 'utf8').split('\n').length - 1 : 0;
+      return {
+        id: f.replace('.jsonl', ''),
+        filename: f,
+        ticks: stat,
+      };
+    });
+    res.json({ ok: true, logs: logList });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/mission/history/:id - read past mission JSONL log file
+app.get('/api/mission/history/:id', (req, res) => {
+  try {
+    const rawId = req.params.id;
+    const filename = rawId.endsWith('.jsonl') ? rawId : `${rawId}.jsonl`;
+    const logPath = path.join(LOGS_DIR, filename);
+
+    if (!existsSync(logPath)) {
+      return res.status(404).json({ error: `Mission log '${filename}' not found` });
+    }
+
+    const content = readFileSync(logPath, 'utf8');
+    const ticks = content
+      .split('\n')
+      .filter(line => line.trim().length > 0)
+      .map(line => JSON.parse(line));
+
+    res.json({ ok: true, missionId: rawId, ticksCount: ticks.length, ticks });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/mission/ai-insights', (_req, res) => {
@@ -532,12 +612,15 @@ app.post('/api/mission/start', (_req, res) => {
   
   simulationRunning = true;
   startedAt = Date.now();
+  currentMissionId = `mission_${startedAt}`;
+  currentMissionLogPath = path.join(LOGS_DIR, `${currentMissionId}.jsonl`);
+
   drones.forEach(d => { d.task = 'exploring'; });
-  pushAlert('info', `Mission started with ${drones.length} drones. Battery: ${simConfig.battery}%.`);
+  pushAlert('info', `Mission started with ${drones.length} drones. Log: ${currentMissionId}.jsonl`);
   startSimulationTick();
   
-  console.log('Simulation STARTED');
-  res.json({ ok: true, message: 'Simulation started' });
+  console.log(`Simulation STARTED (Log: ${currentMissionId}.jsonl)`);
+  res.json({ ok: true, message: 'Simulation started', missionId: currentMissionId });
 });
 
 // Stop simulation
@@ -564,10 +647,27 @@ app.post('/api/mission/reset', (_req, res) => {
 app.post('/api/mission/set-obstacles', (req, res) => {
   if (req.body && Array.isArray(req.body.obstacles)) {
     obstacles = req.body.obstacles;
-    console.log(`[PHYSICS SYNC] Received ${obstacles.length} physical building collisions from the frontend scanner!`);
+    console.log(`[PHYSICS SYNC] Received ${obstacles.length} physical building collisions from frontend scanner.`);
     res.json({ ok: true, count: obstacles.length });
   } else {
     res.status(400).json({ error: 'invalid format' });
+  }
+});
+
+// POST /api/mission/world-map - Receive full occupancy grid from GLB scanner and persist to disk
+app.post('/api/mission/world-map', (req, res) => {
+  if (req.body && Array.isArray(req.body.worldMap)) {
+    currentWorldMap = req.body.worldMap;
+    try {
+      writeFileSync(WORLD_MAP_FILE, JSON.stringify(currentWorldMap, null, 2), 'utf8');
+      console.log(`[WORLD MAP SYNC] Saved ${currentWorldMap.length}x${currentWorldMap[0]?.length || 0} occupancy grid to ${WORLD_MAP_FILE}`);
+      res.json({ ok: true, saved: true, file: WORLD_MAP_FILE });
+    } catch (err) {
+      console.error('[WORLD MAP SYNC] Failed to write worldMap.json:', err);
+      res.status(500).json({ error: 'Failed to write to disk' });
+    }
+  } else {
+    res.status(400).json({ error: 'invalid worldMap format' });
   }
 });
 
