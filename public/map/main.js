@@ -1098,6 +1098,52 @@ function scanCityMesh() {
     }).then(res => res.json())
       .then(data => console.log('[WORLD MAP SYNC] Synced full ' + gridSize + 'x' + gridSize + ' occupancy grid to server!'))
       .catch(err => console.error('Failed to sync worldMap:', err));
+
+    // Place 3D survivors exclusively on unoccupied ground cells
+    const unoccupiedCells = [];
+    for (let cx = 0; cx < gridSize; cx++) {
+        for (let cy = 0; cy < gridSize; cy++) {
+            if (!worldMap[cx][cy].occupied) {
+                const wx = -boundary + (cx + 0.5) * cellSize;
+                const wy = -boundary + (cy + 0.5) * cellSize;
+                unoccupiedCells.push({ cx, cy, x: Number(wx.toFixed(2)), y: Number(wy.toFixed(2)) });
+            }
+        }
+    }
+
+    const realSurvivors = [];
+    const severities = ['critical', 'stable', 'unknown', 'critical', 'stable'];
+    const survivorGroup = new THREE.Group();
+
+    for (let i = 0; i < Math.min(5, unoccupiedCells.length); i++) {
+        const randomIndex = Math.floor(Math.random() * unoccupiedCells.length);
+        const cell = unoccupiedCells.splice(randomIndex, 1)[0];
+        const survivorId = `HSV-00${i + 1}`;
+        const severity = severities[i % severities.length];
+
+        realSurvivors.push({
+            id: survivorId,
+            x: cell.x,
+            y: cell.y,
+            severity,
+        });
+
+        // Visual 3D marker in scene at cell ground height
+        const markerGeo = new THREE.CylinderGeometry(2, 0, 8, 8);
+        const markerMat = new THREE.MeshBasicMaterial({ color: 0xff0055, wireframe: true });
+        const marker = new THREE.Mesh(markerGeo, markerMat);
+        marker.position.set(cell.x, 4, cell.y);
+        survivorGroup.add(marker);
+    }
+    scene.add(survivorGroup);
+
+    fetch('http://localhost:3001/api/mission/survivor-positions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ survivors: realSurvivors }),
+    }).then(res => res.json())
+      .then(data => console.log('[SURVIVOR SYNC] Synced ' + data.count + ' real 3D survivor positions on unoccupied ground cells!'))
+      .catch(err => console.error('Failed to sync survivor positions:', err));
 }
 
 

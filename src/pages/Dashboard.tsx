@@ -213,6 +213,7 @@ export default function Dashboard() {
               foundSurvivors={survivors}
               hiddenSurvivors={hiddenSurvivors}
               meshLinks={meshLinks}
+              scannedCells={telemetry?.missionData?.scannedCells}
               selectedDroneId={selectedDroneId}
               onSelectDrone={setSelectedDroneId}
             />

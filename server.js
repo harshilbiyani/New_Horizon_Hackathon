@@ -138,7 +138,7 @@ function buildObstacleField() {
 
 let obstacles = buildObstacleField();
 
-const hiddenSurvivors = [
+let hiddenSurvivors = [
   { id: 'HSV-001', x: -175, y: 49, severity: 'critical' },
   { id: 'HSV-002', x: 98, y: 161, severity: 'stable' },
   { id: 'HSV-003', x: 259, y: -91, severity: 'critical' },
@@ -436,6 +436,25 @@ function buildMeshLinks(droneStates) {
   return links;
 }
 
+function buildMissionData() {
+  const activeDrones = drones.filter((d) => d.status === 'active').length;
+  const failedDrones = drones.length - activeDrones;
+  const avgBattery   = drones.length ? drones.reduce((s, d) => s + d.battery, 0) / drones.length : 0;
+  const avgSignal    = drones.length ? drones.reduce((s, d) => s + d.signalStrength, 0) / drones.length : 0;
+  const elapsedMs    = startedAt ? Date.now() - startedAt : 0;
+  return {
+    coverage: Math.round((scannedCells.size / TOTAL_CELLS) * 100),
+    scannedCells: Array.from(scannedCells),
+    totalCells: TOTAL_CELLS,
+    activeDrones,
+    failedDrones,
+    avgBattery: Number(avgBattery.toFixed(1)),
+    avgSignal: Number(avgSignal.toFixed(1)),
+    foundSurvivors: foundSurvivors.length,
+    missionTimeSec: Math.floor(elapsedMs / 1000),
+  };
+}
+
 function buildSnapshot() {
   return {
     timestamp: new Date().toISOString(),
@@ -701,6 +720,17 @@ app.post('/api/mission/world-map', (req, res) => {
   }
 });
 
+// POST /api/mission/survivor-positions - Receive real 3D scene survivor positions placed on unoccupied ground
+app.post('/api/mission/survivor-positions', (req, res) => {
+  if (req.body && Array.isArray(req.body.survivors) && req.body.survivors.length > 0) {
+    hiddenSurvivors = req.body.survivors;
+    console.log(`[SURVIVOR SYNC] Updated ${hiddenSurvivors.length} real 3D survivor positions on unoccupied ground cells.`);
+    res.json({ ok: true, count: hiddenSurvivors.length });
+  } else {
+    res.status(400).json({ error: 'invalid survivors format' });
+  }
+});
+
 // --- Procedural Height Map Generation ---
 let cachedMapData = null;
 
@@ -779,6 +809,25 @@ function generatePerlinLikeNoise(width, height, seed) {
 }
 
 function getMapData() {
+  if (currentWorldMap && Array.isArray(currentWorldMap) && currentWorldMap.length > 0) {
+    const gridSize = currentWorldMap.length;
+    const heightMap = [];
+    for (let x = 0; x < gridSize; x++) {
+      const row = [];
+      for (let y = 0; y < gridSize; y++) {
+        row.push(currentWorldMap[x]?.[y]?.height || 0);
+      }
+      heightMap.push(row);
+    }
+    return {
+      worldMap: currentWorldMap,
+      heightMap,
+      gridSize,
+      worldBoundary: WORLD_BOUNDARY,
+      isRealWorldMap: true,
+    };
+  }
+
   if (cachedMapData) return cachedMapData;
   const mapWidth = 64;
   const mapHeight = 64;
@@ -797,7 +846,7 @@ function getMapData() {
     rawSurvivors.push([sx, sy]);
   }
 
-  cachedMapData = { heightMap, rawSurvivors, gridSize: mapWidth, worldBoundary: WORLD_BOUNDARY };
+  cachedMapData = { heightMap, rawSurvivors, gridSize: mapWidth, worldBoundary: WORLD_BOUNDARY, isRealWorldMap: false };
   return cachedMapData;
 }
 

@@ -1,12 +1,19 @@
 import type { Drone, HiddenSurvivor, MeshLink, Obstacle, Survivor } from '../types/telemetry';
 import { useSimConfig } from '../context/ConfigContext';
 
+const GPS_DENIAL_ZONES = [
+  { id: 'GDZ-A', cx: -98, cy: -42, radius: 55 },
+  { id: 'GDZ-B', cx: 76, cy: 58, radius: 50 },
+  { id: 'GDZ-C', cx: 18, cy: -92, radius: 45 },
+];
+
 interface MissionMapProps {
   drones: Drone[];
   obstacles: Obstacle[];
   foundSurvivors: Survivor[];
   hiddenSurvivors: HiddenSurvivor[];
   meshLinks?: MeshLink[];
+  scannedCells?: string[];
   selectedDroneId?: string;
   onSelectDrone?: (droneId: string) => void;
 }
@@ -64,11 +71,13 @@ export default function MissionMap({
   foundSurvivors,
   hiddenSurvivors,
   meshLinks,
+  scannedCells,
   selectedDroneId,
   onSelectDrone,
 }: MissionMapProps) {
   const config = useSimConfig();
   const WORLD_BOUNDARY = config.WORLD_BOUNDARY;
+  const GRID_SIZE = config.GRID_SIZE || 40;
 
   const toPct = (val: number) => worldToPercent(val, WORLD_BOUNDARY);
   const toPt = (x: number, y: number) => toSvgPoint(x, y, WORLD_BOUNDARY);
@@ -94,6 +103,59 @@ export default function MissionMap({
 
           <line x1={50} y1={0} x2={50} y2={100} stroke="#334155" strokeWidth={0.3} />
           <line x1={0} y1={50} x2={100} y2={50} stroke="#334155" strokeWidth={0.3} />
+
+          {/* Explored grid tiles heatmap overlay */}
+          {scannedCells?.map((cellKey) => {
+            const [cxStr, cyStr] = cellKey.split(':');
+            const cx = Number(cxStr);
+            const cy = Number(cyStr);
+            const cellSizePct = 100 / GRID_SIZE;
+            const x = cx * cellSizePct;
+            const y = 100 - (cy + 1) * cellSizePct;
+            return (
+              <rect
+                key={`scanned-${cellKey}`}
+                x={x}
+                y={y}
+                width={cellSizePct}
+                height={cellSizePct}
+                fill="#00ffcc"
+                fillOpacity={0.12}
+                stroke="#00ffcc"
+                strokeOpacity={0.2}
+                strokeWidth={0.05}
+                style={{ pointerEvents: 'none' }}
+              />
+            );
+          })}
+
+          {/* GPS Denial Zones */}
+          {GPS_DENIAL_ZONES.map((zone) => (
+            <g key={zone.id}>
+              <circle
+                cx={toPct(zone.cx)}
+                cy={100 - toPct(zone.cy)}
+                r={(zone.radius / (WORLD_BOUNDARY * 2)) * 100}
+                fill="#f59e0b"
+                fillOpacity={0.08}
+                stroke="#f59e0b"
+                strokeDasharray="1 1"
+                strokeOpacity={0.6}
+                strokeWidth={0.2}
+              />
+              <text
+                x={toPct(zone.cx)}
+                y={100 - toPct(zone.cy)}
+                fill="#f59e0b"
+                fontSize={1.8}
+                fontFamily="monospace"
+                textAnchor="middle"
+                opacity={0.7}
+              >
+                {zone.id} (GPS-DENIED)
+              </text>
+            </g>
+          ))}
 
           {obstacles.map((obstacle) => (
             <circle
