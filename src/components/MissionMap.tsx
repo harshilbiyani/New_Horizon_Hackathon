@@ -25,31 +25,6 @@ function obstacleColor(severity: Obstacle['severity']) {
   return '#22c55e';
 }
 
-function buildMeshLinks(drones: Drone[], commRange: number) {
-  const links: MeshLink[] = [];
-
-  for (let i = 0; i < drones.length; i++) {
-    const a = drones[i];
-    for (let j = i + 1; j < drones.length; j++) {
-      const b = drones[j];
-      const dx = a.x - b.x;
-      const dy = a.y - b.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      if (distance > commRange) continue;
-
-      const signal = Math.max(0.1, 1.0 - (distance / commRange) * 0.9);
-      links.push({
-        from: a.id,
-        to: b.id,
-        distance: Number(distance.toFixed(2)),
-        signal: Number(signal.toFixed(2)),
-      });
-    }
-  }
-
-  return links;
-}
-
 function DroneFOV({ drone, selectedId, worldBoundary }: { drone: Drone; selectedId?: string; worldBoundary: number }) {
   const isSelected = drone.id === selectedId;
   const lengthWorld = 20; 
@@ -94,12 +69,11 @@ export default function MissionMap({
 }: MissionMapProps) {
   const config = useSimConfig();
   const WORLD_BOUNDARY = config.WORLD_BOUNDARY;
-  const COMM_RANGE = config.COMM_RANGE;
 
   const toPct = (val: number) => worldToPercent(val, WORLD_BOUNDARY);
   const toPt = (x: number, y: number) => toSvgPoint(x, y, WORLD_BOUNDARY);
 
-  const activeLinks = meshLinks?.length ? meshLinks : buildMeshLinks(drones, COMM_RANGE);
+  const activeLinks = meshLinks ?? [];
   const droneLookup = new Map(drones.map((drone) => [drone.id, drone]));
 
   return (
