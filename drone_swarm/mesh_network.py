@@ -1,3 +1,4 @@
+# TODO: unused — not imported by ai_bridge.py. Wire in or remove before demo (Phase 4 decision).
 # mesh_network.py
 
 import math
@@ -245,3 +246,4 @@ class MeshNetwork:
                     received.append(msg)
         
         return received
+

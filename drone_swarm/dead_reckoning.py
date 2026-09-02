@@ -1,3 +1,4 @@
+# TODO: unused — not imported by ai_bridge.py. Wire in or remove before demo (Phase 4 decision).
 # dead_reckoning.py
 
 import math
@@ -260,3 +261,4 @@ class IndoorPositioningAid:
             return (weighted_x / total_weight, weighted_y / total_weight)
         
         return None
+
