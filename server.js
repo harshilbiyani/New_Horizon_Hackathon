@@ -23,8 +23,86 @@ const TICK_MS = 300;          // default tick rate (overridden per scenario)
 const AI_INSIGHTS_TTL_MS = 2500;
 const COMMUNICATION_RANGE = 90;
 
-// ─── Python bridge helper ───────────────────────────────────────────────────
-function callPython(script, payload, timeoutMs = 3000) {
+// ─── Persistent Python bridge helper ─────────────────────────────────────────
+let pythonProc = null;
+let stdoutBuffer = '';
+const pendingQueue = [];
+
+function ensurePythonProcess() {
+  if (pythonProc && !pythonProc.killed) return pythonProc;
+
+  pythonProc = spawn(PYTHON_EXECUTABLE, [SIM_SERVER_SCRIPT], {
+    stdio: ['pipe', 'pipe', 'inherit'],
+    env: process.env,
+  });
+
+  stdoutBuffer = '';
+
+  pythonProc.stdout.on('data', (chunk) => {
+    stdoutBuffer += chunk.toString();
+    const lines = stdoutBuffer.split('\n');
+    stdoutBuffer = lines.pop(); // keep remainder
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const parsed = JSON.parse(trimmed);
+        const next = pendingQueue.shift();
+        if (next) {
+          next.resolve(parsed);
+        }
+      } catch (err) {
+        console.error('[Python Stdout Parse Error]:', err, trimmed);
+      }
+    }
+  });
+
+  pythonProc.on('error', (err) => {
+    console.error('[Python Process Error]:', err);
+    while (pendingQueue.length) {
+      pendingQueue.shift().resolve({ ok: false, error: err.message });
+    }
+  });
+
+  pythonProc.on('exit', (code) => {
+    console.log('[Python Process Exit]:', code);
+    pythonProc = null;
+    while (pendingQueue.length) {
+      pendingQueue.shift().resolve({ ok: false, error: 'Process exited' });
+    }
+  });
+
+  return pythonProc;
+}
+
+function sendPythonCommand(cmd, timeoutMs = 3000) {
+  return new Promise((resolve) => {
+    try {
+      const proc = ensurePythonProcess();
+      const timer = setTimeout(() => {
+        const idx = pendingQueue.findIndex(item => item.resolve === resolve);
+        if (idx !== -1) {
+          pendingQueue.splice(idx, 1);
+        }
+        resolve({ ok: false, error: 'Python bridge timeout' });
+      }, timeoutMs);
+
+      pendingQueue.push({
+        resolve: (val) => {
+          clearTimeout(timer);
+          resolve(val);
+        }
+      });
+
+      proc.stdin.write(JSON.stringify(cmd) + '\n');
+    } catch (err) {
+      resolve({ ok: false, error: err.message });
+    }
+  });
+}
+
+function callPythonSync(script, payload, timeoutMs = 2000) {
   try {
     const result = spawnSync(PYTHON_EXECUTABLE, [script], {
       input: JSON.stringify(payload),
@@ -55,9 +133,9 @@ let lastSnapshot = null;
 let aiInsightsCache = null;
 let aiInsightsCacheAt = 0;
 
-// ─── Initialize Python simulation ──────────────────────────────────────────
-function pyInit(scenarioId = null, seed = 42) {
-  const result = callPython(SIM_SERVER_SCRIPT, { action: 'snapshot' }, 5000);
+// ─── Python simulation calls ───────────────────────────────────────────────
+async function pyInit(scenarioId = null, seed = 42) {
+  const result = await sendPythonCommand({ action: 'snapshot' }, 5000);
   if (result.ok || result.step !== undefined) {
     lastSnapshot = result;
     console.log(`[Python sim] Initialized OK — step=${result.step ?? 0}`);
@@ -66,30 +144,36 @@ function pyInit(scenarioId = null, seed = 42) {
   }
 }
 
-function pySnapshot() {
-  const result = callPython(SIM_SERVER_SCRIPT, { action: 'snapshot' }, 2000);
+async function pySnapshot() {
+  const result = await sendPythonCommand({ action: 'snapshot' }, 2000);
   if (result && !result.error) lastSnapshot = result;
   return lastSnapshot;
 }
 
-function pyStart(scenarioId, seed) {
-  return callPython(SIM_SERVER_SCRIPT, { action: 'start', scenario_id: scenarioId, seed }, 3000);
+async function pyStep() {
+  const result = await sendPythonCommand({ action: 'step' }, 2000);
+  if (result && !result.error) lastSnapshot = result;
+  return lastSnapshot;
 }
 
-function pyStop() {
-  return callPython(SIM_SERVER_SCRIPT, { action: 'stop' }, 2000);
+async function pyStart(scenarioId, seed) {
+  return await sendPythonCommand({ action: 'start', scenario_id: scenarioId, seed }, 3000);
 }
 
-function pyReset(scenarioId, seed) {
-  return callPython(SIM_SERVER_SCRIPT, { action: 'reset', scenario_id: scenarioId, seed }, 3000);
+async function pyStop() {
+  return await sendPythonCommand({ action: 'stop' }, 2000);
 }
 
-function pySetGpsDenied(enabled) {
-  return callPython(SIM_SERVER_SCRIPT, { action: 'set_gps_denied', enabled }, 2000);
+async function pyReset(scenarioId, seed) {
+  return await sendPythonCommand({ action: 'reset', scenario_id: scenarioId, seed }, 3000);
 }
 
-function pyGetScenarios() {
-  const result = callPython(SIM_SERVER_SCRIPT, { action: 'scenarios' }, 3000);
+async function pySetGpsDenied(enabled) {
+  return await sendPythonCommand({ action: 'set_gps_denied', enabled }, 2000);
+}
+
+async function pyGetScenarios() {
+  const result = await sendPythonCommand({ action: 'scenarios' }, 3000);
   return result?.scenarios || [];
 }
 
@@ -99,7 +183,7 @@ function getAiInsights(snapshot) {
   if (aiInsightsCache && now - aiInsightsCacheAt < AI_INSIGHTS_TTL_MS) {
     return aiInsightsCache;
   }
-  const result = callPython(AI_BRIDGE_SCRIPT, snapshot, 1800);
+  const result = callPythonSync(AI_BRIDGE_SCRIPT, snapshot, 1800);
   aiInsightsCache = result?.ok ? { ...result, source: 'python-ai-bridge' } : buildFallbackAiInsights(snapshot);
   aiInsightsCacheAt = now;
   return aiInsightsCache;
@@ -152,9 +236,9 @@ function buildMeshLinks(drones) {
 // ─── Tick loop ───────────────────────────────────────────────────────────────
 function startTick() {
   if (tickInterval) clearInterval(tickInterval);
-  tickInterval = setInterval(() => {
+  tickInterval = setInterval(async () => {
     if (!simulationRunning) return;
-    const snapshot = pySnapshot();
+    const snapshot = await pyStep();
     if (!snapshot) return;
 
     // Build enriched payload for frontend
@@ -181,7 +265,7 @@ function stopTick() {
 }
 
 // ─── Passive state emitter (idle state) ─────────────────────────────────────
-setInterval(() => {
+setInterval(async () => {
   if (!simulationRunning) {
     const snapshot = lastSnapshot || {};
     const payload = buildFrontendPayload(snapshot);
@@ -306,8 +390,8 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'droneshield', timestamp: new Date().toISOString() });
 });
 
-app.get('/api/mission/snapshot', (_req, res) => {
-  const snap = pySnapshot();
+app.get('/api/mission/snapshot', async (_req, res) => {
+  const snap = await pySnapshot();
   res.json(buildFrontendPayload(snap || {}));
 });
 
@@ -321,8 +405,8 @@ app.get('/api/mission/ai-insights', (_req, res) => {
 });
 
 // Get available scenarios
-app.get('/api/scenarios', (_req, res) => {
-  const scenarios = pyGetScenarios();
+app.get('/api/scenarios', async (_req, res) => {
+  const scenarios = await pyGetScenarios();
   res.json({ ok: true, scenarios });
 });
 
@@ -348,13 +432,13 @@ app.post('/api/mission/set-obstacles', (req, res) => {
 });
 
 // Start simulation
-app.post('/api/mission/start', (req, res) => {
+app.post('/api/mission/start', async (req, res) => {
   if (simulationRunning) return res.status(400).json({ error: 'Already running' });
   const { scenario_id, seed } = req.body || {};
   if (scenario_id) currentScenarioId = scenario_id;
   if (seed) currentSeed = Number(seed);
 
-  const result = pyStart(currentScenarioId, currentSeed);
+  const result = await pyStart(currentScenarioId, currentSeed);
   if (!result?.ok && result?.error) {
     return res.status(500).json({ error: result.error });
   }
@@ -366,32 +450,32 @@ app.post('/api/mission/start', (req, res) => {
 });
 
 // Stop simulation
-app.post('/api/mission/stop', (_req, res) => {
+app.post('/api/mission/stop', async (_req, res) => {
   simulationRunning = false;
   stopTick();
-  pyStop();
+  await pyStop();
   console.log('[Sim] STOPPED');
   res.json({ ok: true, message: 'Simulation stopped' });
 });
 
 // Reset simulation
-app.post('/api/mission/reset', (req, res) => {
+app.post('/api/mission/reset', async (req, res) => {
   const { scenario_id, seed } = req.body || {};
   if (scenario_id) currentScenarioId = scenario_id;
   if (seed) currentSeed = Number(seed);
   simulationRunning = false;
   stopTick();
   startedAt = null;
-  pyReset(currentScenarioId, currentSeed);
-  lastSnapshot = pySnapshot();
+  await pyReset(currentScenarioId, currentSeed);
+  lastSnapshot = await pySnapshot();
   console.log(`[Sim] RESET — scenario=${currentScenarioId}`);
   res.json({ ok: true, message: 'Simulation reset' });
 });
 
 // Toggle GPS-denied mode
-app.post('/api/mission/gps-denied', (req, res) => {
+app.post('/api/mission/gps-denied', async (req, res) => {
   const { enabled } = req.body || {};
-  const result = pySetGpsDenied(!!enabled);
+  const result = await pySetGpsDenied(!!enabled);
   res.json({ ok: true, gps_denied: !!enabled, ...result });
 });
 

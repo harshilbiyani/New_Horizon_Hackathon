@@ -38,6 +38,22 @@ def to_serializable(val: Any) -> Any:
     return val
 
 
+class NumpyEncoder(json.JSONEncoder):
+    """Custom JSON encoder that handles numpy types and sets."""
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, (np.integer, np.int64, np.int32, np.int16, np.int8, np.uint8, np.uint16, np.uint32, np.uint64)):
+            return int(obj)
+        if isinstance(obj, (np.floating, np.float64, np.float32, np.float16)):
+            return float(obj)
+        if isinstance(obj, (np.bool_, bool)):
+            return bool(obj)
+        if isinstance(obj, set):
+            return list(obj)
+        return super().default(obj)
+
+
 class SimulationEngine:
     """
     Manages the simulation lifecycle and state serialization.
@@ -140,54 +156,77 @@ engine = SimulationEngine()
 engine.initialize()
 
 
-def run_stdin_bridge():
-    """Read command JSON from stdin, execute, write serialized result to stdout."""
-    raw = sys.stdin.read().strip()
-    if not raw:
-        print(json.dumps({"ok": False, "error": "empty input"}))
-        return
-
-    try:
-        cmd = json.loads(raw)
-    except json.JSONDecodeError as e:
-        print(json.dumps({"ok": False, "error": f"json parse: {e}"}))
-        return
-
+def handle_command(cmd: dict) -> dict:
+    """Process a single JSON command and return the response dictionary."""
     action = cmd.get("action", "snapshot")
 
-    if action == "snapshot":
+    if action == "step":
+        if engine.sim and engine.sim.running:
+            engine.sim.step_simulation()
         result = engine.get_snapshot()
         result["ok"] = True
-        print(json.dumps(to_serializable(result)))
+        return to_serializable(result)
+
+    elif action == "snapshot":
+        result = engine.get_snapshot()
+        result["ok"] = True
+        return to_serializable(result)
 
     elif action == "start":
         scenario_id = cmd.get("scenario_id")
         seed = cmd.get("seed")
         engine.initialize(scenario_id=scenario_id, seed=seed)
-        engine.start()
-        print(json.dumps({"ok": True, "message": "Simulation started"}))
+        engine.running = True
+        result = engine.get_snapshot()
+        result["ok"] = True
+        result["message"] = "Simulation started"
+        return to_serializable(result)
 
     elif action == "stop":
         engine.stop()
-        print(json.dumps({"ok": True, "message": "Simulation stopped"}))
+        return {"ok": True, "message": "Simulation stopped"}
 
     elif action == "reset":
         scenario_id = cmd.get("scenario_id")
         seed = cmd.get("seed")
         engine.reset(scenario_id=scenario_id, seed=seed)
-        print(json.dumps({"ok": True, "message": "Simulation reset"}))
+        result = engine.get_snapshot()
+        result["ok"] = True
+        result["message"] = "Simulation reset"
+        return to_serializable(result)
 
     elif action == "set_gps_denied":
         enabled = bool(cmd.get("enabled", False))
         engine.set_gps_denied(enabled)
-        print(json.dumps({"ok": True, "gps_denied": enabled}))
+        return {"ok": True, "gps_denied": enabled}
 
     elif action == "scenarios":
-        print(json.dumps({"ok": True, "scenarios": engine.get_scenarios_list()}))
+        return {"ok": True, "scenarios": engine.get_scenarios_list()}
 
     else:
-        print(json.dumps({"ok": False, "error": f"Unknown action: {action}"}))
+        return {"ok": False, "error": f"Unknown action: {action}"}
+
+
+def run_stdio_bridge():
+    """
+    Read commands line-by-line from stdin, execute them, write single-line JSON to stdout.
+    Keeps Python in memory across multiple requests so drones advance their positions continuously.
+    """
+    for raw in sys.stdin:
+        line = raw.strip()
+        if not line:
+            continue
+        try:
+            cmd = json.loads(line)
+        except json.JSONDecodeError as e:
+            sys.stdout.write(json.dumps({"ok": False, "error": f"json parse: {e}"}) + "\n")
+            sys.stdout.flush()
+            continue
+
+        resp = handle_command(cmd)
+        sys.stdout.write(json.dumps(resp, cls=NumpyEncoder) + "\n")
+        sys.stdout.flush()
 
 
 if __name__ == "__main__":
-    run_stdin_bridge()
+    run_stdio_bridge()
