@@ -8,6 +8,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyGpsUpdate, GPS_DENIAL_ZONES } from './server/gpsModel.js';
 import { buildMeshState } from './server/meshNetwork.js';
+import { computeCommand } from './server/decisionEngine.js';
+import { buildZoneWaypoints } from './server/zonePlanner.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -452,16 +454,31 @@ function buildSnapshot() {
   };
 }
 
+let waypointQueues = new Map();
+
+function initZoneWaypoints() {
+  const activeIds = drones.filter((d) => d.status === 'active').map((d) => d.id);
+  waypointQueues = buildZoneWaypoints(activeIds, currentWorldMap, SIM_CONFIG);
+}
+
 function startSimulationTick() {
   if (tickInterval) clearInterval(tickInterval);
+  initZoneWaypoints();
   tickInterval = setInterval(() => {
     if (!simulationRunning) return;
+
+    const activeDroneIds = drones.filter((d) => d.status === 'active').map((d) => d.id);
+    const missionState = {
+      waypointQueues,
+      obstacles,
+      allDroneIds: activeDroneIds,
+    };
 
     // STAGE 1+2: Decision → Actuation (per drone)
     for (const drone of drones) {
       if (drone.status === 'failed') continue;
-      const command = stubDecisionEngine(drone);   // STAGE 1
-      applyActuation(drone, command);              // STAGE 2 (GPS updated inside)
+      const command = computeCommand(drone, currentWorldMap, missionState);   // STAGE 1 (decisionEngine)
+      applyActuation(drone, command);                                         // STAGE 2 (physics)
     }
 
     // STAGE 3A: Survivor detection (returns raw list — mesh decides delivery)
@@ -670,6 +687,7 @@ app.post('/api/mission/set-obstacles', (req, res) => {
 app.post('/api/mission/world-map', (req, res) => {
   if (req.body && Array.isArray(req.body.worldMap)) {
     currentWorldMap = req.body.worldMap;
+    initZoneWaypoints();
     try {
       writeFileSync(WORLD_MAP_FILE, JSON.stringify(currentWorldMap, null, 2), 'utf8');
       console.log(`[WORLD MAP SYNC] Saved ${currentWorldMap.length}x${currentWorldMap[0]?.length || 0} occupancy grid to ${WORLD_MAP_FILE}`);
