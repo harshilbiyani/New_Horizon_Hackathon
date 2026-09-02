@@ -51,7 +51,8 @@ interface DroneState {
 
 ## Notes
 
-- `gpsMode` and `positionUncertainty` are new fields (not yet on server). Person B is responsible for adding these in Phase 1.
-- `relayPath` is new. null means the drone has direct signal to base. A non-null list e.g. `["DRN-003", "DRN-005"]` means this drone's telemetry is being relayed through those drones in order.
+- `gpsMode` and `positionUncertainty` are **actively populated** by `server/gpsModel.js`. Denial zones are geographic circles; when a drone enters one it switches to `'dead-reckoning'` and `positionUncertainty` grows as `sqrt(ticks_denied) × 8` world-units.
+- `relayPath` is **actively populated** by `server/meshNetwork.js` via BFS each tick. `null` means isolated from BASE; a non-null list e.g. `["DRN-003", "DRN-005", "BASE"]` is the relay chain. Survivor detections made while `relayPath === null` are **queued** and flushed to `foundSurvivors` on reconnect.
 - All coordinates use the **same world space**: `[-350, 350]` on both X and Y axes. Do NOT use a different boundary in any file.
-- `targetHeading`, `targetSpeed`, `targetZ` are **internal physics state** on the server only. They are NOT part of the broadcast DroneState. Do not add them to this schema.
+- `targetHeading`, `targetSpeed`, `targetZ` are **internal physics state** on the server only. They are NOT part of the broadcast DroneState.
+- `denialZoneId` (e.g. `"GDZ-A"`) is a transient debug field present only when `gpsMode === 'dead-reckoning'`.

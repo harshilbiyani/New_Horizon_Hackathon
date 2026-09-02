@@ -6,6 +6,8 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { applyGpsUpdate, GPS_DENIAL_ZONES } from './server/gpsModel.js';
+import { buildMeshState } from './server/meshNetwork.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -67,6 +69,7 @@ let scannedCells = new Set();
 let tickInterval = null;
 let aiInsightsCache = null;
 let aiInsightsCacheAt = 0;
+let _currentMeshLinks = []; // Updated each tick by meshNetwork.buildMeshState
 
 // Config defaults
 let simConfig = {
@@ -114,8 +117,8 @@ function buildObstacleField() {
     const radius = severity === 'high'
       ? randomBetween(12, 22)
       : severity === 'medium'
-      ? randomBetween(8, 15)
-      : randomBetween(5, 10);
+        ? randomBetween(8, 15)
+        : randomBetween(5, 10);
 
     out.push({
       id: `OBS-${String(idCounter++).padStart(3, '0')}`,
@@ -190,11 +193,11 @@ function generateStartPositions(count) {
   for (let i = 0; i < count; i++) {
     const angle = angleStep * i;
     // Spread drones randomly across the whole map instead of central cluster
-    const radius = randomBetween(20, WORLD_BOUNDARY * 0.9); 
+    const radius = randomBetween(20, WORLD_BOUNDARY * 0.9);
     positions.push({
       x: Math.cos(angle) * radius,
       y: Math.sin(angle) * radius,
-      heading: (angle * 180) / Math.PI, 
+      heading: (angle * 180) / Math.PI,
     });
   }
   return positions;
@@ -204,11 +207,11 @@ function initDrones(config) {
   const count = clamp(config.droneCount || 5, 1, 10);
   const battery = clamp(config.battery || 100, 10, 100);
   let positions = config.startPositions || [];
-  
+
   if (positions.length < count) {
     positions = generateStartPositions(count);
   }
-  
+
   drones = [];
   for (let i = 0; i < count; i++) {
     const pos = positions[i] || { x: 0, y: 0, heading: 0 };
@@ -362,10 +365,8 @@ function applyActuation(drone, command) {
     28, 99
   );
 
-  // 9. GPS mode
-  drone.gpsMode = drone.signalStrength > 40 ? 'gps' : 'dead-reckoning';
-  drone.positionUncertainty = drone.signalStrength > 40 ? 0 :
-    Number(((40 - drone.signalStrength) * 0.5).toFixed(1));
+  // 9. GPS mode — geographic denial zones override signal-strength heuristic
+  applyGpsUpdate(drone, TICK_MS, GPS_DENIAL_ZONES);
 
   // 10. Failure check
   if (drone.battery <= 1 && drone.status === 'active') {
@@ -445,7 +446,8 @@ function buildSnapshot() {
     alerts,
     obstacles,
     hiddenSurvivors,
-    meshLinks: buildMeshLinks(drones),
+    meshLinks: _currentMeshLinks,
+    gpsDenialZones: GPS_DENIAL_ZONES,
     worldMap: currentWorldMap,
   };
 }
@@ -455,16 +457,26 @@ function startSimulationTick() {
   tickInterval = setInterval(() => {
     if (!simulationRunning) return;
 
-    // Per-drone: Decision → Actuation
+    // STAGE 1+2: Decision → Actuation (per drone)
     for (const drone of drones) {
       if (drone.status === 'failed') continue;
       const command = stubDecisionEngine(drone);   // STAGE 1
-      applyActuation(drone, command);              // STAGE 2
+      applyActuation(drone, command);              // STAGE 2 (GPS updated inside)
     }
 
-    // Per-tick: Detection
-    const newDetections = detectSurvivors(drones, hiddenSurvivors, detectedSurvivorIds);
-    for (const d of newDetections) {
+    // STAGE 3A: Survivor detection (returns raw list — mesh decides delivery)
+    const rawDetections = detectSurvivors(drones, hiddenSurvivors, detectedSurvivorIds);
+
+    // STAGE 3B: Mesh connectivity + relay — replaces cosmetic buildMeshLinks
+    // Delivers detections only for drones with a path to BASE; queues the rest.
+    const { meshLinks: realMeshLinks, pendingFlush } = buildMeshState(
+      drones, SIM_CONFIG, rawDetections
+    );
+    // Store real mesh links so buildSnapshot() picks them up
+    _currentMeshLinks = realMeshLinks;
+
+    // Commit detections that made it through the mesh
+    for (const d of pendingFlush) {
       foundSurvivors.unshift(d);
       if (foundSurvivors.length > 120) foundSurvivors.length = 120;
       pushAlert(
@@ -586,12 +598,12 @@ app.post('/api/mission/configure', (req, res) => {
   if (simulationRunning) {
     return res.status(400).json({ error: 'Cannot configure while simulation is running. Stop first.' });
   }
-  
+
   const { droneCount, battery, startPositions } = req.body;
   if (droneCount !== undefined) simConfig.droneCount = clamp(Number(droneCount), 1, 10);
   if (battery !== undefined) simConfig.battery = clamp(Number(battery), 10, 100);
   if (startPositions) simConfig.startPositions = startPositions;
-  
+
   initDrones(simConfig);
   console.log(`Configured: ${simConfig.droneCount} drones, battery ${simConfig.battery}%`);
   res.json({ ok: true, config: simConfig, drones: drones.length });
@@ -602,14 +614,14 @@ app.post('/api/mission/start', (_req, res) => {
   if (simulationRunning) {
     return res.status(400).json({ error: 'Simulation already running' });
   }
-  
+
   // Reset state but keep config
   detectedSurvivorIds = new Set();
   foundSurvivors = [];
   alerts = [];
   scannedCells = new Set();
   initDrones(simConfig);
-  
+
   simulationRunning = true;
   startedAt = Date.now();
   currentMissionId = `mission_${startedAt}`;
@@ -618,7 +630,7 @@ app.post('/api/mission/start', (_req, res) => {
   drones.forEach(d => { d.task = 'exploring'; });
   pushAlert('info', `Mission started with ${drones.length} drones. Log: ${currentMissionId}.jsonl`);
   startSimulationTick();
-  
+
   console.log(`Simulation STARTED (Log: ${currentMissionId}.jsonl)`);
   res.json({ ok: true, message: 'Simulation started', missionId: currentMissionId });
 });
@@ -754,7 +766,7 @@ function getMapData() {
   const mapHeight = 64;
   const mapSeed = 42;
   const heightMap = generatePerlinLikeNoise(mapWidth, mapHeight, mapSeed);
-  
+
   const rng = seededRandom(mapSeed + 7);
   const rawSurvivors = [];
   for (let i = 0; i < 8; i++) {
@@ -766,7 +778,7 @@ function getMapData() {
     } while (heightMap[sy][sx] > 55 && attempts < 50);
     rawSurvivors.push([sx, sy]);
   }
-  
+
   cachedMapData = { heightMap, rawSurvivors, gridSize: mapWidth, worldBoundary: WORLD_BOUNDARY };
   return cachedMapData;
 }
