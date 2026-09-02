@@ -63,6 +63,7 @@ function buildObstacleField() {
         x: band.x + (rng() - 0.5) * band.spreadX,
         y: band.y + (rng() - 0.5) * band.spreadY,
         radius: Number((10 + rng() * 11).toFixed(2)),
+        height: Number(randomBetween(150, 380).toFixed(2)), // Taller to match city
         severity: band.severity,
         kind: obstacleKinds[Math.floor(rng() * obstacleKinds.length)],
       });
@@ -89,6 +90,7 @@ function buildObstacleField() {
       x: Number(x.toFixed(2)),
       y: Number(y.toFixed(2)),
       radius: Number(radius.toFixed(2)),
+      height: Number(randomBetween(150, 380).toFixed(2)), // Taller to match city
       severity,
       kind: obstacleKinds[Math.floor(rng() * obstacleKinds.length)],
     });
@@ -97,7 +99,7 @@ function buildObstacleField() {
   return out;
 }
 
-const obstacles = buildObstacleField();
+let obstacles = buildObstacleField();
 
 const hiddenSurvivors = [
   { id: 'HSV-001', x: -175, y: 49, severity: 'critical' },
@@ -131,9 +133,12 @@ function createDrone(index, x, y, heading, battery) {
     id: `DRN-${String(index + 1).padStart(3, '0')}`,
     x,
     y,
-    z: randomBetween(80, 160),
+    z: randomBetween(60, 130),
+    targetZ: randomBetween(60, 130),
     heading,
+    targetHeading: heading,
     speed: randomBetween(35, 60),
+    targetSpeed: randomBetween(35, 60),
     task: 'idle',
     status: 'active',
     battery: battery,
@@ -248,14 +253,22 @@ function applyObstacleAvoidance(drone) {
   if (!nearest) return;
 
   const cautionRadius = nearest.radius + 12;
-  if (nearestDist < cautionRadius) {
+  const clearanceZ = nearest.height + 25; // Minimum safe altitude to fly over
+
+  // Only evade if we are within the horizontal circle AND below the safe clearance altitude (3D check!)
+  if (nearestDist < cautionRadius && drone.z < clearanceZ) {
     const awayAngle = (Math.atan2(drone.y - nearest.y, drone.x - nearest.x) * 180) / Math.PI;
     const blend = nearestDist < nearest.radius + 3 ? 0.78 : 0.42;
-    drone.heading = ((1 - blend) * drone.heading + blend * awayAngle + 360) % 360;
+    
+    // Smoothly turn away by setting the target heading
+    drone.targetHeading = ((1 - blend) * drone.targetHeading + blend * awayAngle + 360) % 360;
     drone.task = 'evading';
-    drone.speed = clamp(drone.speed * 0.82, 7, 16);
+    drone.targetSpeed = clamp(drone.targetSpeed * 0.82, 7, 16);
+    
+    // 3D Evasion: Also pitch up to fly over the obstacle!
+    drone.targetZ = Math.max(drone.targetZ, clearanceZ + 5);
 
-    // Hard push when entering core collision zone.
+    // Hard push only if absolutely critically close
     if (nearestDist < nearest.radius + 1.5) {
       const push = nearest.radius + 2.2 - nearestDist;
       const rad = (awayAngle * Math.PI) / 180;
@@ -270,14 +283,34 @@ function updateDrone(drone) {
 
   drone.task = 'exploring';
   const headingDrift = randomBetween(-10, 10);
-  drone.heading = (drone.heading + headingDrift + 360) % 360;
+  drone.targetHeading = (drone.targetHeading + headingDrift + 360) % 360;
 
   if (drone.battery < 22) {
     drone.task = 'returning';
   }
 
   const speedMultiplier = drone.task === 'returning' ? 1.3 : 1;
-  drone.speed = clamp(drone.speed + randomBetween(-1.2, 1.2), 8, 21);
+  drone.targetSpeed = clamp(drone.targetSpeed + randomBetween(-1.2, 1.2), 8, 21);
+  drone.targetZ = clamp(drone.targetZ + randomBetween(-4, 4), 60, 130);
+
+  applyObstacleAvoidance(drone);
+
+  // Apply Kinematic Inertia (Step current values towards targets)
+  
+  // 1. Turn Rate Cap
+  let turnDiff = (drone.targetHeading - drone.heading + 360) % 360;
+  if (turnDiff > 180) turnDiff -= 360;
+  const maxTurn = 25; // max degrees per tick
+  drone.heading = (drone.heading + clamp(turnDiff, -maxTurn, maxTurn) + 360) % 360;
+  
+  // 2. Acceleration Cap
+  const maxAccel = 3.5;
+  drone.speed = clamp(drone.targetSpeed, drone.speed - maxAccel, drone.speed + maxAccel);
+  
+  // 3. Climb/Descent Rate Cap
+  const maxClimb = 12.0;
+  drone.z = clamp(drone.targetZ, drone.z - maxClimb, drone.z + maxClimb);
+
   const distanceStep = (drone.speed * speedMultiplier * TICK_MS) / 1000;
   const radians = (drone.heading * Math.PI) / 180;
   const previousX = drone.x;
@@ -285,14 +318,12 @@ function updateDrone(drone) {
   drone.x += Math.cos(radians) * distanceStep;
   drone.y += Math.sin(radians) * distanceStep;
 
-  applyObstacleAvoidance(drone);
-
   if (drone.x < -WORLD_BOUNDARY || drone.x > WORLD_BOUNDARY) {
-    drone.heading = (180 - drone.heading + 360) % 360;
+    drone.targetHeading = (180 - drone.heading + 360) % 360;
     drone.x = clamp(drone.x, -WORLD_BOUNDARY, WORLD_BOUNDARY);
   }
   if (drone.y < -WORLD_BOUNDARY || drone.y > WORLD_BOUNDARY) {
-    drone.heading = (360 - drone.heading + 360) % 360;
+    drone.targetHeading = (360 - drone.heading + 360) % 360;
     drone.y = clamp(drone.y, -WORLD_BOUNDARY, WORLD_BOUNDARY);
   }
 
@@ -300,7 +331,6 @@ function updateDrone(drone) {
   const actualDy = drone.y - previousY;
   drone.distanceTraveled += Math.sqrt(actualDx * actualDx + actualDy * actualDy);
 
-  drone.z = clamp(drone.z + randomBetween(-3, 3), 65, 145);
   drone.battery = clamp(drone.battery - randomBetween(0.2, 0.8), 0, 100);
   drone.signalStrength = clamp(
     95 - (Math.abs(drone.x) + Math.abs(drone.y)) / 3 + randomBetween(-2.5, 2.5), 28, 99
@@ -578,6 +608,17 @@ app.post('/api/mission/reset', (_req, res) => {
   resetSimulation();
   console.log('Simulation RESET');
   res.json({ ok: true, message: 'Simulation reset', config: simConfig });
+});
+
+// Dynamic Mesh Synchronization (Frontend sends physical GLB boundaries)
+app.post('/api/mission/set-obstacles', (req, res) => {
+  if (req.body && Array.isArray(req.body.obstacles)) {
+    obstacles = req.body.obstacles;
+    console.log(`[PHYSICS SYNC] Received ${obstacles.length} physical building collisions from the frontend scanner!`);
+    res.json({ ok: true, count: obstacles.length });
+  } else {
+    res.status(400).json({ error: 'invalid format' });
+  }
 });
 
 // --- Procedural Height Map Generation ---

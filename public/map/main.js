@@ -347,6 +347,7 @@ fetch('http://localhost:3001/api/mission/map')
 
             scene.add(cityModel);
             window.cityModelForRaycasting = cityModel;
+            setTimeout(scanCityMesh, 500); // Give the renderer a moment to attach before scanning
         }, undefined, (error) => {
             console.error('Error loading city.glb:', error);
             const errDiv = document.createElement('div');
@@ -625,6 +626,36 @@ function createObstacleAsset(obs) {
     beacon.userData.isHazardBeacon = true;
     beacon.userData.baseColor = severityColor;
     group.add(beacon);
+
+    // 3D Danger Zone Volume for Altitude-Aware Avoidance
+    if (obs.height) {
+        const volHeight = obs.height;
+        const volGeo = new THREE.CylinderGeometry(obs.radius, obs.radius, volHeight, 16);
+        const volMat = new THREE.MeshBasicMaterial({
+            color: severityColor,
+            transparent: true,
+            opacity: 0.12,
+            wireframe: true,
+            depthWrite: false
+        });
+        const vol = new THREE.Mesh(volGeo, volMat);
+        vol.position.y = volHeight / 2; // Center vertically on base
+        group.add(vol);
+        
+        // Add a subtle glowing top cap
+        const capGeo = new THREE.CircleGeometry(obs.radius, 16);
+        const capMat = new THREE.MeshBasicMaterial({
+            color: severityColor,
+            transparent: true,
+            opacity: 0.18,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        const cap = new THREE.Mesh(capGeo, capMat);
+        cap.rotation.x = -Math.PI / 2;
+        cap.position.y = volHeight;
+        group.add(cap);
+    }
 
     group.scale.set(scale, 1, scale);
 
@@ -979,3 +1010,69 @@ function animate() {
     composer.render();
 }
 animate();
+
+// --- Dynamic GLB Mesh Scanner & Heatmap ---
+function scanCityMesh() {
+    if (!window.cityModelForRaycasting) return;
+    console.log("Scanning city mesh for collision boundaries...");
+    
+    const raycaster = new THREE.Raycaster();
+    const scannedObstacles = [];
+    const scanStep = 25;
+    const boundary = 350;
+    
+    const heatmapGroup = new THREE.Group();
+    heatmapGroup.position.y = 1.0; // Slightly above ground to prevent Z-fighting
+    
+    // Scan a grid over the entire city
+    for (let x = -boundary; x <= boundary; x += scanStep) {
+        for (let y = -boundary; y <= boundary; y += scanStep) {
+            // Shoot ray down from high up
+            raycaster.set(new THREE.Vector3(x, 1500, y), new THREE.Vector3(0, -1, 0));
+            const intersects = raycaster.intersectObject(window.cityModelForRaycasting, true);
+            
+            if (intersects.length > 0) {
+                const hitY = intersects[0].point.y;
+                
+                // If the hit point is taller than street level (y > 10)
+                if (hitY > 10) {
+                    scannedObstacles.push({
+                        id: `GLB-${x}-${y}`,
+                        x: x,
+                        y: y,
+                        radius: scanStep * 0.7, // Cover the grid cell
+                        height: hitY,
+                        severity: hitY > 150 ? 'high' : hitY > 80 ? 'medium' : 'low'
+                    });
+                    
+                    // Add tactical heatmap tile
+                    const tileGeo = new THREE.PlaneGeometry(scanStep * 0.9, scanStep * 0.9);
+                    const color = hitY > 150 ? 0xff0000 : hitY > 80 ? 0xffaa00 : 0xffff00;
+                    const tileMat = new THREE.MeshBasicMaterial({
+                        color: color,
+                        transparent: true,
+                        opacity: 0.28,
+                        side: THREE.DoubleSide,
+                        depthWrite: false
+                    });
+                    const tile = new THREE.Mesh(tileGeo, tileMat);
+                    tile.rotation.x = -Math.PI / 2;
+                    tile.position.set(x, 0, y);
+                    heatmapGroup.add(tile);
+                }
+            }
+        }
+    }
+    
+    scene.add(heatmapGroup);
+    
+    // Post to Node.js backend to sync physics
+    fetch('http://localhost:3001/api/mission/set-obstacles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ obstacles: scannedObstacles })
+    }).then(res => res.json())
+      .then(data => console.log('Successfully synced ' + data.count + ' physical buildings with backend physics!'))
+      .catch(err => console.error('Failed to sync obstacles:', err));
+}
+
