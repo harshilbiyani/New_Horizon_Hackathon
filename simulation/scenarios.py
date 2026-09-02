@@ -267,29 +267,28 @@ def list_scenarios() -> list:
 # Standalone Test
 # =============================================================================
 if __name__ == "__main__":
+    import os
     import sys
     sys.path.insert(0, os.path.dirname(__file__))
 
-    import os
-
     print("Testing scenarios.py...")
     scenarios = list_scenarios()
-    print(f"✓ {len(scenarios)} scenarios loaded")
+    print(f"[+] {len(scenarios)} scenarios loaded")
     for s in scenarios:
-        print(f"  {s['icon']} {s['name']} — env={s['environment']}, gps_denied={s['gps_denied']}")
+        print(f"  * {s['name']} - env={s['environment']}, gps_denied={s['gps_denied']}")
 
     # Quick simulation test with earthquake scenario
     from main import DroneSwarmSimulation
     scenario = get_scenario("earthquake")
     sim = DroneSwarmSimulation(seed=scenario["seed"], scenario=scenario)
-    print(f"\n✓ Earthquake scenario initialized")
+    print(f"\n[+] Earthquake scenario initialized")
     print(f"  Events pending: {len(sim._dynamic_events_pending)}")
 
     for step in range(40):
         sim.step_simulation()
 
-    print(f"✓ 40 steps complete")
+    print(f"[+] 40 steps complete")
     print(f"  Triggered events: {len(sim._triggered_events)}")
     stats = sim.fog.get_coverage_stats()
     print(f"  Fog revealed: {stats['explored_pct']:.1f}%")
-    print("\nAll scenario tests passed! ✅")
+    print("\n[SUCCESS] All scenario tests passed!")

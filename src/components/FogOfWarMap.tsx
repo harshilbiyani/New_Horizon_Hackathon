@@ -1,11 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 
-interface FogCell {
-  x: number;
-  y: number;
-  visibility: 0 | 1 | 2; // 0=unknown, 1=revealed, 2=scanned
-}
-
 interface LiDARHit {
   x: number;
   y: number;

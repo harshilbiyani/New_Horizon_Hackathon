@@ -311,7 +311,7 @@ class DroneSwarmSimulation:
     def run_demo(self, num_steps=100):
         """Run a CLI text-based demo showing system progression."""
         print("=" * 60)
-        print("DRONE SWARM SIMULATION — ENHANCED DEMO")
+        print("DRONE SWARM SIMULATION - ENHANCED DEMO")
         print("=" * 60)
         print(f"Environment: {self.environment_name}")
         print(f"GPS Mode: {'DENIED (Dead Reckoning)' if self.gps_denied else 'Active'}")
@@ -321,8 +321,8 @@ class DroneSwarmSimulation:
         survivor_count = len(self.map_obj.survivor_locations)
         drone_count = len(self.drones)
 
-        print(f"✓ Placed {survivor_count} survivors (hidden — discovered by LiDAR)")
-        print(f"✓ Simulation ready with {drone_count} drones")
+        print(f"[+] Placed {survivor_count} survivors (hidden - discovered by LiDAR)")
+        print(f"[+] Simulation ready with {drone_count} drones")
         print(f"\nRunning {num_steps} step demo...")
 
         for step in range(1, num_steps + 1):
@@ -345,7 +345,7 @@ class DroneSwarmSimulation:
         found = len(self.map_obj.found_survivors)
         print(f"  Survivors found: {found} / {survivor_count}")
         print(f"  Triggered events: {len(self._triggered_events)}")
-        print("\n✅ Enhanced simulation complete!")
+        print("\n[SUCCESS] Enhanced simulation complete!")
 
     def _print_stats(self):
         print("-" * 50)

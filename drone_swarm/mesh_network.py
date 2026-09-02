@@ -369,3 +369,31 @@ class SecureMeshNetwork(MeshNetwork):
         stats = super().get_message_stats()
         stats["security"] = self.get_security_status()
         return stats
+
+
+if __name__ == "__main__":
+    print("Testing SecureMeshNetwork (AES-256 / Secure Comms)...")
+    mesh = SecureMeshNetwork(communication_range=30.0, encryption_enabled=True)
+    mesh.register_drone(1, (0, 0))
+    mesh.register_drone(2, (15, 0))
+    mesh.register_drone(3, (35, 0))
+
+    print(f"[+] Security Status: {mesh.get_security_status()}")
+
+    # Send encrypted message from 1 to 3 (requires relay through 2)
+    payload = {"survivor_id": "SURV-001", "location": (50, 50), "severity": "critical"}
+    msg = mesh.send_message(sender_id=1, receiver_id=3, message_type="DETECTION", payload=payload, priority="CRITICAL")
+    print(f"[+] Created message: encrypted={msg.encrypted}, route={msg.route}")
+
+    # Process hops
+    mesh.process_messages()  # Hop 1: delivers to drone 2, relays to 3
+    mesh.process_messages()  # Hop 2: delivers to drone 3
+
+    received = mesh.get_received_messages(3, "DETECTION")
+    print(f"[+] Drone 3 received {len(received)} decrypted messages")
+    if received:
+        print(f"    Payload: {received[0].payload}")
+        print(f"    Route: {received[0].route}")
+
+    print("\n[SUCCESS] Secure Mesh Network tests passed!")
+

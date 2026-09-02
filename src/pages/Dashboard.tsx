@@ -8,6 +8,9 @@ import LiveVideo from '../components/LiveVideo';
 import ChartsPanel from '../components/ChartsPanel';
 import MissionMap from '../components/MissionMap';
 import AICommandPanel from '../components/AICommandPanel';
+import FogOfWarMap from '../components/FogOfWarMap';
+import ScenarioSelector from '../components/ScenarioSelector';
+import GPSStatusIndicator from '../components/GPSStatusIndicator';
 import type {
   Alert,
   AiInsights,
@@ -17,10 +20,9 @@ import type {
   MeshLink,
   Obstacle,
   Survivor,
-  TelemetrySnapshot,
 } from '../types/telemetry';
 
-type PanelMode = 'simulation' | 'live';
+type ActiveTab = 'tactical' | 'fog_lidar' | 'gps_denied' | 'scenarios';
 
 const EMPTY_MISSION_DATA: MissionData = {
   coverage: 0,
@@ -34,77 +36,55 @@ const EMPTY_MISSION_DATA: MissionData = {
   missionTimeSec: 0,
 };
 
-const SIM_WORLD_BOUNDARY = 140;
-const SIM_GRID_SIZE = 40;
-const SIM_TOTAL_CELLS = SIM_GRID_SIZE * SIM_GRID_SIZE;
-const SIM_DETECTION_RADIUS = 16;
-
-const SIM_OBSTACLES: Obstacle[] = [
-  { id: 'OBS-001', x: -62, y: -4, radius: 9, severity: 'high' },
-  { id: 'OBS-002', x: 52, y: 34, radius: 7, severity: 'medium' },
-  { id: 'OBS-003', x: -15, y: 72, radius: 6, severity: 'low' },
-  { id: 'OBS-004', x: 8, y: -58, radius: 10, severity: 'high' },
-  { id: 'OBS-005', x: 85, y: -36, radius: 8, severity: 'medium' },
+const DEFAULT_SCENARIOS = [
+  {
+    id: 'earthquake',
+    name: 'Earthquake Aftermath',
+    icon: '🏚️',
+    description: 'Magnitude 7.2 earthquake in urban center. Ongoing aftershocks inject dynamic building collapses in real-time. Drones dynamically re-route using A* and LiDAR.',
+    environment: 'urban_canyon',
+    gps_denied: false,
+    highlight_features: ['Dynamic obstacle injection', 'Real-time A* re-pathing', 'LiDAR building discovery', 'ABC task reallocation'],
+    ui_theme: { color: '#ef4444', bg: '#1a0505', accent: '#f97316' },
+    tick_ms: 300,
+  },
+  {
+    id: 'flood_rescue',
+    name: 'Coastal Flood Rescue',
+    icon: '🌊',
+    description: 'Catastrophic tropical cyclone flooding. Rising water levels make southern sectors impassable over time. High wind impacts battery endurance.',
+    environment: 'coastal_storm',
+    gps_denied: false,
+    highlight_features: ['Rising water simulation', 'Wind battery penalty', 'Adaptive coverage shift', 'Priority survivor triage'],
+    ui_theme: { color: '#3b82f6', bg: '#00050f', accent: '#06b6d4' },
+    tick_ms: 350,
+  },
+  {
+    id: 'night_rescue',
+    name: 'Night Forest Rescue',
+    icon: '🌙',
+    description: 'Dense forest canopy blocks all GPS signals. Drones operate in Dead Reckoning mode with visual position uncertainty circles and collaborative drift correction.',
+    environment: 'forest_canopy',
+    gps_denied: true,
+    highlight_features: ['GPS-Denied dead reckoning', 'Uncertainty circle visualization', 'Collaborative position correction', 'Thermal detection mode'],
+    ui_theme: { color: '#8b5cf6', bg: '#05000f', accent: '#a78bfa' },
+    tick_ms: 400,
+  },
+  {
+    id: 'hostile_zone',
+    name: 'Hostile Zone Recon',
+    icon: '⚔️',
+    description: 'Active conflict zone with hostile radar and communication jamming. All mesh network communications are AES-256 encrypted. Threat-aware navigation active.',
+    environment: 'mountain_pass',
+    gps_denied: true,
+    highlight_features: ['AES-256 encrypted mesh', 'Comm jamming simulation', 'Threat-level path planning', 'Secure survivor location relay'],
+    ui_theme: { color: '#f59e0b', bg: '#0a0800', accent: '#dc2626' },
+    tick_ms: 250,
+  },
 ];
-
-const SIM_HIDDEN_SURVIVORS: HiddenSurvivor[] = [
-  { id: 'HSV-001', x: -50, y: 14, severity: 'critical' },
-  { id: 'HSV-002', x: 28, y: 46, severity: 'stable' },
-  { id: 'HSV-003', x: 74, y: -26, severity: 'critical' },
-  { id: 'HSV-004', x: -12, y: -76, severity: 'stable' },
-  { id: 'HSV-005', x: 3, y: 2, severity: 'unknown' },
-];
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function randomBetween(min: number, max: number) {
-  return min + Math.random() * (max - min);
-}
-
-function worldToCellCoord(value: number) {
-  const normalized = (value + SIM_WORLD_BOUNDARY) / (SIM_WORLD_BOUNDARY * 2);
-  return clamp(Math.floor(normalized * SIM_GRID_SIZE), 0, SIM_GRID_SIZE - 1);
-}
-
-function createSimulationDrone(index: number, x: number, y: number, heading: number): Drone {
-  return {
-    id: `DRN-${String(index + 1).padStart(3, '0')}`,
-    x,
-    y,
-    z: randomBetween(80, 130),
-    heading,
-    speed: randomBetween(10, 18),
-    task: 'exploring',
-    status: 'active',
-    battery: randomBetween(72, 100),
-    signalStrength: randomBetween(75, 99),
-    distanceTraveled: 0,
-    lastSeen: new Date().toISOString(),
-    trail: [{ x, y }],
-  };
-}
-
-function createSimulationDrones() {
-  return [
-    createSimulationDrone(0, -40, -25, 45),
-    createSimulationDrone(1, 38, -10, 120),
-    createSimulationDrone(2, 18, 60, 225),
-    createSimulationDrone(3, -75, 30, 310),
-    createSimulationDrone(4, 0, -70, 15),
-  ];
-}
-
-function cloneDrones(drones: Drone[]) {
-  return drones.map((drone) => ({
-    ...drone,
-    trail: drone.trail.map((point) => ({ ...point })),
-  }));
-}
 
 export default function Dashboard() {
-  const [mode, setMode] = useState<PanelMode>('simulation');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('tactical');
   const [missionData, setMissionData] = useState<MissionData>(EMPTY_MISSION_DATA);
   const [drones, setDrones] = useState<Drone[]>([]);
   const [survivors, setSurvivors] = useState<Survivor[]>([]);
@@ -119,308 +99,129 @@ export default function Dashboard() {
   const [selectedDroneId, setSelectedDroneId] = useState<string>();
   const [aiInsights, setAiInsights] = useState<AiInsights | null>(null);
 
+  // Enhanced features state
+  const [fogState, setFogState] = useState<any>(null);
+  const [lidarCloud, setLidarCloud] = useState<any[]>([]);
+  const [gpsGlobalDenied, setGpsGlobalDenied] = useState<boolean>(false);
+  const [scenarios, setScenarios] = useState<any[]>(DEFAULT_SCENARIOS);
+  const [currentScenarioId, setCurrentScenarioId] = useState<string>('earthquake');
+  const [simulationRunning, setSimulationRunning] = useState<boolean>(false);
+
+  // Fetch scenarios from API on mount
+  useEffect(() => {
+    fetch('http://localhost:3001/api/scenarios')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.ok && Array.isArray(data.scenarios) && data.scenarios.length) {
+          setScenarios(data.scenarios);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     setCoverageHistory([]);
     setBatteryHistory([]);
     setLastSnapshotAt(null);
 
-    if (mode === 'simulation') {
-      setConnectionState('connected');
-      setObstacles(SIM_OBSTACLES);
-      setHiddenSurvivors(SIM_HIDDEN_SURVIVORS);
-
-      const detectedSurvivorIds = new Set<string>();
-      const scannedCells = new Set<string>();
-      const simulationStartedAt = Date.now();
-      const simulationDrones = createSimulationDrones();
-      const simulationSurvivors: Survivor[] = [];
-      const simulationAlerts: Alert[] = [
-        {
-          id: `INFO-${Date.now()}-SIM`,
-          type: 'info',
-          message: 'Simulation mode active. Local telemetry is running.',
-          timestamp: new Date().toISOString(),
-        },
-      ];
-
-      const pushAlert = (type: Alert['type'], message: string) => {
-        simulationAlerts.unshift({
-          id: `${type.toUpperCase()}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-          type,
-          message,
-          timestamp: new Date().toISOString(),
-        });
-        if (simulationAlerts.length > 250) {
-          simulationAlerts.length = 250;
-        }
-      };
-
-      const tick = () => {
-        for (const drone of simulationDrones) {
-          if (drone.status === 'failed') {
-            continue;
-          }
-
-          const headingDrift = randomBetween(-10, 10);
-          drone.heading = (drone.heading + headingDrift + 360) % 360;
-
-          if (drone.battery < 24) {
-            drone.task = 'returning';
-          } else if (drone.task !== 'reassigned') {
-            drone.task = 'exploring';
-          }
-
-          drone.speed = clamp(drone.speed + randomBetween(-1.2, 1.2), 8, 21);
-          const distanceStep = drone.speed * 0.9;
-          const radians = (drone.heading * Math.PI) / 180;
-          const previousX = drone.x;
-          const previousY = drone.y;
-          drone.x += Math.cos(radians) * distanceStep;
-          drone.y += Math.sin(radians) * distanceStep;
-
-          if (drone.x < -SIM_WORLD_BOUNDARY || drone.x > SIM_WORLD_BOUNDARY) {
-            drone.heading = (180 - drone.heading + 360) % 360;
-            drone.x = clamp(drone.x, -SIM_WORLD_BOUNDARY, SIM_WORLD_BOUNDARY);
-          }
-          if (drone.y < -SIM_WORLD_BOUNDARY || drone.y > SIM_WORLD_BOUNDARY) {
-            drone.heading = (360 - drone.heading + 360) % 360;
-            drone.y = clamp(drone.y, -SIM_WORLD_BOUNDARY, SIM_WORLD_BOUNDARY);
-          }
-
-          const actualDx = drone.x - previousX;
-          const actualDy = drone.y - previousY;
-          const actualDistance = Math.sqrt(actualDx * actualDx + actualDy * actualDy);
-          drone.distanceTraveled += actualDistance;
-
-          drone.z = clamp(drone.z + randomBetween(-3, 3), 65, 145);
-          drone.battery = clamp(drone.battery - randomBetween(0.2, 0.8), 0, 100);
-          drone.signalStrength = clamp(
-            95 - (Math.abs(drone.x) + Math.abs(drone.y)) / 3 + randomBetween(-2.5, 2.5),
-            28,
-            99
-          );
-
-          if (drone.battery <= 1 && drone.status === 'active') {
-            drone.status = 'failed';
-            drone.task = 'idle';
-            pushAlert('warning', `${drone.id} battery depleted. Drone marked as failed.`);
-          }
-
-          if (drone.status === 'active') {
-            const cellX = worldToCellCoord(drone.x);
-            const cellY = worldToCellCoord(drone.y);
-            scannedCells.add(`${cellX}:${cellY}`);
-          }
-
-          drone.trail.push({ x: drone.x, y: drone.y });
-          if (drone.trail.length > 40) {
-            drone.trail.shift();
-          }
-          drone.lastSeen = new Date().toISOString();
-        }
-
-        for (const hidden of SIM_HIDDEN_SURVIVORS) {
-          if (detectedSurvivorIds.has(hidden.id)) {
-            continue;
-          }
-
-          let closestDrone: Drone | undefined;
-          let minDistance = Number.POSITIVE_INFINITY;
-          for (const drone of simulationDrones) {
-            if (drone.status !== 'active') {
-              continue;
-            }
-            const dx = drone.x - hidden.x;
-            const dy = drone.y - hidden.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            if (distance < minDistance) {
-              minDistance = distance;
-              closestDrone = drone;
-            }
-          }
-
-          if (closestDrone && minDistance <= SIM_DETECTION_RADIUS) {
-            detectedSurvivorIds.add(hidden.id);
-            const detection: Survivor = {
-              id: `SURV-${Math.floor(Math.random() * 100000)}`,
-              sourceId: hidden.id,
-              x: hidden.x,
-              y: hidden.y,
-              timestamp: new Date().toISOString(),
-              confidence: clamp(0.7 + Math.random() * 0.29, 0, 0.99),
-              droneId: closestDrone.id,
-            };
-            simulationSurvivors.unshift(detection);
-            if (simulationSurvivors.length > 120) {
-              simulationSurvivors.length = 120;
-            }
-            pushAlert(
-              'critical',
-              `Survivor detected by ${closestDrone.id} at [${hidden.x.toFixed(1)}, ${hidden.y.toFixed(1)}].`
-            );
-          }
-        }
-
-        if (Math.random() < 0.08) {
-          pushAlert('info', 'Sector update complete. Adaptive reassignment initiated.');
-        }
-
-        const activeDrones = simulationDrones.filter((drone) => drone.status === 'active').length;
-        const failedDrones = simulationDrones.length - activeDrones;
-        const avgBattery =
-          simulationDrones.reduce((sum, drone) => sum + drone.battery, 0) / simulationDrones.length;
-        const avgSignal =
-          simulationDrones.reduce((sum, drone) => sum + drone.signalStrength, 0) / simulationDrones.length;
-        const nowIso = new Date().toISOString();
-        const elapsedMs = Date.now() - simulationStartedAt;
-        const missionSnapshot: MissionData = {
-          coverage: Math.round((scannedCells.size / SIM_TOTAL_CELLS) * 100),
-          scannedCells: scannedCells.size,
-          totalCells: SIM_TOTAL_CELLS,
-          activeDrones,
-          failedDrones,
-          avgBattery: Number(avgBattery.toFixed(1)),
-          avgSignal: Number(avgSignal.toFixed(1)),
-          foundSurvivors: simulationSurvivors.length,
-          missionTimeSec: Math.floor(elapsedMs / 1000),
-        };
-
-        setMissionData(missionSnapshot);
-        setDrones(cloneDrones(simulationDrones));
-        setSurvivors([...simulationSurvivors]);
-        setAlerts([...simulationAlerts]);
-        setLastSnapshotAt(nowIso);
-
-        const timeKey = new Date(nowIso).toLocaleTimeString('en-US', {
-          hour12: false,
-          minute: '2-digit',
-          second: '2-digit',
-        });
-
-        setCoverageHistory((previous) => {
-          const updated = [...previous, { time: timeKey, coverage: missionSnapshot.coverage }];
-          if (updated.length > 40) {
-            updated.shift();
-          }
-          return updated;
-        });
-
-        setBatteryHistory((previous) => {
-          const updated = [...previous, { time: timeKey, battery: missionSnapshot.avgBattery }];
-          if (updated.length > 40) {
-            updated.shift();
-          }
-          return updated;
-        });
-
-        setSelectedDroneId((current) => {
-          if (current && simulationDrones.some((drone) => drone.id === current)) {
-            return current;
-          }
-          return simulationDrones[0]?.id;
-        });
-      };
-
-      tick();
-      const simulationTimer = window.setInterval(tick, 900);
-      return () => {
-        window.clearInterval(simulationTimer);
-      };
-    }
-
     const socket = io('http://localhost:3001', {
       transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionDelay: 500,
-      reconnectionAttempts: Infinity,
+      reconnectionAttempts: 10,
     });
 
-    socket.on('connect', () => {
+    socket.on('connect', () => setConnectionState('connected'));
+    socket.on('disconnect', () => setConnectionState('disconnected'));
+
+    socket.on('telemetrySnapshot', (snapshot: any) => {
       setConnectionState('connected');
-    });
-
-    socket.on('disconnect', () => {
-      setConnectionState('disconnected');
-    });
-
-    socket.on('connect_error', () => {
-      setConnectionState('disconnected');
-    });
-
-    socket.on('telemetrySnapshot', (snapshot: TelemetrySnapshot) => {
-      setMissionData(snapshot.missionData);
-      setDrones(snapshot.drones);
-      setSurvivors(snapshot.foundSurvivors);
-      setAlerts(snapshot.alerts);
-      setObstacles(snapshot.obstacles);
-      setHiddenSurvivors(snapshot.hiddenSurvivors);
-      setMeshLinks(snapshot.meshLinks ?? []);
-      if (snapshot.aiInsights) {
-        setAiInsights(snapshot.aiInsights);
-      }
       setLastSnapshotAt(snapshot.timestamp);
+      setDrones(snapshot.drones || []);
+      setObstacles(snapshot.obstacles || []);
+      setHiddenSurvivors(snapshot.hiddenSurvivors || []);
+      setSurvivors(snapshot.foundSurvivors || []);
+      setAlerts(snapshot.alerts || []);
+      setMeshLinks(snapshot.meshLinks || []);
+      setGpsGlobalDenied(!!snapshot.gps_denied);
+      setSimulationRunning(!!snapshot.simulationRunning);
+      if (snapshot.scenario_id) setCurrentScenarioId(snapshot.scenario_id);
 
-      const timeKey = new Date(snapshot.timestamp).toLocaleTimeString('en-US', {
-        hour12: false,
-        minute: '2-digit',
-        second: '2-digit',
-      });
+      if (snapshot.fog) setFogState(snapshot.fog);
+      if (snapshot.lidar_cloud) setLidarCloud(snapshot.lidar_cloud);
 
-      setCoverageHistory((previous) => {
-        const updated = [...previous, { time: timeKey, coverage: snapshot.missionData.coverage }];
-        if (updated.length > 40) {
-          updated.shift();
-        }
-        return updated;
-      });
-
-      setBatteryHistory((previous) => {
-        const updated = [...previous, { time: timeKey, battery: snapshot.missionData.avgBattery }];
-        if (updated.length > 40) {
-          updated.shift();
-        }
-        return updated;
-      });
+      if (snapshot.missionData) {
+        setMissionData(snapshot.missionData);
+        const timeLabel = new Date(snapshot.timestamp).toLocaleTimeString();
+        setCoverageHistory((prev) => [...prev, { time: timeLabel, coverage: snapshot.missionData.coverage }].slice(-20));
+        setBatteryHistory((prev) => [...prev, { time: timeLabel, battery: snapshot.missionData.avgBattery }].slice(-20));
+      }
 
       setSelectedDroneId((current) => {
-        if (current && snapshot.drones.some((drone) => drone.id === current)) {
-          return current;
-        }
-        return snapshot.drones[0]?.id;
+        if (current && snapshot.drones?.some((drone: Drone) => drone.id === current)) return current;
+        return snapshot.drones?.[0]?.id;
       });
     });
 
-    // Fallback handlers for partial streams.
-    socket.on('missionData', (data: Partial<MissionData>) => {
-      setMissionData((previous) => ({ ...previous, ...data }));
-    });
-
-    socket.on('drones', (data: Drone[]) => {
-      setDrones(data);
-      setSelectedDroneId((current) => {
-        if (current && data.some((drone) => drone.id === current)) {
-          return current;
-        }
-        return data[0]?.id;
-      });
-    });
-
-    socket.on('survivorFound', (survivor: Survivor) => {
-      setSurvivors((previous) => [survivor, ...previous].slice(0, 120));
-    });
-
-    socket.on('alert', (alert: Alert) => {
-      setAlerts((previous) => [alert, ...previous].slice(0, 250));
-    });
-
-    socket.on('aiInsights', (insights: AiInsights) => {
-      setAiInsights(insights);
-    });
+    socket.on('fogState', (fog: any) => setFogState(fog));
+    socket.on('lidarCloud', (cloud: any[]) => setLidarCloud(cloud || []));
+    socket.on('aiInsights', (insights: AiInsights) => setAiInsights(insights));
 
     return () => {
       socket.disconnect();
     };
-  }, [mode]);
+  }, []);
+
+  // Scenario and GPS control actions
+  const handleStartScenario = async (scenarioId: string) => {
+    try {
+      const res = await fetch('http://localhost:3001/api/mission/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenario_id: scenarioId }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setSimulationRunning(true);
+        setCurrentScenarioId(scenarioId);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleStopScenario = async () => {
+    try {
+      await fetch('http://localhost:3001/api/mission/stop', { method: 'POST' });
+      setSimulationRunning(false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleResetScenario = async () => {
+    try {
+      await fetch('http://localhost:3001/api/mission/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenario_id: currentScenarioId }),
+      });
+      setSimulationRunning(false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleToggleGPS = async (denied: boolean) => {
+    try {
+      await fetch('http://localhost:3001/api/mission/gps-denied', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: denied }),
+      });
+      setGpsGlobalDenied(denied);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const selectedDrone = useMemo(
     () => drones.find((drone) => drone.id === selectedDroneId),
@@ -433,91 +234,226 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-[#000814] text-white p-6 font-sans">
-      <header className="mb-6 border-b border-white/10 pb-4 flex flex-wrap justify-between items-center gap-3">
-        <h1 className="text-2xl font-bold tracking-widest text-[#00ffcc]">
-          SWARM COMMAND <span className="text-sm font-normal text-gray-400">v2.0</span>
-        </h1>
+      {/* Top Header */}
+      <header className="mb-4 border-b border-white/10 pb-4 flex flex-wrap justify-between items-center gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-widest text-[#00ffcc]">
+            SWARM COMMAND <span className="text-xs font-semibold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400">AI-DRIVEN</span>
+          </h1>
+          <p className="text-xs text-gray-400 mt-1">Autonomous Search & Rescue • GPS-Denied • LiDAR Collision Avoidance • Secure Mesh</p>
+        </div>
+
         <div className="flex items-center gap-4 text-xs uppercase tracking-wider flex-wrap justify-end">
-          <label className="flex items-center gap-2 text-gray-400">
-            Mode
-            <select
-              value={mode}
-              onChange={(event) => setMode(event.target.value as PanelMode)}
-              className="bg-[#081425] border border-white/10 text-gray-200 text-xs rounded-md px-2 py-1 uppercase tracking-wide"
-            >
-              <option value="simulation">Simulation</option>
-              <option value="live">Live Socket</option>
-            </select>
-          </label>
+          {/* Security Status Badge */}
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-500/20 border border-purple-500/40 text-purple-300 font-mono text-[11px]">
+            🔒 AES-256 MESH
+          </span>
+
+          {/* GPS Status Badge */}
+          <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[11px] font-mono ${
+            gpsGlobalDenied ? 'bg-red-500/20 border-red-500/50 text-red-400' : 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+          }`}>
+            {gpsGlobalDenied ? '📡 GPS DENIED (DR)' : '🛰️ GPS ACTIVE'}
+          </span>
+
           <span className={`flex items-center gap-2 ${connectionState === 'connected' ? 'text-green-400' : 'text-red-400'}`}>
             <span className={`w-2.5 h-2.5 rounded-full ${connectionState === 'connected' ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></span>
             {connectionState}
           </span>
-          <span className="text-gray-400">Last Update: {lastUpdateLabel}</span>
-          <span className="text-gray-400">Selected: {selectedDrone?.id ?? 'None'}</span>
+          <span className="text-gray-400">{lastUpdateLabel}</span>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-[2fr_1.1fr] gap-6">
-        <div className="flex flex-col gap-6">
-          <StatsPanel
-            dronesCount={missionData.activeDrones || drones.filter((drone) => drone.status === 'active').length}
-            coverage={missionData.coverage}
-            survivorsCount={missionData.foundSurvivors || survivors.length}
-            scannedCells={missionData.scannedCells}
-            avgBattery={missionData.avgBattery}
-            avgSignal={missionData.avgSignal}
-            missionTimeSec={missionData.missionTimeSec}
-          />
+      {/* Navigation Tabs */}
+      <div className="flex gap-2 mb-6 border-b border-white/10 pb-3">
+        {[
+          { id: 'tactical', label: '🗺️ Tactical & Live Video' },
+          { id: 'fog_lidar', label: '🌫️ LiDAR & Fog-of-War' },
+          { id: 'gps_denied', label: '📡 GPS-Denied & Dead Reckoning' },
+          { id: 'scenarios', label: '🎯 Disaster Scenarios' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as ActiveTab)}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              activeTab === tab.id
+                ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/30'
+                : 'bg-white/5 text-gray-300 hover:bg-white/10'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-[2.3fr_1fr] gap-6 h-[420px]">
-            <LiveVideo
+      {/* Top Stats Bar */}
+      <div className="mb-6">
+        <StatsPanel
+          dronesCount={missionData.activeDrones || drones.filter((drone) => drone.status === 'active').length}
+          coverage={missionData.coverage}
+          survivorsCount={missionData.foundSurvivors || survivors.length}
+          scannedCells={missionData.scannedCells}
+          avgBattery={missionData.avgBattery}
+          avgSignal={missionData.avgSignal}
+          missionTimeSec={missionData.missionTimeSec}
+        />
+      </div>
+
+      {/* Main Content Area based on Tab */}
+      {activeTab === 'tactical' && (
+        <div className="grid grid-cols-1 md:grid-cols-[2fr_1.1fr] gap-6">
+          <div className="flex flex-col gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-[2.3fr_1fr] gap-6 h-[420px]">
+              <LiveVideo
                 selectedDrone={selectedDrone}
                 connectionState={connectionState}
                 drones={drones}
                 onSelectDrone={setSelectedDroneId}
               />
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-5 overflow-hidden flex flex-col h-full">
-              <h2 className="text-lg font-semibold mb-4 text-[#ff4a1c]">Live Detections</h2>
-              <SurvivorFeed survivors={survivors} />
+              <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-5 overflow-hidden flex flex-col h-full">
+                <h2 className="text-lg font-semibold mb-4 text-[#ff4a1c]">Live Detections</h2>
+                <SurvivorFeed survivors={survivors} />
+              </div>
+            </div>
+
+            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-5 flex flex-col overflow-hidden min-h-[300px]">
+              <h2 className="text-lg font-semibold mb-4 text-gray-300">Active Swarm Telemetry</h2>
+              <DroneGrid
+                drones={drones}
+                selectedDroneId={selectedDroneId}
+                onSelectDrone={setSelectedDroneId}
+              />
             </div>
           </div>
 
-          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-5 flex flex-col overflow-hidden min-h-[300px]">
-            <h2 className="text-lg font-semibold mb-4 text-gray-300">Active Swarm Telemetry</h2>
-            <DroneGrid
-              drones={drones}
-              selectedDroneId={selectedDroneId}
-              onSelectDrone={setSelectedDroneId}
-            />
+          <div className="flex flex-col gap-6">
+            <div className="h-[310px]">
+              <ChartsPanel historyData={coverageHistory} batteryHistory={batteryHistory} drones={drones} />
+            </div>
+
+            <div className="h-[360px]">
+              <MissionMap
+                drones={drones}
+                obstacles={obstacles}
+                foundSurvivors={survivors}
+                hiddenSurvivors={hiddenSurvivors}
+                meshLinks={meshLinks}
+                selectedDroneId={selectedDroneId}
+                onSelectDrone={setSelectedDroneId}
+              />
+            </div>
+
+            <AICommandPanel aiInsights={aiInsights} />
+
+            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-5 overflow-hidden flex flex-col min-h-[320px]">
+              <h2 className="text-lg font-semibold mb-4 text-gray-300">System Logs</h2>
+              <EventLogs alerts={alerts} />
+            </div>
           </div>
         </div>
+      )}
 
-        <div className="flex flex-col gap-6">
-          <div className="h-[310px]">
-            <ChartsPanel historyData={coverageHistory} batteryHistory={batteryHistory} drones={drones} />
+      {activeTab === 'fog_lidar' && (
+        <div className="grid grid-cols-1 md:grid-cols-[1.5fr_1fr] gap-6">
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-6">
+            <h2 className="text-lg font-bold text-cyan-400 mb-2">Live LiDAR Point Cloud & Fog-of-War Grid</h2>
+            <p className="text-xs text-gray-400 mb-4">
+              Drones start with zero map knowledge. Each tick, LiDAR rays sweep 360° to discover terrain. Obstacles trigger real-time path re-planning.
+            </p>
+            <FogOfWarMap fogState={fogState} lidarCloud={lidarCloud} />
           </div>
 
-          <div className="h-[360px]">
-            <MissionMap
-              drones={drones}
-              obstacles={obstacles}
-              foundSurvivors={survivors}
-              hiddenSurvivors={hiddenSurvivors}
-              meshLinks={meshLinks}
-              selectedDroneId={selectedDroneId}
-              onSelectDrone={setSelectedDroneId}
-            />
-          </div>
+          <div className="flex flex-col gap-6">
+            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-5">
+              <h2 className="text-base font-semibold text-gray-200 mb-3">Swarm LiDAR Diagnostics</h2>
+              <div className="space-y-3 text-xs">
+                <div className="flex justify-between p-2.5 rounded bg-black/40 border border-white/5">
+                  <span className="text-gray-400">LiDAR Ray Density:</span>
+                  <span className="font-mono text-cyan-300">72 rays / scan (5° res)</span>
+                </div>
+                <div className="flex justify-between p-2.5 rounded bg-black/40 border border-white/5">
+                  <span className="text-gray-400">Effective Sensing Range:</span>
+                  <span className="font-mono text-cyan-300">8 grid cells (56 meters)</span>
+                </div>
+                <div className="flex justify-between p-2.5 rounded bg-black/40 border border-white/5">
+                  <span className="text-gray-400">Reactive Repulsion (APF):</span>
+                  <span className="font-mono text-emerald-400">Active (Potential Fields)</span>
+                </div>
+                <div className="flex justify-between p-2.5 rounded bg-black/40 border border-white/5">
+                  <span className="text-gray-400">Dynamic Re-routing:</span>
+                  <span className="font-mono text-emerald-400">A* Path Invalidation Triggered</span>
+                </div>
+              </div>
+            </div>
 
-          <AICommandPanel aiInsights={aiInsights} />
-
-          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-5 overflow-hidden flex flex-col min-h-[320px]">
-            <h2 className="text-lg font-semibold mb-4 text-gray-300">System Logs</h2>
-            <EventLogs alerts={alerts} />
+            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-5 overflow-hidden flex flex-col min-h-[300px]">
+              <h2 className="text-lg font-semibold mb-4 text-[#ff4a1c]">Live Detections Feed</h2>
+              <SurvivorFeed survivors={survivors} />
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {activeTab === 'gps_denied' && (
+        <div className="grid grid-cols-1 md:grid-cols-[1.4fr_1fr] gap-6">
+          <GPSStatusIndicator
+            drones={drones as any}
+            gpsGlobalDenied={gpsGlobalDenied}
+            onToggleGPS={handleToggleGPS}
+          />
+
+          <div className="flex flex-col gap-6">
+            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-5">
+              <h2 className="text-base font-semibold text-gray-200 mb-3">GPS-Denied Architecture</h2>
+              <div className="space-y-3 text-xs leading-relaxed text-gray-300">
+                <p>
+                  <strong className="text-cyan-400">1. Inertial Dead Reckoning:</strong> When GPS is jammed or canopy blocks signal, drones integrate IMU acceleration and compass headings to estimate position.
+                </p>
+                <p>
+                  <strong className="text-purple-400">2. Collaborative Uncertainty Correction:</strong> When two drones fly within mesh communication range (&lt;15m), they exchange estimated coordinates and reduce accumulated drift error.
+                </p>
+                <p>
+                  <strong className="text-emerald-400">3. Landmark Observations:</strong> Distinctive terrain features identified by LiDAR act as fixed references to bound localization error.
+                </p>
+              </div>
+            </div>
+
+            <AICommandPanel aiInsights={aiInsights} />
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'scenarios' && (
+        <div className="grid grid-cols-1 md:grid-cols-[1.3fr_1fr] gap-6">
+          <ScenarioSelector
+            scenarios={scenarios}
+            currentScenarioId={currentScenarioId}
+            onSelect={setCurrentScenarioId}
+            onStart={handleStartScenario}
+            onStop={handleStopScenario}
+            onReset={handleResetScenario}
+            simulationRunning={simulationRunning}
+          />
+
+          <div className="flex flex-col gap-6">
+            <div className="h-[340px]">
+              <MissionMap
+                drones={drones}
+                obstacles={obstacles}
+                foundSurvivors={survivors}
+                hiddenSurvivors={hiddenSurvivors}
+                meshLinks={meshLinks}
+                selectedDroneId={selectedDroneId}
+                onSelectDrone={setSelectedDroneId}
+              />
+            </div>
+            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-5 overflow-hidden flex flex-col min-h-[250px]">
+              <h2 className="text-lg font-semibold mb-3 text-gray-300">Scenario Event Stream</h2>
+              <EventLogs alerts={alerts} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
