@@ -6,6 +6,12 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+let SIM_CONFIG = { WORLD_BOUNDARY: 350, GRID_SIZE: 40 };
+fetch('http://localhost:3001/api/config')
+  .then(res => res.json())
+  .then(cfg => { SIM_CONFIG = cfg; })
+  .catch(() => {});
+
 let loadedDroneModel = null;
 const _droneLoader = new GLTFLoader();
 _droneLoader.load('../drone.glb', (gltf) => {
@@ -1019,7 +1025,7 @@ function scanCityMesh() {
     const raycaster = new THREE.Raycaster();
     const scannedObstacles = [];
     const scanStep = 25;
-    const boundary = 350;
+    const boundary = SIM_CONFIG.WORLD_BOUNDARY || 350;
     
     const heatmapGroup = new THREE.Group();
     heatmapGroup.position.y = 1.0; // Slightly above ground to prevent Z-fighting

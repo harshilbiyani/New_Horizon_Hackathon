@@ -1,4 +1,5 @@
 import type { Drone, HiddenSurvivor, MeshLink, Obstacle, Survivor } from '../types/telemetry';
+import { useSimConfig } from '../context/ConfigContext';
 
 interface MissionMapProps {
   drones: Drone[];
@@ -10,15 +11,12 @@ interface MissionMapProps {
   onSelectDrone?: (droneId: string) => void;
 }
 
-const WORLD_BOUNDARY = 140;
-const COMMUNICATION_RANGE = 35;
-
-function worldToPercent(value: number) {
-  return ((value + WORLD_BOUNDARY) / (WORLD_BOUNDARY * 2)) * 100;
+function worldToPercent(value: number, worldBoundary: number) {
+  return ((value + worldBoundary) / (worldBoundary * 2)) * 100;
 }
 
-function toSvgPoint(x: number, y: number) {
-  return `${worldToPercent(x)},${100 - worldToPercent(y)}`;
+function toSvgPoint(x: number, y: number, worldBoundary: number) {
+  return `${worldToPercent(x, worldBoundary)},${100 - worldToPercent(y, worldBoundary)}`;
 }
 
 function obstacleColor(severity: Obstacle['severity']) {
@@ -27,7 +25,7 @@ function obstacleColor(severity: Obstacle['severity']) {
   return '#22c55e';
 }
 
-function buildMeshLinks(drones: Drone[]) {
+function buildMeshLinks(drones: Drone[], commRange: number) {
   const links: MeshLink[] = [];
 
   for (let i = 0; i < drones.length; i++) {
@@ -37,9 +35,9 @@ function buildMeshLinks(drones: Drone[]) {
       const dx = a.x - b.x;
       const dy = a.y - b.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      if (distance > COMMUNICATION_RANGE) continue;
+      if (distance > commRange) continue;
 
-      const signal = Math.max(0.1, 1.0 - (distance / COMMUNICATION_RANGE) * 0.9);
+      const signal = Math.max(0.1, 1.0 - (distance / commRange) * 0.9);
       links.push({
         from: a.id,
         to: b.id,
@@ -52,7 +50,7 @@ function buildMeshLinks(drones: Drone[]) {
   return links;
 }
 
-function DroneFOV({ drone, selectedId }: { drone: Drone; selectedId?: string }) {
+function DroneFOV({ drone, selectedId, worldBoundary }: { drone: Drone; selectedId?: string; worldBoundary: number }) {
   const isSelected = drone.id === selectedId;
   const lengthWorld = 20; 
   const fovDeg = 60; 
@@ -60,9 +58,9 @@ function DroneFOV({ drone, selectedId }: { drone: Drone; selectedId?: string }) 
   const headingRad = (drone.heading * Math.PI) / 180;
   const halfFovRad = ((fovDeg / 2) * Math.PI) / 180;
   
-  const cx = worldToPercent(drone.x);
-  const cy = 100 - worldToPercent(drone.y);
-  const ptDist = (lengthWorld / (WORLD_BOUNDARY * 2)) * 100;
+  const cx = worldToPercent(drone.x, worldBoundary);
+  const cy = 100 - worldToPercent(drone.y, worldBoundary);
+  const ptDist = (lengthWorld / (worldBoundary * 2)) * 100;
   
   const a1 = headingRad - halfFovRad;
   const a2 = headingRad + halfFovRad;
@@ -94,7 +92,14 @@ export default function MissionMap({
   selectedDroneId,
   onSelectDrone,
 }: MissionMapProps) {
-  const activeLinks = meshLinks?.length ? meshLinks : buildMeshLinks(drones);
+  const config = useSimConfig();
+  const WORLD_BOUNDARY = config.WORLD_BOUNDARY;
+  const COMM_RANGE = config.COMM_RANGE;
+
+  const toPct = (val: number) => worldToPercent(val, WORLD_BOUNDARY);
+  const toPt = (x: number, y: number) => toSvgPoint(x, y, WORLD_BOUNDARY);
+
+  const activeLinks = meshLinks?.length ? meshLinks : buildMeshLinks(drones, COMM_RANGE);
   const droneLookup = new Map(drones.map((drone) => [drone.id, drone]));
 
   return (
@@ -119,8 +124,8 @@ export default function MissionMap({
           {obstacles.map((obstacle) => (
             <circle
               key={obstacle.id}
-              cx={worldToPercent(obstacle.x)}
-              cy={100 - worldToPercent(obstacle.y)}
+              cx={toPct(obstacle.x)}
+              cy={100 - toPct(obstacle.y)}
               r={(obstacle.radius / (WORLD_BOUNDARY * 2)) * 100}
               fill={obstacleColor(obstacle.severity)}
               fillOpacity={0.18}
@@ -133,8 +138,8 @@ export default function MissionMap({
           {hiddenSurvivors.map((survivor) => (
             <g key={survivor.id} opacity={0.55}>
               <circle
-                cx={worldToPercent(survivor.x)}
-                cy={100 - worldToPercent(survivor.y)}
+                cx={toPct(survivor.x)}
+                cy={100 - toPct(survivor.y)}
                 r={0.7}
                 fill="#facc15"
               />
@@ -144,18 +149,18 @@ export default function MissionMap({
           {foundSurvivors.slice(0, 24).map((survivor) => (
             <g key={survivor.id}>
               <line
-                x1={worldToPercent(survivor.x) - 0.8}
-                y1={100 - worldToPercent(survivor.y) - 0.8}
-                x2={worldToPercent(survivor.x) + 0.8}
-                y2={100 - worldToPercent(survivor.y) + 0.8}
+                x1={toPct(survivor.x) - 0.8}
+                y1={100 - toPct(survivor.y) - 0.8}
+                x2={toPct(survivor.x) + 0.8}
+                y2={100 - toPct(survivor.y) + 0.8}
                 stroke="#fb7185"
                 strokeWidth={0.35}
               />
               <line
-                x1={worldToPercent(survivor.x) - 0.8}
-                y1={100 - worldToPercent(survivor.y) + 0.8}
-                x2={worldToPercent(survivor.x) + 0.8}
-                y2={100 - worldToPercent(survivor.y) - 0.8}
+                x1={toPct(survivor.x) - 0.8}
+                y1={100 - toPct(survivor.y) + 0.8}
+                x2={toPct(survivor.x) + 0.8}
+                y2={100 - toPct(survivor.y) - 0.8}
                 stroke="#fb7185"
                 strokeWidth={0.35}
               />
@@ -165,7 +170,7 @@ export default function MissionMap({
           {drones.map((drone) => (
             <g key={`trail-${drone.id}`}>
               <polyline
-                points={drone.trail.map((point) => toSvgPoint(point.x, point.y)).join(' ')}
+                points={drone.trail.map((point) => toPt(point.x, point.y)).join(' ')}
                 fill="none"
                 stroke={drone.id === selectedDroneId ? '#00ffcc' : '#38bdf8'}
                 strokeOpacity={drone.id === selectedDroneId ? 0.95 : 0.5}
@@ -188,10 +193,10 @@ export default function MissionMap({
             return (
               <line
                 key={`${link.from}-${link.to}-${idx}`}
-                x1={worldToPercent(from.x)}
-                y1={100 - worldToPercent(from.y)}
-                x2={worldToPercent(to.x)}
-                y2={100 - worldToPercent(to.y)}
+                x1={toPct(from.x)}
+                y1={100 - toPct(from.y)}
+                x2={toPct(to.x)}
+                y2={100 - toPct(to.y)}
                 stroke="#22d3ee"
                 strokeOpacity={opacity}
                 strokeWidth={strokeWidth}
@@ -202,10 +207,10 @@ export default function MissionMap({
 
           {drones.map((drone) => (
             <g key={drone.id}>
-              <DroneFOV drone={drone} selectedId={selectedDroneId} />
+              <DroneFOV drone={drone} selectedId={selectedDroneId} worldBoundary={WORLD_BOUNDARY} />
               <circle
-                cx={worldToPercent(drone.x)}
-                cy={100 - worldToPercent(drone.y)}
+                cx={toPct(drone.x)}
+                cy={100 - toPct(drone.y)}
                 r={drone.id === selectedDroneId ? 1.1 : 0.85}
                 fill={drone.status === 'active' ? '#22d3ee' : '#ef4444'}
                 stroke={drone.id === selectedDroneId ? '#ffffff' : '#0f172a'}
@@ -214,8 +219,8 @@ export default function MissionMap({
                 className="cursor-pointer"
               />
               <text
-                x={worldToPercent(drone.x) + 1.1}
-                y={100 - worldToPercent(drone.y) - 0.9}
+                x={toPct(drone.x) + 1.1}
+                y={100 - toPct(drone.y) - 0.9}
                 fontSize="1.6"
                 fill="#cbd5e1"
               >

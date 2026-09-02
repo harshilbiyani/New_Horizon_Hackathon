@@ -3,7 +3,16 @@ import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// ─── Shared Config (single source of truth: shared/simConfig.json) ──────────
+const SIM_CONFIG = JSON.parse(
+  readFileSync(path.join(__dirname, 'shared', 'simConfig.json'), 'utf8')
+);
 
 const app = express();
 app.use(cors());
@@ -17,11 +26,11 @@ const io = new Server(server, {
   },
 });
 
-const WORLD_BOUNDARY = 350; // Perfect fit: sqrt(350^2 + 350^2) = 494 radius, fitting inside the 500-radius city circle!
-const GRID_SIZE = 40;
-const TICK_MS = 700;
-const DRONE_DETECTION_RADIUS = 35;
-const COMMUNICATION_RANGE = 90;
+const WORLD_BOUNDARY = SIM_CONFIG.WORLD_BOUNDARY;
+const GRID_SIZE = SIM_CONFIG.GRID_SIZE;
+const TICK_MS = SIM_CONFIG.TICK_MS;
+const DRONE_DETECTION_RADIUS = SIM_CONFIG.DETECTION_RADIUS;
+const COMMUNICATION_RANGE = SIM_CONFIG.COMM_RANGE;
 const TOTAL_CELLS = GRID_SIZE * GRID_SIZE;
 
 // --- Simulation State (mutable, resettable) ---
@@ -146,6 +155,9 @@ function createDrone(index, x, y, heading, battery) {
     distanceTraveled: 0,
     lastSeen: new Date().toISOString(),
     trail: [{ x, y }],
+    gpsMode: 'gps',
+    positionUncertainty: 0,
+    relayPath: null,
   };
 }
 
@@ -211,106 +223,91 @@ function pushAlert(type, message) {
   }
 }
 
-function detectSurvivors(drone) {
-  for (const survivor of hiddenSurvivors) {
-    if (detectedSurvivorIds.has(survivor.id)) continue;
-    const dx = drone.x - survivor.x;
-    const dy = drone.y - survivor.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    if (distance <= DRONE_DETECTION_RADIUS) {
-      detectedSurvivorIds.add(survivor.id);
-      const detection = {
-        id: `SURV-${Math.floor(Math.random() * 100000)}`,
-        sourceId: survivor.id,
-        x: survivor.x,
-        y: survivor.y,
-        timestamp: new Date().toISOString(),
-        confidence: clamp(0.7 + Math.random() * 0.29, 0, 0.99),
-        droneId: drone.id,
-      };
-      foundSurvivors.unshift(detection);
-      if (foundSurvivors.length > 120) foundSurvivors.length = 120;
-      pushAlert('critical', `Survivor detected by ${drone.id} at [${survivor.x.toFixed(1)}, ${survivor.y.toFixed(1)}]. Confidence ${(detection.confidence * 100).toFixed(0)}%.`);
-      io.emit('survivorFound', detection);
-    }
-  }
-}
+// ═════════════════════════════════════════════════════════════════════════════
+//  TICK LOOP — Three distinct, swappable stages
+// ═════════════════════════════════════════════════════════════════════════════
 
-function applyObstacleAvoidance(drone) {
-  let nearest = null;
-  let nearestDist = Number.POSITIVE_INFINITY;
-
-  for (const obstacle of obstacles) {
-    const dx = drone.x - obstacle.x;
-    const dy = drone.y - obstacle.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    if (distance < nearestDist) {
-      nearestDist = distance;
-      nearest = obstacle;
-    }
-  }
-
-  if (!nearest) return;
-
-  const cautionRadius = nearest.radius + 12;
-  const clearanceZ = nearest.height + 25; // Minimum safe altitude to fly over
-
-  // Only evade if we are within the horizontal circle AND below the safe clearance altitude (3D check!)
-  if (nearestDist < cautionRadius && drone.z < clearanceZ) {
-    const awayAngle = (Math.atan2(drone.y - nearest.y, drone.x - nearest.x) * 180) / Math.PI;
-    const blend = nearestDist < nearest.radius + 3 ? 0.78 : 0.42;
-    
-    // Smoothly turn away by setting the target heading
-    drone.targetHeading = ((1 - blend) * drone.targetHeading + blend * awayAngle + 360) % 360;
-    drone.task = 'evading';
-    drone.targetSpeed = clamp(drone.targetSpeed * 0.82, 7, 16);
-    
-    // 3D Evasion: Also pitch up to fly over the obstacle!
-    drone.targetZ = Math.max(drone.targetZ, clearanceZ + 5);
-
-    // Hard push only if absolutely critically close
-    if (nearestDist < nearest.radius + 1.5) {
-      const push = nearest.radius + 2.2 - nearestDist;
-      const rad = (awayAngle * Math.PI) / 180;
-      drone.x += Math.cos(rad) * push;
-      drone.y += Math.sin(rad) * push;
-    }
-  }
-}
-
-function updateDrone(drone) {
-  if (drone.status === 'failed') return;
-
-  drone.task = 'exploring';
-  const headingDrift = randomBetween(-10, 10);
-  drone.targetHeading = (drone.targetHeading + headingDrift + 360) % 360;
+// ─── STAGE 1: Decision Engine ─────────────────────────────────────────────────
+//
+// TODO(Person B): replace stubDecisionEngine with:
+//   import { computeCommand } from './server/decisionEngine.js'
+// once decisionEngine.test.js passes all fixtures.
+// The swap is a single call-site change — nothing in applyActuation changes.
+//
+function stubDecisionEngine(drone) {
+  let task = 'exploring';
+  let targetHeading = (drone.targetHeading + randomBetween(-10, 10) + 360) % 360;
+  let targetSpeed = clamp(drone.targetSpeed + randomBetween(-1.2, 1.2), 8, 21);
+  let targetZ = clamp(drone.targetZ + randomBetween(-4, 4), 60, 130);
 
   if (drone.battery < 22) {
-    drone.task = 'returning';
+    task = 'returning';
   }
 
+  // Obstacle avoidance — find nearest obstacle and steer away
+  let nearest = null;
+  let nearestDist = Number.POSITIVE_INFINITY;
+  for (const obs of obstacles) {
+    const dx = drone.x - obs.x;
+    const dy = drone.y - obs.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < nearestDist) { nearestDist = dist; nearest = obs; }
+  }
+
+  let reason = task === 'returning' ? 'low-battery-rtb' : 'autonomous-sweep';
+
+  if (nearest) {
+    const cautionRadius = nearest.radius + 12;
+    const clearanceZ = nearest.height + 25;
+
+    if (nearestDist < cautionRadius && drone.z < clearanceZ) {
+      const awayAngle = (Math.atan2(drone.y - nearest.y, drone.x - nearest.x) * 180) / Math.PI;
+      const blend = nearestDist < nearest.radius + 3 ? 0.78 : 0.42;
+      targetHeading = ((1 - blend) * targetHeading + blend * awayAngle + 360) % 360;
+      targetSpeed = clamp(targetSpeed * 0.82, 7, 16);
+      targetZ = Math.max(targetZ, clearanceZ + 5);
+      task = 'evading';
+      reason = 'obstacle-avoidance';
+    }
+  }
+
+  return {
+    droneId: drone.id,
+    targetHeading,
+    targetSpeed,
+    targetZ,
+    task,
+    reason,
+    priority: task === 'evading' ? 'high' : 'normal',
+    issuedAt: new Date().toISOString(),
+    issuedBy: 'stub',
+  };
+}
+
+// ─── STAGE 2: Actuation Layer ─────────────────────────────────────────────────
+// Pure physics — applies a Command and steps the drone's state forward one tick.
+// No decisions made here; no obstacle arrays read here.
+//
+function applyActuation(drone, command) {
+  drone.targetHeading = command.targetHeading ?? drone.targetHeading;
+  drone.targetSpeed = command.targetSpeed ?? drone.targetSpeed;
+  drone.targetZ = command.targetZ ?? drone.targetZ;
+  drone.task = command.task ?? drone.task;
+
   const speedMultiplier = drone.task === 'returning' ? 1.3 : 1;
-  drone.targetSpeed = clamp(drone.targetSpeed + randomBetween(-1.2, 1.2), 8, 21);
-  drone.targetZ = clamp(drone.targetZ + randomBetween(-4, 4), 60, 130);
 
-  applyObstacleAvoidance(drone);
-
-  // Apply Kinematic Inertia (Step current values towards targets)
-  
-  // 1. Turn Rate Cap
+  // 1. Turn Rate Cap (max 25°/tick)
   let turnDiff = (drone.targetHeading - drone.heading + 360) % 360;
   if (turnDiff > 180) turnDiff -= 360;
-  const maxTurn = 25; // max degrees per tick
-  drone.heading = (drone.heading + clamp(turnDiff, -maxTurn, maxTurn) + 360) % 360;
-  
-  // 2. Acceleration Cap
-  const maxAccel = 3.5;
-  drone.speed = clamp(drone.targetSpeed, drone.speed - maxAccel, drone.speed + maxAccel);
-  
-  // 3. Climb/Descent Rate Cap
-  const maxClimb = 12.0;
-  drone.z = clamp(drone.targetZ, drone.z - maxClimb, drone.z + maxClimb);
+  drone.heading = (drone.heading + clamp(turnDiff, -25, 25) + 360) % 360;
 
+  // 2. Acceleration Cap (max 3.5 units/tick)
+  drone.speed = clamp(drone.targetSpeed, drone.speed - 3.5, drone.speed + 3.5);
+
+  // 3. Climb/Descent Rate Cap (max 12 units/tick)
+  drone.z = clamp(drone.targetZ, drone.z - 12, drone.z + 12);
+
+  // 4. Position advance
   const distanceStep = (drone.speed * speedMultiplier * TICK_MS) / 1000;
   const radians = (drone.heading * Math.PI) / 180;
   const previousX = drone.x;
@@ -318,6 +315,7 @@ function updateDrone(drone) {
   drone.x += Math.cos(radians) * distanceStep;
   drone.y += Math.sin(radians) * distanceStep;
 
+  // 5. Boundary bounce
   if (drone.x < -WORLD_BOUNDARY || drone.x > WORLD_BOUNDARY) {
     drone.targetHeading = (180 - drone.heading + 360) % 360;
     drone.x = clamp(drone.x, -WORLD_BOUNDARY, WORLD_BOUNDARY);
@@ -327,75 +325,88 @@ function updateDrone(drone) {
     drone.y = clamp(drone.y, -WORLD_BOUNDARY, WORLD_BOUNDARY);
   }
 
+  // 6. Odometer
   const actualDx = drone.x - previousX;
   const actualDy = drone.y - previousY;
   drone.distanceTraveled += Math.sqrt(actualDx * actualDx + actualDy * actualDy);
 
+  // 7. Battery drain
   drone.battery = clamp(drone.battery - randomBetween(0.2, 0.8), 0, 100);
+
+  // 8. Signal degrade
   drone.signalStrength = clamp(
-    95 - (Math.abs(drone.x) + Math.abs(drone.y)) / 3 + randomBetween(-2.5, 2.5), 28, 99
+    95 - (Math.abs(drone.x) + Math.abs(drone.y)) / 3 + randomBetween(-2.5, 2.5),
+    28, 99
   );
 
+  // 9. GPS mode
+  drone.gpsMode = drone.signalStrength > 40 ? 'gps' : 'dead-reckoning';
+  drone.positionUncertainty = drone.signalStrength > 40 ? 0 :
+    Number(((40 - drone.signalStrength) * 0.5).toFixed(1));
+
+  // 10. Failure check
   if (drone.battery <= 1 && drone.status === 'active') {
     drone.status = 'failed';
     drone.task = 'idle';
     pushAlert('warning', `${drone.id} battery depleted. Drone marked as failed.`);
   }
 
+  // 11. Coverage tracking
   if (drone.status === 'active') {
-    const cellX = worldToCellCoord(drone.x);
-    const cellY = worldToCellCoord(drone.y);
-    scannedCells.add(`${cellX}:${cellY}`);
+    scannedCells.add(`${worldToCellCoord(drone.x)}:${worldToCellCoord(drone.y)}`);
   }
 
+  // 12. Trail
   drone.trail.push({ x: drone.x, y: drone.y });
   if (drone.trail.length > 40) drone.trail.shift();
   drone.lastSeen = new Date().toISOString();
-
-  detectSurvivors(drone);
 }
 
-function buildMissionData() {
-  const activeDrones = drones.filter((d) => d.status === 'active').length;
-  const failedDrones = drones.length - activeDrones;
-  const avgBattery = drones.length > 0 ? drones.reduce((s, d) => s + d.battery, 0) / drones.length : 0;
-  const avgSignal = drones.length > 0 ? drones.reduce((s, d) => s + d.signalStrength, 0) / drones.length : 0;
-  const elapsedMs = startedAt ? Date.now() - startedAt : 0;
-  return {
-    coverage: Math.round((scannedCells.size / TOTAL_CELLS) * 100),
-    scannedCells: scannedCells.size,
-    totalCells: TOTAL_CELLS,
-    activeDrones,
-    failedDrones,
-    avgBattery: Number(avgBattery.toFixed(1)),
-    avgSignal: Number(avgSignal.toFixed(1)),
-    foundSurvivors: foundSurvivors.length,
-    missionTimeSec: Math.floor(elapsedMs / 1000),
-  };
+// ─── STAGE 3A: Survivor Detection (pure — no global mutation) ─────────────────
+function detectSurvivors(droneStates, survivors, alreadyDetectedIds) {
+  const newDetections = [];
+  for (const drone of droneStates) {
+    if (drone.status !== 'active') continue;
+    for (const survivor of survivors) {
+      if (alreadyDetectedIds.has(survivor.id)) continue;
+      const dx = drone.x - survivor.x;
+      const dy = drone.y - survivor.y;
+      if (Math.sqrt(dx * dx + dy * dy) <= DRONE_DETECTION_RADIUS) {
+        alreadyDetectedIds.add(survivor.id);
+        newDetections.push({
+          id: `SURV-${Math.floor(Math.random() * 100000)}`,
+          sourceId: survivor.id,
+          x: survivor.x,
+          y: survivor.y,
+          timestamp: new Date().toISOString(),
+          confidence: clamp(0.7 + Math.random() * 0.29, 0, 0.99),
+          droneId: drone.id,
+        });
+      }
+    }
+  }
+  return newDetections;
 }
 
-function buildMeshLinks() {
+// ─── STAGE 3B: Mesh Links (pure) ─────────────────────────────────────────────
+function buildMeshLinks(droneStates) {
   const links = [];
-
-  for (let i = 0; i < drones.length; i++) {
-    const a = drones[i];
-    for (let j = i + 1; j < drones.length; j++) {
-      const b = drones[j];
+  for (let i = 0; i < droneStates.length; i++) {
+    const a = droneStates[i];
+    for (let j = i + 1; j < droneStates.length; j++) {
+      const b = droneStates[j];
       const dx = a.x - b.x;
       const dy = a.y - b.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      if (distance > COMMUNICATION_RANGE) continue;
-
-      const signal = Math.max(0.1, 1.0 - (distance / COMMUNICATION_RANGE) * 0.9);
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > COMMUNICATION_RANGE) continue;
       links.push({
         from: a.id,
         to: b.id,
-        distance: Number(distance.toFixed(2)),
-        signal: Number(signal.toFixed(2)),
+        distance: Number(dist.toFixed(2)),
+        signal: Number(Math.max(0.1, 1 - (dist / COMMUNICATION_RANGE) * 0.9).toFixed(2)),
       });
     }
   }
-
   return links;
 }
 
@@ -410,96 +421,33 @@ function buildSnapshot() {
     alerts,
     obstacles,
     hiddenSurvivors,
-    meshLinks: buildMeshLinks(),
+    meshLinks: buildMeshLinks(drones),
   };
-}
-
-function buildFallbackAiInsights(snapshot, reason = 'fallback') {
-  const activeDrones = snapshot.drones.filter((drone) => drone.status === 'active').length;
-  const failedDrones = snapshot.drones.length - activeDrones;
-  const avgBattery = snapshot.drones.length
-    ? snapshot.drones.reduce((sum, drone) => sum + drone.battery, 0) / snapshot.drones.length
-    : 0;
-
-  const commandSuggestions = [];
-  if (failedDrones > 0) commandSuggestions.push('RECOVER_FAILED_DRONES');
-  if (avgBattery < 30) commandSuggestions.push('ROTATE_LOW_BATTERY_DRONES');
-  if (snapshot.foundSurvivors.length > 0) commandSuggestions.push('DISPATCH_EXTRACTION_TEAM');
-  if (commandSuggestions.length === 0) commandSuggestions.push('CONTINUE_AUTONOMOUS_SWEEP');
-
-  return {
-    ok: true,
-    source: 'node-fallback',
-    reason,
-    timestamp: new Date().toISOString(),
-    health: {
-      total_drones: snapshot.drones.length,
-      healthy: activeDrones,
-      failed: failedDrones,
-      health_pct: snapshot.drones.length ? Number(((activeDrones / snapshot.drones.length) * 100).toFixed(1)) : 0,
-    },
-    missionStats: {
-      detections: snapshot.foundSurvivors.length,
-      warnings: snapshot.alerts.filter((a) => a.type === 'warning').length,
-      alerts: snapshot.alerts.filter((a) => a.type === 'critical').length,
-    },
-    topZones: [],
-    assignments: snapshot.drones.slice(0, 5).map((drone, idx) => ({
-      drone: drone.id,
-      taskId: `AUTO-${idx + 1}`,
-      zone: idx,
-      fitness: Number((0.5 - idx * 0.06).toFixed(2)),
-      targetWorld: { x: drone.x, y: drone.y },
-    })),
-    commandSuggestions,
-  };
-}
-
-function computeAiInsights(snapshot, force = false) {
-  const now = Date.now();
-  if (!force && aiInsightsCache && now - aiInsightsCacheAt < AI_INSIGHTS_TTL_MS) {
-    return aiInsightsCache;
-  }
-
-  try {
-    const result = spawnSync(PYTHON_EXECUTABLE, [AI_BRIDGE_SCRIPT], {
-      input: JSON.stringify(snapshot),
-      encoding: 'utf8',
-      timeout: 1800,
-      maxBuffer: 1024 * 1024,
-    });
-
-    if (result.error) {
-      aiInsightsCache = buildFallbackAiInsights(snapshot, result.error.message);
-    } else if (result.status !== 0) {
-      aiInsightsCache = buildFallbackAiInsights(snapshot, (result.stderr || 'ai bridge failed').trim());
-    } else {
-      const parsed = JSON.parse(result.stdout || '{}');
-      aiInsightsCache = parsed.ok ? { ...parsed, source: 'python-ai-bridge' } : buildFallbackAiInsights(snapshot, parsed.error || 'invalid ai payload');
-    }
-  } catch (error) {
-    aiInsightsCache = buildFallbackAiInsights(snapshot, error instanceof Error ? error.message : 'unknown ai error');
-  }
-
-  aiInsightsCacheAt = now;
-  return aiInsightsCache;
-}
-
-function emitSnapshot() {
-  const snapshot = buildSnapshot();
-  io.emit('telemetrySnapshot', snapshot);
-  io.emit('missionData', snapshot.missionData);
-  io.emit('drones', snapshot.drones);
-  io.emit('aiInsights', computeAiInsights(snapshot));
 }
 
 function startSimulationTick() {
   if (tickInterval) clearInterval(tickInterval);
   tickInterval = setInterval(() => {
     if (!simulationRunning) return;
-    
+
+    // Per-drone: Decision → Actuation
     for (const drone of drones) {
-      updateDrone(drone);
+      if (drone.status === 'failed') continue;
+      const command = stubDecisionEngine(drone);   // STAGE 1
+      applyActuation(drone, command);              // STAGE 2
+    }
+
+    // Per-tick: Detection
+    const newDetections = detectSurvivors(drones, hiddenSurvivors, detectedSurvivorIds);
+    for (const d of newDetections) {
+      foundSurvivors.unshift(d);
+      if (foundSurvivors.length > 120) foundSurvivors.length = 120;
+      pushAlert(
+        'critical',
+        `Survivor detected by ${d.droneId} at [${d.x.toFixed(1)}, ${d.y.toFixed(1)}]. ` +
+        `Confidence ${(d.confidence * 100).toFixed(0)}%.`
+      );
+      io.emit('survivorFound', d);
     }
 
     if (Math.random() < 0.08) {
@@ -533,6 +481,8 @@ io.on('connection', (socket) => {
 });
 
 // --- REST API ---
+app.get('/api/config', (_req, res) => res.json(SIM_CONFIG));
+
 app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'drone-telemetry', timestamp: new Date().toISOString() });
 });
