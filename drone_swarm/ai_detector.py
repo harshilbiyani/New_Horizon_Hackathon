@@ -1,3 +1,6 @@
+# UNUSED / FUTURE MODULE — Retained for architectural completeness.
+# Active live pipeline uses Node.js decision engine & Python ai_bridge.py
+
 # TODO: unused — not imported by ai_bridge.py. Wire in or remove before demo (Phase 4 decision).
 """
 AI-Based Survivor Detection Model
@@ -335,4 +338,5 @@ if __name__ == "__main__":
     print(detector.export_model())
     
     print("\nâœ“ AI Detector test complete!")
+
 

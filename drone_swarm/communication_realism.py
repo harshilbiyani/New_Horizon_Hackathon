@@ -1,3 +1,6 @@
+# UNUSED / FUTURE MODULE — Retained for architectural completeness.
+# Active live pipeline uses Node.js decision engine & Python ai_bridge.py
+
 # TODO: unused — not imported by ai_bridge.py. Wire in or remove before demo (Phase 4 decision).
 """
 Communication Realism Layer
@@ -502,4 +505,5 @@ if __name__ == "__main__":
     print(f"True position:      {true_pos}")
     print(f"Estimated position: {est_pos}")
     print(f"Position error:     {error:.2f} units")
+
 

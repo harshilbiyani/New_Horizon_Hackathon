@@ -1,3 +1,6 @@
+# UNUSED / FUTURE MODULE — Retained for architectural completeness.
+# Active live pipeline uses Node.js decision engine & Python ai_bridge.py
+
 # TODO: unused — not imported by ai_bridge.py. Wire in or remove before demo (Phase 4 decision).
 """
 AI-Based Swarm Coordination
@@ -355,4 +358,5 @@ if __name__ == "__main__":
     print(f"Exploration Efficiency: {coordinator.get_exploration_efficiency():.3f}")
     
     print("\nâœ“ AI Coordinator test complete!")
+
 
