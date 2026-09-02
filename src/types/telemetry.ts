@@ -112,6 +112,14 @@ export interface TelemetrySnapshot {
   hiddenSurvivors: HiddenSurvivor[];
   zoneCoverage?: Record<string, number>;
   aiInsights?: AiInsights;
+  meshLinks?: MeshLink[];
 }
 
 export type ZoneCoverage = Record<string, number>;
+
+export interface MeshLink {
+  from: string;
+  to: string;
+  distance: number;
+  signal: number;
+}

@@ -28,7 +28,6 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    background: radial-gradient(ellipse at center, rgba(12, 26, 35, 0) 35%, rgba(2, 6, 12, 0.45) 100%);
 }
 
 .hud-top {

@@ -2,7 +2,7 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import { spawnSync, spawn } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
 const app = express();
@@ -21,6 +21,7 @@ const SIM_SERVER_SCRIPT = path.join(process.cwd(), 'simulation', 'sim_server.py'
 const AI_BRIDGE_SCRIPT = path.join(process.cwd(), 'simulation', 'ai_bridge.py');
 const TICK_MS = 300;          // default tick rate (overridden per scenario)
 const AI_INSIGHTS_TTL_MS = 2500;
+const COMMUNICATION_RANGE = 90;
 
 // ─── Python bridge helper ───────────────────────────────────────────────────
 function callPython(script, payload, timeoutMs = 3000) {
@@ -47,6 +48,7 @@ let currentTickMs = TICK_MS;
 let tickInterval = null;
 let currentScenarioId = null;
 let currentSeed = 42;
+let customObstacles = null;
 
 // Cached state (refreshed each tick from Python)
 let lastSnapshot = null;
@@ -123,6 +125,30 @@ function buildFallbackAiInsights(snapshot) {
   };
 }
 
+// ─── Mesh Link Builder ──────────────────────────────────────────────────────
+function buildMeshLinks(drones) {
+  const links = [];
+  for (let i = 0; i < drones.length; i++) {
+    const a = drones[i];
+    for (let j = i + 1; j < drones.length; j++) {
+      const b = drones[j];
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance > COMMUNICATION_RANGE) continue;
+
+      const signal = Math.max(0.1, 1.0 - (distance / COMMUNICATION_RANGE) * 0.9);
+      links.push({
+        from: a.id,
+        to: b.id,
+        distance: Number(distance.toFixed(2)),
+        signal: Number(signal.toFixed(2)),
+      });
+    }
+  }
+  return links;
+}
+
 // ─── Tick loop ───────────────────────────────────────────────────────────────
 function startTick() {
   if (tickInterval) clearInterval(tickInterval);
@@ -196,18 +222,22 @@ function buildFrontendPayload(snapshot) {
   }));
 
   const mapState = snapshot.map || {};
-  const obstacles = (mapState.obstacles || []).map((obs, i) => {
-    const [x, y] = Array.isArray(obs) ? obs : [obs.x ?? 0, obs.y ?? 0];
-    const height = mapState.obstacle_heights?.[y]?.[x] ?? 10;
-    return {
-      id: `OBS-${String(i + 1).padStart(3, '0')}`,
-      x: (x / 50) * 280 - 140,
-      y: (y / 50) * 280 - 140,
-      radius: Math.max(5, height / 3),
-      severity: height > 70 ? 'high' : height > 30 ? 'medium' : 'low',
-      gridX: x, gridY: y,
-    };
-  });
+  let obstacles = customObstacles;
+  if (!obstacles || !obstacles.length) {
+    obstacles = (mapState.obstacles || []).map((obs, i) => {
+      const [x, y] = Array.isArray(obs) ? obs : [obs.x ?? 0, obs.y ?? 0];
+      const height = mapState.obstacle_heights?.[y]?.[x] ?? 10;
+      return {
+        id: `OBS-${String(i + 1).padStart(3, '0')}`,
+        x: (x / 50) * 280 - 140,
+        y: (y / 50) * 280 - 140,
+        radius: Math.max(5, height / 3),
+        height: height,
+        severity: height > 70 ? 'high' : height > 30 ? 'medium' : 'low',
+        gridX: x, gridY: y,
+      };
+    });
+  }
 
   const hiddenSurvivors = (mapState.survivor_locations || []).map((s, i) => {
     const [x, y] = Array.isArray(s) ? s : [s.x ?? 0, s.y ?? 0];
@@ -228,6 +258,7 @@ function buildFrontendPayload(snapshot) {
   const board = snapshot.mission_board || {};
   const elapsed = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
   const fogStats = fogState.stats || {};
+  const meshLinks = buildMeshLinks(drones);
 
   const missionData = {
     coverage: fogStats.explored_pct ?? board.coverage_percent ?? 0,
@@ -258,6 +289,7 @@ function buildFrontendPayload(snapshot) {
     lidar_cloud: snapshot.lidar_cloud ?? [],
     gps_denied: snapshot.gps_denied ?? false,
     scenario_id: currentScenarioId,
+    meshLinks,
   };
 }
 
@@ -301,6 +333,17 @@ app.post('/api/mission/configure', (req, res) => {
   if (scenario_id) currentScenarioId = scenario_id;
   if (seed) currentSeed = Number(seed);
   res.json({ ok: true, scenario_id: currentScenarioId, seed: currentSeed });
+});
+
+// Dynamic Mesh Synchronization (Frontend sends physical GLB boundaries)
+app.post('/api/mission/set-obstacles', (req, res) => {
+  if (req.body && Array.isArray(req.body.obstacles)) {
+    customObstacles = req.body.obstacles;
+    console.log(`[PHYSICS SYNC] Received ${customObstacles.length} physical building collisions from the frontend scanner!`);
+    res.json({ ok: true, count: customObstacles.length });
+  } else {
+    res.status(400).json({ error: 'invalid format' });
+  }
 });
 
 // Start simulation
@@ -359,7 +402,7 @@ app.get('/api/mission/map', (_req, res) => {
     heightMap: mapState.obstacle_heights || [],
     rawSurvivors: (mapState.survivor_locations || []),
     gridSize: 50,
-    worldBoundary: 140,
+    worldBoundary: 350,
   });
 });
 
