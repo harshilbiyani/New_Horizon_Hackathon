@@ -407,11 +407,11 @@ class Map:
         }
         """
         return {
-            "grid": self.grid.copy(),
+            "grid": self.grid.tolist() if hasattr(self.grid, 'tolist') else self.grid,
             "width": self.width,
             "height": self.height,
             "obstacles": list(self.obstacle_locations),
-            "obstacle_heights": self.obstacle_height_map.copy(),
+            "obstacle_heights": self.obstacle_height_map.tolist() if hasattr(self.obstacle_height_map, 'tolist') else self.obstacle_height_map,
             "scanned_cells": list(self.scanned_cells),
             "survivor_locations": list(self.survivor_locations),
             "found_survivors": list(self.found_survivors),
