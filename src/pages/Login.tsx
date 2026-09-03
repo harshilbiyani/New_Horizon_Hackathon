@@ -9,7 +9,7 @@ import { motion } from 'framer-motion';
 export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [selectedRole, setSelectedRoleState] = useState<string | null>(null);
-  const { setRole } = useAuth();
+  const { setRole, signInAsDemo } = useAuth();
   const navigate = useNavigate();
 
   const handleRoleSelection = async (role: string) => {
@@ -19,18 +19,19 @@ export default function Login() {
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-      
-      // Successfully authenticated
       setRole(role);
-      
-      // Route based on role (currently both go to dashboard)
       navigate('/dashboard');
-      
     } catch (err: any) {
-      console.error("Auth error:", err);
-      setError(err.message || 'Failed to authenticate with Google.');
-      setSelectedRoleState(null);
+      console.warn("Google Auth popup failed, falling back to local demo operator mode:", err);
+      // Fallback for local offline demo or unconfigured Firebase credentials
+      signInAsDemo(role);
+      navigate('/dashboard');
     }
+  };
+
+  const handleDemoAccess = () => {
+    signInAsDemo('Tactical Commander');
+    navigate('/dashboard');
   };
 
   return (
@@ -121,6 +122,16 @@ export default function Login() {
               </div>
             )}
           </motion.button>
+        </div>
+
+        <div className="mt-8 flex justify-center">
+          <button
+            id="demo-bypass-btn"
+            onClick={handleDemoAccess}
+            className="text-xs text-gray-500 hover:text-[#00ffcc] tracking-widest uppercase transition-colors py-2 px-4 rounded-lg border border-white/5 hover:border-[#00ffcc]/30 bg-white/[0.02]"
+          >
+            ⚡ Enter as Tactical Guest (Offline / Demo Mode)
+          </button>
         </div>
       </motion.div>
     </div>
