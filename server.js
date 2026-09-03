@@ -224,15 +224,11 @@ function initDrones(config) {
 }
 
 async function pySnapshot() {
-  const result = await sendPythonCommand({ action: 'snapshot' }, 2000);
-  if (result && !result.error) lastSnapshot = result;
-  return lastSnapshot;
+  return typeof buildSnapshot === 'function' ? buildSnapshot() : (lastSnapshot || {});
 }
 
 async function pyStep() {
-  const result = await sendPythonCommand({ action: 'step' }, 2000);
-  if (result && !result.error) lastSnapshot = result;
-  return lastSnapshot;
+  return typeof buildSnapshot === 'function' ? buildSnapshot() : (lastSnapshot || {});
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -662,9 +658,8 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'droneshield', timestamp: new Date().toISOString() });
 });
 
-app.get('/api/mission/snapshot', async (_req, res) => {
-  const snap = await pySnapshot();
-  res.json(buildFrontendPayload(snap || {}));
+app.get('/api/mission/snapshot', (_req, res) => {
+  res.json(buildSnapshot());
 });
 
 app.get('/api/mission/status', (_req, res) => {
@@ -1130,6 +1125,50 @@ app.get('/api/vlm/stream/events', (req, res) => {
 
   // Clean up if client disconnects
   req.on('close', () => proxyReq.destroy());
+});
+
+/**
+ * MJPEG YOLO live video stream proxy — GET /api/vlm/stream/yolo_feed?source=...
+ * Pipes the multipart/x-mixed-replace stream from Flask directly to the browser.
+ */
+app.get('/api/vlm/stream/yolo_feed', (req, res) => {
+  const url = new URL('/stream/yolo_feed', VLM_BASE);
+  for (const [k, v] of Object.entries(req.query)) {
+    url.searchParams.set(k, v);
+  }
+  const lib = url.protocol === 'https:' ? https_ : http_;
+  const options = {
+    hostname: url.hostname,
+    port: url.port || 80,
+    path: url.pathname + url.search,
+    method: 'GET',
+  };
+  const proxyReq = lib.request(options, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res);
+  });
+  proxyReq.on('error', (err) => {
+    console.error('[YOLO feed error]', err.message);
+    res.status(502).json({ error: 'Feed unavailable', detail: err.message });
+  });
+  req.on('close', () => proxyReq.destroy());
+  proxyReq.end();
+});
+
+/** Available video files for streaming — GET /api/vlm/stream/videos */
+app.get('/api/vlm/stream/videos', (req, res) => vlmProxy('/stream/videos', req, res));
+
+/** Serve raw local video files: GET /data/videos/:filename */
+app.get('/data/videos/:filename', (req, res) => {
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(__dirname, 'data', 'videos', filename);
+  if (!existsSync(filePath)) {
+    // Try data/ root
+    const rootPath = path.join(__dirname, 'data', filename);
+    if (existsSync(rootPath)) return res.sendFile(rootPath);
+    return res.status(404).json({ error: 'Video file not found' });
+  }
+  res.sendFile(filePath);
 });
 
 // ─── Cloudinary Media Storage ───────────────────────────────────────────────

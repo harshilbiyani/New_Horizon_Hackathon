@@ -407,6 +407,41 @@ def stream_events():
     )
 
 
+@app.get("/stream/yolo_feed")
+def stream_yolo_feed():
+    """
+    Real-time MJPEG stream with YOLOv8 person detection bounding boxes and tactical HUD.
+    Accepts ?source=path/to/video.mp4&conf=0.35
+    """
+    from flask import Response
+    from drone_swarm.yolo_stream import generate_yolo_mjpeg, list_available_videos
+
+    source = request.args.get("source")
+    if not source or source == "synthetic":
+        from drone_swarm.video_stream import get_active_stream
+        active = get_active_stream()
+        if active and active.source and active.source != "synthetic":
+            source = active.source
+        else:
+            vids = list_available_videos()
+            source = vids[0]["path"] if vids else "data/videos/test_video.mp4"
+
+    conf = float(request.args.get("conf", 0.35))
+    fps = int(request.args.get("fps", 24))
+
+    return Response(
+        generate_yolo_mjpeg(source=source, conf=conf, target_fps=fps),
+        mimetype="multipart/x-mixed-replace; boundary=frame",
+    )
+
+
+@app.get("/stream/videos")
+def stream_available_videos():
+    """Returns list of video files available in data/ and data/videos/."""
+    from drone_swarm.yolo_stream import list_available_videos
+    return jsonify({"ok": True, "videos": list_available_videos()})
+
+
 # ─── Entry point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     port = int(os.environ.get("VLM_PORT", 5001))
