@@ -1,4 +1,5 @@
 import json
+import time
 import base64
 import binascii
 import nacl.signing
@@ -30,12 +31,15 @@ class TelemetrySigner:
         """
         Takes a raw telemetry dictionary, signs its contents, 
         and returns a structurally secure packet.
-        The node_id is embedded inside the signed payload body to prevent
-        an attacker from re-stamping a legitimate packet with a different drone ID.
+        The node_id AND a monotonic timestamp nonce are embedded inside the signed 
+        payload body. The timestamp prevents replay attacks: a receiver can reject
+        any packet whose timestamp is more than a few seconds old.
         """
-        # node_id is bound INSIDE the message body so it is covered by the signature.
-        # An attacker cannot change node_id without invalidating the signature.
-        payload_to_sign = {"node_id": self.node_id, "telemetry": payload}
+        # Monotonic nonce: embed current time so old packets cannot be replayed
+        packet_nonce = time.time()
+        
+        # node_id and nonce are bound INSIDE the message body covered by the signature.
+        payload_to_sign = {"node_id": self.node_id, "nonce_ts": packet_nonce, "telemetry": payload}
         
         # Deterministic serialization: sort_keys ensures identical output regardless
         # of dict key insertion order across different Python versions/runtimes.
@@ -48,24 +52,32 @@ class TelemetrySigner:
         # Return the transmission-ready packet
         return {
             "node_id": self.node_id,
+            "nonce_ts": packet_nonce,
             "telemetry": payload,
             "signature_b64": base64.b64encode(signature).decode('utf-8')
         }
 
     @staticmethod
-    def verify_payload(signed_packet: dict, public_key_b64: str) -> bool:
+    def verify_payload(signed_packet: dict, public_key_b64: str, max_age_secs: float = 10.0) -> bool:
         """
         Takes a signed packet and the sender's public key.
-        Returns True if the payload is perfectly intact and the node_id is authentic.
-        Returns False if the payload was forged, tampered with, or malformed.
+        Returns True if the payload is perfectly intact, the node_id is authentic,
+        AND the timestamp nonce is within max_age_secs (replay attack guard).
+        Returns False if the payload was forged, tampered with, too old, or malformed.
         """
         try:
             node_id = signed_packet["node_id"]
+            nonce_ts = signed_packet["nonce_ts"]
             telemetry = signed_packet["telemetry"]
             signature_b64 = signed_packet["signature_b64"]
             
+            # Replay attack guard: reject packets older than max_age_secs
+            age = time.time() - nonce_ts
+            if age > max_age_secs or age < -1.0:  # also reject future-dated packets
+                return False
+            
             # Reconstruct the EXACT same signed body (must match sign_payload logic)
-            payload_to_verify = {"node_id": node_id, "telemetry": telemetry}
+            payload_to_verify = {"node_id": node_id, "nonce_ts": nonce_ts, "telemetry": telemetry}
             raw_message = json.dumps(payload_to_verify, sort_keys=True, separators=(',', ':')).encode('utf-8')
             signature = base64.b64decode(signature_b64.encode('utf-8'))
             

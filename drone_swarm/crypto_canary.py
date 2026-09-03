@@ -1,3 +1,5 @@
+import os
+import jwt
 from urllib.parse import urlparse
 
 class ActiveCanaryTrap:
@@ -16,14 +18,13 @@ class ActiveCanaryTrap:
         # The decoy endpoint that legitimate drones will NEVER call
         self.DECOY_ENDPOINT = "/api/admin/master-keys"
         
-        # Valid active JWT tokens (Simulated for Hackathon 0-12hr phase)
-        self.active_tokens = {
-            "jwt_drone_1_valid": "Drone 1",
-            "jwt_drone_2_valid": "Drone 2",
-            "jwt_hacker_stolen": "Drone 3 (Compromised)"
-        }
+        # In a real system, this secret must be identical to the one used by Firebase Auth or the IAM issuer.
+        self.JWT_SECRET = os.environ.get("JWT_SECRET", "fallback_hackathon_secret_for_local_testing")
         
-        # Blacklisted tokens that trigger immediate 401 Unauthorized
+        # Active sessions tracked by JWT payload 'sub' (subject/user)
+        self.active_sessions = set()
+        
+        # Blacklisted raw tokens that trigger immediate 401 Unauthorized
         self.blacklisted_tokens = set()
 
     def handle_api_request(self, endpoint: str, jwt_token: str) -> tuple[int, str]:
@@ -35,8 +36,15 @@ class ActiveCanaryTrap:
         if jwt_token in self.blacklisted_tokens:
             return 401, "UNAUTHORIZED: Token has been revoked."
             
-        if jwt_token not in self.active_tokens:
-            return 401, "UNAUTHORIZED: Invalid token."
+        try:
+            # Validate real JWT using secret
+            payload = jwt.decode(jwt_token, self.JWT_SECRET, algorithms=["HS256"])
+            user_id = payload.get("sub", "unknown_user")
+            self.active_sessions.add(user_id)
+        except jwt.ExpiredSignatureError:
+            return 401, "UNAUTHORIZED: Token has expired."
+        except jwt.InvalidTokenError:
+            return 401, "UNAUTHORIZED: Invalid token signature."
         
         # 2. Normalize endpoint to defeat bypass attempts:
         #    - Trailing slash:  /api/admin/master-keys/  →  same as /api/admin/master-keys
@@ -58,11 +66,16 @@ class ActiveCanaryTrap:
 
     def _trigger_trap(self, jwt_token: str):
         """Executes the Active Defense response."""
-        # Remove from active pool and add to permanent blacklist
-        if jwt_token in self.active_tokens:
-            self.active_tokens.pop(jwt_token)  # discard entity label, no assignment needed
-            self.blacklisted_tokens.add(jwt_token)
-            # In a real system, this would fire a webhook to Firebase Auth to revoke globally
+        # Add to permanent blacklist
+        self.blacklisted_tokens.add(jwt_token)
+        # In a real system, this would fire a webhook to Firebase Auth to revoke globally
+        try:
+            payload = jwt.decode(jwt_token, self.JWT_SECRET, algorithms=["HS256"])
+            user_id = payload.get("sub", "unknown_user")
+            if user_id in self.active_sessions:
+                self.active_sessions.remove(user_id)
+        except:
+            pass
             
     def get_security_status(self) -> dict:
         """Returns the Canary Trap status for the dashboard UI."""
@@ -70,5 +83,5 @@ class ActiveCanaryTrap:
             "active_defense": "Canary Decoy API Running",
             "decoy_endpoint": self.DECOY_ENDPOINT,
             "revoked_tokens": len(self.blacklisted_tokens),
-            "active_sessions": len(self.active_tokens)
+            "active_sessions": len(self.active_sessions)
         }

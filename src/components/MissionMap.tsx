@@ -13,7 +13,7 @@ interface MissionMapProps {
   foundSurvivors: Survivor[];
   hiddenSurvivors: HiddenSurvivor[];
   meshLinks?: MeshLink[];
-  scannedCells?: string[];
+  scannedCells?: string[] | number;
   selectedDroneId?: string;
   onSelectDrone?: (droneId: string) => void;
 }
@@ -105,7 +105,7 @@ export default function MissionMap({
           <line x1={0} y1={50} x2={100} y2={50} stroke="#334155" strokeWidth={0.3} />
 
           {/* Explored grid tiles heatmap overlay */}
-          {scannedCells?.map((cellKey) => {
+          {Array.isArray(scannedCells) && scannedCells.map((cellKey) => {
             const [cxStr, cyStr] = cellKey.split(':');
             const cx = Number(cxStr);
             const cy = Number(cyStr);

@@ -143,13 +143,13 @@ class HybridKEMNode:
 
     def _fuse_secrets(self, classical: bytes, quantum: bytes) -> bytes:
         """Fuses the classical and quantum secrets into a single unbreakable key."""
-        # Simple XOR fusion: bytes(a ^ b for a, b in zip(classical, quantum))
-        # Better: HKDF fusion
         combined = classical + quantum
+        # Use a fixed protocol-specific salt (not None) for stronger domain separation
+        _FUSION_SALT = b"DRONESHIELD_PQC_FUSION_SALT_V1_HYBRID"
         hkdf = HKDF(
             algorithm=hashes.SHA256(),
             length=32,
-            salt=None,
+            salt=_FUSION_SALT,
             info=b"hybrid_pqc_fusion",
             backend=default_backend()
         )

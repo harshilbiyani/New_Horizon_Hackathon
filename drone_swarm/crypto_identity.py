@@ -47,7 +47,7 @@ class DroneIdentity:
         hkdf = HKDF(
             algorithm=hashes.SHA256(),
             length=32, # 256-bit keys
-            salt=None, # In production, a secure salt exchanged during pairing is used
+            salt=_DEVICE_SECRET_SALT, # Explicit salt from device entropy (not None)
             info=domain_info,
             backend=default_backend()
         )

@@ -41,6 +41,14 @@ try:
     from ai_coordinator import AICoordinator
     from ai_detector import AIDetector
     from ai_state import load_all, save_all
+    
+    # Layer 1-4 Security Integration
+    from crypto_identity import DroneIdentity
+    from crypto_double_wrap import DoubleWrapCipher
+    from crypto_hybrid_kem import HybridKEMNode
+    from crypto_telemetry import TelemetrySigner
+    from crypto_ai_anomaly import PhysicsAnomalyDetector
+    from crypto_isolation_forest import IsolationForestDetector
 except Exception as exc:  # pragma: no cover - hard failure path
     print(json.dumps({"ok": False, "error": f"AI imports failed: {exc}"}))
     raise SystemExit(1)
@@ -58,6 +66,18 @@ except Exception:
 
 def clamp(value: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, value))
+
+
+_coordinator_instance = None
+_detector_instance = None
+
+def _get_ai_singletons():
+    global _coordinator_instance, _detector_instance
+    if _coordinator_instance is None:
+        _coordinator_instance = AICoordinator()
+        _detector_instance = AIDetector()
+        # In a real run, this loads persisted state
+    return _coordinator_instance, _detector_instance
 
 
 def world_to_grid(x: float, y: float) -> Tuple[int, int]:
@@ -106,9 +126,53 @@ def build_coverage_cells(drones: List[Dict[str, Any]]) -> set[Tuple[int, int]]:
 
 
 def parse_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
-    drones = payload.get("drones") or []
+    raw_drones = payload.get("drones") or []
     found_survivors = payload.get("foundSurvivors") or []
     obstacles = payload.get("obstacles") or []
+    
+    # ----------------------------------------------------------------
+    # LAYER 1-4: SECURITY INTEGRATION (The Gantlet)
+    # ----------------------------------------------------------------
+    anomaly_detector = PhysicsAnomalyDetector()
+    drones = []
+    
+    for idx, drone in enumerate(raw_drones, start=1):
+        if drone.get("status") != "active":
+            drones.append(drone)
+            continue
+            
+        try:
+            # 1. Simulate Drone Side Cryptography
+            drone_identity = DroneIdentity(drone_id=idx)
+            drone_signer = TelemetrySigner(node_id=idx)
+            drone_kem = HybridKEMNode(node_id=idx)
+            kem_cipher = DoubleWrapCipher.from_identity(drone_identity)
+            
+            signed_packet = drone_signer.sign_payload(drone)
+            raw_bytes = json.dumps(signed_packet, sort_keys=True).encode('utf-8')
+            encrypted_payload = kem_cipher.encrypt(raw_bytes)
+            
+            # --- TRANSMISSION HAPPENS HERE ---
+            
+            # 2. Simulate Ground Station / Bridge Validation
+            gs_cipher = DoubleWrapCipher.from_identity(drone_identity)
+            decrypted_bytes = gs_cipher.decrypt(encrypted_payload)
+            received_packet = json.loads(decrypted_bytes.decode('utf-8'))
+            
+            if not TelemetrySigner.verify_payload(received_packet, drone_signer.public_key_b64):
+                raise ValueError("Signature Verification Failed")
+                
+            # 3. AI Anomaly Quarantine (Physics Check)
+            anomaly_detector.evaluate_telemetry(idx, drone)
+            
+            drones.append(drone)
+            
+        except Exception as e:
+            print(f"[SECURITY ALERT] Drone {idx} Quarantine: {e}", file=sys.stderr)
+            drone["status"] = "failed"
+            drone["security_quarantine"] = str(e)
+            drones.append(drone)
+    # ----------------------------------------------------------------
 
     zone_divider = ZoneDivider(grid_size=GRID_SIZE, zone_size=10)
 

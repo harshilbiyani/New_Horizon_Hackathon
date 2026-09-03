@@ -23,11 +23,11 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 
 # Reuse the same PBKDF2-derived tactical key as Layer 6 BLE
-_PASSPHRASE = b"FIREFIGHTER_TACTICAL_GROUND_LINK_V1"
+_PASSPHRASE = os.environ.get("BLE_BEACON_SECRET", "FIREFIGHTER_TACTICAL_GROUND_LINK_V1").encode('utf-8')
 _SALT = b"BLE_TACTICAL_SALT_V1"
 GROUND_KEY = hashlib.pbkdf2_hmac('sha256', _PASSPHRASE, _SALT, 100_000)
 
-HANDSHAKE_TOKEN = b"FIREFIGHTER_AUTH_TOKEN_V1"
+HANDSHAKE_TOKEN = os.environ.get("GROUND_HANDOFF_TOKEN", "FIREFIGHTER_AUTH_TOKEN_V1").encode('utf-8')
 HOST = "127.0.0.1"
 PORT = 9999
 

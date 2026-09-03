@@ -10,6 +10,7 @@ import { applyGpsUpdate, GPS_DENIAL_ZONES } from './server/gpsModel.js';
 import { buildMeshState } from './server/meshNetwork.js';
 import { computeCommand } from './server/decisionEngine.js';
 import { buildZoneWaypoints } from './server/zonePlanner.js';
+import { uploadDroneMedia, generateSecureMediaUrl } from './services/cloudinaryService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -25,6 +26,7 @@ const SIM_CONFIG = JSON.parse(
 );
 
 const app = express();
+const PORT = process.env.PORT || 3001;
 app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '10mb' }));
 
@@ -953,11 +955,39 @@ app.get('/api/mission/map', (_req, res) => {
   const snap = lastSnapshot;
   const mapState = snap?.map || {};
   res.json({
-    heightMap: mapState.obstacle_heights || [],
-    rawSurvivors: (mapState.survivor_locations || []),
-    gridSize: 50,
+    heightMap: mapState.obstacle_heights && mapState.obstacle_heights.length > 0 ? mapState.obstacle_heights : getMapData().heightMap,
+    rawSurvivors: mapState.survivor_locations && mapState.survivor_locations.length > 0 ? mapState.survivor_locations : getMapData().rawSurvivors,
+    gridSize: mapState.grid_size || getMapData().gridSize,
     worldBoundary: 140,
   });
+});
+
+// ─── Cloudinary Media Storage ───────────────────────────────────────────────
+// POST /api/mission/media/upload - Uploads mock placeholder or VLM images to Cloudinary
+app.post('/api/mission/media/upload', async (req, res) => {
+  const { droneId, missionId, type, fileBase64 } = req.body;
+  if (!droneId || !missionId || !fileBase64) {
+    return res.status(400).json({ error: 'Missing required fields: droneId, missionId, fileBase64' });
+  }
+
+  try {
+    const result = await uploadDroneMedia(fileBase64, droneId, missionId, type || 'image');
+    
+    // Generate secure URL immediately for testing
+    // Cryptographically bound to the request's IP and expires in 5 mins
+    const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
+    const secureUrl = generateSecureMediaUrl(result.public_id, ip, result.resource_type);
+
+    res.json({
+      success: true,
+      publicId: result.public_id,
+      folder: result.folder,
+      secureTimeLimitedUrl: secureUrl
+    });
+  } catch (err) {
+    console.error('Failed to upload media:', err);
+    res.status(500).json({ error: 'Media upload failed' });
+  }
 });
 
 // ─── Layer 5: Active Canary Trap (Decoy Endpoint) ───────────────────────────
@@ -1033,10 +1063,8 @@ app.get('/api/security/status', (_req, res) => {
 });
 
 // ─── Boot ────────────────────────────────────────────────────────────────────
-pyInit();
 
 server.listen(PORT, () => {
   console.log(`DroneShield Server running on port ${PORT}`);
-  console.log(`Python simulation bridge: ${SIM_SERVER_SCRIPT}`);
   console.log(`Status: IDLE (POST /api/mission/start to begin)`);
 });

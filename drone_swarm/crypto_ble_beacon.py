@@ -16,10 +16,11 @@ class SecureBLEBeacon:
     
     # The tactical key is derived from a passphrase using PBKDF2-HMAC-SHA256.
     # This gives us a proper 256-bit cryptographically random key instead of 
+    # This gives us a proper 256-bit cryptographically random key instead of 
     # an ASCII string with far lower entropy. In production, the passphrase is
     # securely provisioned to firefighter devices during equipment certification.
     # 100,000 PBKDF2 iterations makes offline brute-force extremely expensive.
-    _PASSPHRASE = b"FIREFIGHTER_TACTICAL_GROUND_LINK_V1"
+    _PASSPHRASE = os.environ.get("BLE_BEACON_SECRET", "FIREFIGHTER_TACTICAL_GROUND_LINK_V1").encode('utf-8')
     _SALT = b"BLE_TACTICAL_SALT_V1"
     TACTICAL_GROUND_KEY = hashlib.pbkdf2_hmac('sha256', _PASSPHRASE, _SALT, 100_000)
     

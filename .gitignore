@@ -35,3 +35,8 @@ __pycache__/
 # AI state files and test outputs
 simulation/state/
 drone_swarm/output/
+
+# Environment secrets (NEVER commit these)
+.env
+.env.*
+!.env.example
