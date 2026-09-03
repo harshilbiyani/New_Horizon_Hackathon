@@ -44,7 +44,7 @@ export interface Alert {
 
 export interface MissionData {
   coverage: number;
-  scannedCells: number | string[];
+  scannedCells: string[] | number;
   totalCells: number;
   activeDrones: number;
   failedDrones: number;

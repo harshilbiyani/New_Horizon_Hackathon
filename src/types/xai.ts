@@ -46,7 +46,7 @@ export interface XAIWorldState {
   tick?: number;
   survivors?: Array<{ x: number; y: number; discovered: boolean }>;
   obstacles?: Array<{ x: number; y: number; severity?: number }>;
-  zoneCoverage?: Record<ZoneId, number>;
+  zoneCoverage?: Partial<Record<ZoneId, number>>;
 }
 
 export interface XAIDroneState {

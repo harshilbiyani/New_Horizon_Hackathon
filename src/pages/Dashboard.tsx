@@ -22,7 +22,7 @@ import type {
 
 const EMPTY_MISSION_DATA: MissionData = {
   coverage: 0,
-  scannedCells: 0,
+  scannedCells: [],
   totalCells: 0,
   activeDrones: 0,
   failedDrones: 0,

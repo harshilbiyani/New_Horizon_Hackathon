@@ -54,11 +54,26 @@ class SwarmAllocator:
         self.scout_ratio = scout_ratio
         self.onlooker_ratio = onlooker_ratio
         
-        # Calculate role distribution
-        num_scouts = max(1, int(num_drones * scout_ratio))
-        num_onlookers = max(1, int(num_drones * onlooker_ratio))
-        num_employed = num_drones - num_scouts - num_onlookers
-        
+        # Calculate role distribution safely for any swarm size >= 1
+        if num_drones <= 2:
+            num_employed = num_drones
+            num_onlookers = 0
+            num_scouts = 0
+        else:
+            num_scouts = max(1, int(num_drones * scout_ratio))
+            num_onlookers = max(1, int(num_drones * onlooker_ratio))
+            num_employed = max(1, num_drones - num_scouts - num_onlookers)
+            # Ensure total doesn't exceed num_drones
+            while (num_employed + num_onlookers + num_scouts) > num_drones:
+                if num_onlookers > 1:
+                    num_onlookers -= 1
+                elif num_scouts > 1:
+                    num_scouts -= 1
+                elif num_employed > 1:
+                    num_employed -= 1
+                else:
+                    break
+
         self.num_employed = num_employed
         self.num_onlookers = num_onlookers
         self.num_scouts = num_scouts
@@ -140,7 +155,7 @@ class SwarmAllocator:
         new_tasks = []
         
         # High-quality dances attract more onlookers (~60% follow)
-        if completed_task.quality_score > 0.6:
+        if completed_task and getattr(completed_task, "quality_score", 0.0) > 0.6:
             for onlooker_id in range(1, self.num_drones + 1):
                 if (self.drone_roles.get(onlooker_id) == DroneRole.ONLOOKER and 
                     onlooker_id not in self.drone_tasks):
