@@ -3,7 +3,9 @@ import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, readdirSync, createReadStream, statSync } from 'node:fs';
+import https_ from 'node:https';
+import http_ from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyGpsUpdate, GPS_DENIAL_ZONES } from './server/gpsModel.js';
@@ -473,6 +475,10 @@ function buildSnapshot() {
   };
 }
 
+function emitSnapshot(snapshot = buildSnapshot()) {
+  io.emit('telemetrySnapshot', snapshot);
+}
+
 let waypointQueues = new Map();
 
 function initZoneWaypoints() {
@@ -854,8 +860,173 @@ app.get('/api/mission/map', (_req, res) => {
   res.json(getMapData());
 });
 
+// ─── VLM Person-Search API (proxy to Python CLIP microservice on :5001) ─────
+const VLM_BASE = process.env.VLM_BASE || 'http://localhost:5001';
+
+/**
+ * Generic proxy helper: forwards a request to the VLM Flask service.
+ * Supports GET and DELETE. For POST use vlmPost.
+ */
+function vlmProxy(vlmPath, req, res) {
+  const url = new URL(vlmPath, VLM_BASE);
+  // Forward query params
+  for (const [k, v] of Object.entries(req.query)) {
+    url.searchParams.set(k, v);
+  }
+  const lib = url.protocol === 'https:' ? https_ : http_;
+  const options = {
+    hostname: url.hostname,
+    port: url.port || (url.protocol === 'https:' ? 443 : 80),
+    path: url.pathname + url.search,
+    method: req.method,
+    headers: { 'Content-Type': 'application/json' },
+  };
+  const proxyReq = lib.request(options, (proxyRes) => {
+    res.status(proxyRes.statusCode);
+    proxyRes.pipe(res);
+  });
+  proxyReq.on('error', (err) => {
+    console.error('[VLM proxy error]', err.message);
+    res.status(502).json({ error: 'VLM service unavailable', detail: err.message });
+  });
+  if (req.body && Object.keys(req.body).length > 0) {
+    proxyReq.write(JSON.stringify(req.body));
+  }
+  proxyReq.end();
+}
+
+/** Health — GET /api/vlm/health */
+app.get('/api/vlm/health', (req, res) => vlmProxy('/health', req, res));
+
+/** Search — GET /api/vlm/search?q=<text>&k=<n>&threshold=<0-1> */
+app.get('/api/vlm/search', (req, res) => vlmProxy('/search', req, res));
+
+/** List all detections — GET /api/vlm/detections?page=1&per_page=50 */
+app.get('/api/vlm/detections', (req, res) => vlmProxy('/detections', req, res));
+
+/** Reset index — DELETE /api/vlm/reset */
+app.delete('/api/vlm/reset', (req, res) => vlmProxy('/index', req, res));
+
+/**
+ * Ingest a single detection from the sim pipeline.
+ * Body: { embedding: [...], metadata: {...} }
+ * POST /api/vlm/ingest
+ */
+app.post('/api/vlm/ingest', (req, res) => {
+  const url = new URL('/index', VLM_BASE);
+  const lib = url.protocol === 'https:' ? https_ : http_;
+  const body = JSON.stringify(req.body);
+  const options = {
+    hostname: url.hostname,
+    port: url.port || 80,
+    path: '/index',
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+  };
+  const proxyReq = lib.request(options, (proxyRes) => {
+    res.status(proxyRes.statusCode);
+    proxyRes.pipe(res);
+  });
+  proxyReq.on('error', (err) => {
+    res.status(502).json({ error: 'VLM service unavailable', detail: err.message });
+  });
+  proxyReq.write(body);
+  proxyReq.end();
+});
+
+/**
+ * Serve detection images: GET /data/detections/<filename>.jpg
+ * Maps to the local filesystem at <project>/data/detections/
+ */
+app.get('/data/detections/:filename', (req, res) => {
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(__dirname, 'data', 'detections', filename);
+  if (!existsSync(filePath)) {
+    return res.status(404).json({ error: 'Image not found' });
+  }
+  try {
+    const stat = statSync(filePath);
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Content-Length', stat.size);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    createReadStream(filePath).pipe(res);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to read image' });
+  }
+});
+
+// ─── Phase 2: VLM Stream Control proxy routes ─────────────────────────────────
+
+/** Start stream — POST /api/vlm/stream/start */
+app.post('/api/vlm/stream/start', (req, res) => {
+  const url = new URL('/stream/start', VLM_BASE);
+  const lib = url.protocol === 'https:' ? https_ : http_;
+  const body = JSON.stringify(req.body);
+  const options = {
+    hostname: url.hostname,
+    port: url.port || 80,
+    path: '/stream/start',
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+  };
+  const proxyReq = lib.request(options, (proxyRes) => {
+    res.status(proxyRes.statusCode);
+    proxyRes.pipe(res);
+  });
+  proxyReq.on('error', (err) => res.status(502).json({ error: 'VLM unavailable', detail: err.message }));
+  proxyReq.write(body);
+  proxyReq.end();
+});
+
+/** Stop stream — POST /api/vlm/stream/stop */
+app.post('/api/vlm/stream/stop', (req, res) => vlmProxy('/stream/stop', req, res));
+
+/** Stream status — GET /api/vlm/stream/status */
+app.get('/api/vlm/stream/status', (req, res) => vlmProxy('/stream/status', req, res));
+
+/**
+ * SSE passthrough — GET /api/vlm/stream/events?since=<n>
+ * Requires special handling: must NOT buffer the response body.
+ * We pipe the Flask SSE stream directly to the Express response.
+ */
+app.get('/api/vlm/stream/events', (req, res) => {
+  const since = req.query.since || '0';
+  const url = new URL(`/stream/events?since=${since}`, VLM_BASE);
+  const lib = url.protocol === 'https:' ? https_ : http_;
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  const options = {
+    hostname: url.hostname,
+    port: url.port || 80,
+    path: url.pathname + url.search,
+    method: 'GET',
+  };
+  const proxyReq = lib.request(options, (proxyRes) => {
+    proxyRes.on('data', (chunk) => {
+      res.write(chunk);
+      // Force flush for SSE
+      if (res.flush) res.flush();
+    });
+    proxyRes.on('end', () => res.end());
+  });
+  proxyReq.on('error', (err) => {
+    res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`);
+    res.end();
+  });
+  proxyReq.end();
+
+  // Clean up if client disconnects
+  req.on('close', () => proxyReq.destroy());
+});
+
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`Simulation Server running on port ${PORT}`);
   console.log(`Simulation status: IDLE (waiting for /api/mission/start)`);
 });
+

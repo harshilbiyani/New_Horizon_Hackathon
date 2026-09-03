@@ -174,7 +174,7 @@ export default function Replay() {
               dronesCount={currentSnapshot.missionData.activeDrones}
               coverage={currentSnapshot.missionData.coverage}
               survivorsCount={currentSnapshot.missionData.foundSurvivors}
-              scannedCells={currentSnapshot.missionData.scannedCells}
+              scannedCells={Array.isArray(currentSnapshot.missionData.scannedCells) ? currentSnapshot.missionData.scannedCells.length : currentSnapshot.missionData.scannedCells}
               avgBattery={currentSnapshot.missionData.avgBattery}
               avgSignal={currentSnapshot.missionData.avgSignal}
               missionTimeSec={currentSnapshot.missionData.missionTimeSec}

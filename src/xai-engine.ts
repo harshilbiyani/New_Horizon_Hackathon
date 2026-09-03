@@ -53,7 +53,7 @@ export function deriveZoneCoverage(
     }
   });
 
-  const coverage: Record<ZoneId, number> = {};
+  const coverage = {} as Record<ZoneId, number>;
   ZONES.forEach((zone) => {
     const count = zoneCellCounts.get(zone.id) ?? 0;
     coverage[zone.id] = Math.min(1, count / cellsPerZone);
@@ -75,7 +75,7 @@ function scoreZone(
     obstacles = [],
     mapWidth = 600,
     mapHeight = 400,
-    zoneCoverage = {},
+    zoneCoverage = {} as Record<ZoneId, number>,
   } = worldState;
 
   const cellW = mapWidth / GRID_COLS;
@@ -249,7 +249,7 @@ export function deriveXAI(
   drone: XAIDroneState,
   worldState: XAIWorldState
 ): XAIDecision {
-  const { tick = 0, zoneCoverage = {}, survivors = [] } = worldState;
+  const { tick = 0, zoneCoverage = {} as Record<ZoneId, number>, survivors = [] } = worldState;
   const droneIdNumeric =
     typeof drone.id === 'number'
       ? drone.id

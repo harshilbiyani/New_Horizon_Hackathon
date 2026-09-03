@@ -22,3 +22,25 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Legacy dashboard file
+dashboard.html
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.pt
+
+# AI state files and test outputs
+simulation/state/
+drone_swarm/output/
+data/detections/
+data/vlm_*
+data/test_person.jpg
+
+# Environment secrets
+.env
+.env.*
+!.env.example

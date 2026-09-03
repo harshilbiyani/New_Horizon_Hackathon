@@ -1,1 +1,14 @@
-numpy>=1.26
+ultralytics
+torch
+torchvision
+ftfy
+regex
+tqdm
+git+https://github.com/openai/CLIP.git
+faiss-cpu
+flask
+flask-cors
+Pillow
+numpy
+requests
+opencv-python-headless

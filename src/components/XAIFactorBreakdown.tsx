@@ -17,7 +17,7 @@ interface FactorBreakdownProps {
 
 export default function FactorBreakdown({
   factors,
-  totalScore,
+  totalScore: _totalScore,
 }: FactorBreakdownProps) {
   const items = [
     { key: 'coverage' as const, label: 'COVERAGE GAP', color: C.cyan },

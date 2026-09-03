@@ -6,8 +6,12 @@
   "scripts": {
     "start": "concurrently \"node server.js\" \"vite --open\"",
     "dev": "concurrently \"node server.js\" \"vite --open\"",
+    "dev:full": "concurrently \"node server.js\" \"vite --open\" \"python drone_swarm/vlm_service.py\"",
     "ai:demo": "python drone_swarm/end_to_end_demo.py",
     "ai:bridge:test": "python simulation/ai_bridge.py < NUL",
+    "vlm:service": "python drone_swarm/vlm_service.py",
+    "vlm:demo": "python drone_swarm/demo_ingest.py",
+    "vlm:stream": "python drone_swarm/video_stream.py",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
