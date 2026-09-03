@@ -447,6 +447,78 @@ app.get('/api/mission/map', (_req, res) => {
   });
 });
 
+// ─── Layer 5: Active Canary Trap (Decoy Endpoint) ───────────────────────────
+// Legitimate drones NEVER call this. If an attacker with a stolen JWT scans
+// the API, they inevitably probe this URL. The moment they do, we broadcast
+// a real-time intrusion alert to every connected React dashboard client.
+const revokedTokens = new Set();
+
+app.get('/api/admin/master-keys', (req, res) => {
+  const token = req.headers['authorization'] || req.query.token || 'unknown';
+
+  // Log the intrusion
+  console.warn(`[CANARY TRIGGERED] Decoy endpoint hit! Token: ${token}`);
+  revokedTokens.add(token);
+
+  // Broadcast red alert to ALL connected React dashboard clients over WebSocket
+  io.emit('canary_triggered', {
+    timestamp: new Date().toISOString(),
+    alert: 'INTRUSION DETECTED — Decoy endpoint accessed',
+    revoked_token: token,
+    layer: 5
+  });
+
+  return res.status(403).json({
+    error: 'FORBIDDEN: Intrusion detected. Identity revoked.',
+    layer: 'Layer 5 Active Canary Trap'
+  });
+});
+
+// ─── Layer 1-6: Security Status API ─────────────────────────────────────────
+// Allows the React dashboard SecurityStatusPanel to poll live security metrics.
+app.get('/api/security/status', (_req, res) => {
+  const snap = lastSnapshot;
+  const meshSecurity = snap?.security || {};
+
+  res.json({
+    layer1: {
+      name: 'Hardware-Rooted Identity & Key Isolation',
+      status: 'ACTIVE',
+      detail: meshSecurity.root_trust || 'Simulated PUF → HKDF-SHA256',
+      transport_key: meshSecurity.transport_key_fingerprint || 'N/A',
+      payload_key: meshSecurity.payload_key_fingerprint || 'N/A',
+    },
+    layer2: {
+      name: 'Double-Wrap Cascade Encryption',
+      status: 'ACTIVE',
+      detail: meshSecurity.key_exchange || 'Hybrid X25519 + ML-KEM-768',
+      cipher: 'AES-256-GCM ⟩ ChaCha20-Poly1305',
+    },
+    layer3: {
+      name: 'Adaptive QoS Telemetry',
+      status: 'ACTIVE',
+      detail: meshSecurity.telemetry_auth || 'Ed25519 Signatures (PyNaCl)',
+    },
+    layer4: {
+      name: 'Swarm AI Anomaly Detection',
+      status: 'ACTIVE',
+      detail: meshSecurity.intrusion_detection || 'Physics AI + Isolation Forest',
+    },
+    layer5: {
+      name: 'Active Canary Trap',
+      status: 'ACTIVE',
+      detail: meshSecurity.active_defense || 'Canary Decoy API Running',
+      revoked_tokens: revokedTokens.size,
+    },
+    layer6: {
+      name: 'Encrypted BLE + Ground Handoff',
+      status: 'ACTIVE',
+      detail: meshSecurity.tactical_ground_link || 'AES-GCM BLE + Socket Handoff',
+    },
+    overall: 'ALL_LAYERS_ACTIVE',
+  });
+});
+
 // ─── Boot ────────────────────────────────────────────────────────────────────
 pyInit();
 

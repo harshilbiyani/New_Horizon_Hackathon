@@ -20,7 +20,12 @@
 - [x] **Phase 6 (Layer 6)**: BLE Survivor Sniffing (`bleak`)
 
 ## Security Implementation (12-36 Hours)
-- [ ] **Phase 1-6**: Advanced Integration (QoS, Isolation Forests, Direct Handoff)
+- [x] **Phase 1 (Layer 1)**: Secure Boot — firmware SHA-256 manifest + tamper abort
+- [x] **Phase 2 (Layer 2)**: Double-Wrap Cascade — ChaCha20 (inner) + AES-GCM (outer)
+- [x] **Phase 3 (Layer 3)**: Adaptive QoS — P1-P4 priority queue with bandwidth-aware purging
+- [x] **Phase 4 (Layer 4)**: Isolation Forest ML — trust scoring + BFT quorum threshold
+- [x] **Phase 5 (Layer 5)**: Dashboard-Wired Canary — Node.js decoy + WebSocket alert to React
+- [x] **Phase 6 (Layer 6)**: Encrypted Ground Socket Handoff — AES-GCM TCP to firefighter
 
 ## Day 2 — Frontend + Integration
 - [x] **Hour 1-3**: Update `server.js` — Python sim as single source of truth
