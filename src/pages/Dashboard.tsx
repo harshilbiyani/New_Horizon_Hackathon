@@ -21,7 +21,7 @@ import type {
 
 const EMPTY_MISSION_DATA: MissionData = {
   coverage: 0,
-  scannedCells: 0,
+  scannedCells: [],
   totalCells: 0,
   activeDrones: 0,
   failedDrones: 0,
@@ -213,7 +213,7 @@ export default function Dashboard() {
               foundSurvivors={survivors}
               hiddenSurvivors={hiddenSurvivors}
               meshLinks={meshLinks}
-              scannedCells={telemetry?.missionData?.scannedCells}
+              scannedCells={Array.isArray(missionData?.scannedCells) ? missionData.scannedCells as string[] : []}
               selectedDroneId={selectedDroneId}
               onSelectDrone={setSelectedDroneId}
             />

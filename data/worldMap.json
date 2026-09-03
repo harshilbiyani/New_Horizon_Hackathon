@@ -1,0 +1,8082 @@
+[
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 32.89,
+      "occupied": true,
+      "obstacleId": "GLB-0-6"
+    },
+    {
+      "height": 1.03,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.81,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 77.08,
+      "occupied": true,
+      "obstacleId": "GLB-0-13"
+    },
+    {
+      "height": 86.32,
+      "occupied": true,
+      "obstacleId": "GLB-0-14"
+    },
+    {
+      "height": 3.23,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 15.76,
+      "occupied": true,
+      "obstacleId": "GLB-0-16"
+    },
+    {
+      "height": 92.39,
+      "occupied": true,
+      "obstacleId": "GLB-0-17"
+    },
+    {
+      "height": 82.7,
+      "occupied": true,
+      "obstacleId": "GLB-0-18"
+    },
+    {
+      "height": 3.67,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 25.21,
+      "occupied": true,
+      "obstacleId": "GLB-1-6"
+    },
+    {
+      "height": 0.81,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 3.19,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 6.74,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 78.44,
+      "occupied": true,
+      "obstacleId": "GLB-1-13"
+    },
+    {
+      "height": 13.61,
+      "occupied": true,
+      "obstacleId": "GLB-1-14"
+    },
+    {
+      "height": 2.5,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 12.06,
+      "occupied": true,
+      "obstacleId": "GLB-1-17"
+    },
+    {
+      "height": 96.05,
+      "occupied": true,
+      "obstacleId": "GLB-1-18"
+    },
+    {
+      "height": 3.7,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 2.62,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 3,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 2.03,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 2.31,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 2.99,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.77,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.28,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 2.42,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 2.57,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.39,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 3.61,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 4.18,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 46.98,
+      "occupied": true,
+      "obstacleId": "GLB-2-23"
+    },
+    {
+      "height": 4.13,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.61,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 2.24,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 13.85,
+      "occupied": true,
+      "obstacleId": "GLB-3-3"
+    },
+    {
+      "height": 84.58,
+      "occupied": true,
+      "obstacleId": "GLB-3-4"
+    },
+    {
+      "height": 13.58,
+      "occupied": true,
+      "obstacleId": "GLB-3-5"
+    },
+    {
+      "height": 1.69,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 2.37,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 86.98,
+      "occupied": true,
+      "obstacleId": "GLB-3-22"
+    },
+    {
+      "height": 80.5,
+      "occupied": true,
+      "obstacleId": "GLB-3-23"
+    },
+    {
+      "height": 19.84,
+      "occupied": true,
+      "obstacleId": "GLB-3-24"
+    },
+    {
+      "height": 2.47,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 2.16,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 18.28,
+      "occupied": true,
+      "obstacleId": "GLB-4-3"
+    },
+    {
+      "height": 18.56,
+      "occupied": true,
+      "obstacleId": "GLB-4-4"
+    },
+    {
+      "height": 95.8,
+      "occupied": true,
+      "obstacleId": "GLB-4-5"
+    },
+    {
+      "height": 2.03,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.52,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 77.92,
+      "occupied": true,
+      "obstacleId": "GLB-4-16"
+    },
+    {
+      "height": 1.98,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 4.06,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 4.86,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 97.41,
+      "occupied": true,
+      "obstacleId": "GLB-4-24"
+    },
+    {
+      "height": 1.71,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 49.45,
+      "occupied": true,
+      "obstacleId": "GLB-5-0"
+    },
+    {
+      "height": 29.21,
+      "occupied": true,
+      "obstacleId": "GLB-5-1"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 3.3,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 4.15,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 3.63,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.96,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 113.04,
+      "occupied": true,
+      "obstacleId": "GLB-5-12"
+    },
+    {
+      "height": 7.37,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.96,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 98.34,
+      "occupied": true,
+      "obstacleId": "GLB-5-16"
+    },
+    {
+      "height": 1.82,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.35,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 17.37,
+      "occupied": true,
+      "obstacleId": "GLB-5-23"
+    },
+    {
+      "height": 3.9,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 1.78,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.28,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.76,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 7.4,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 119.58,
+      "occupied": true,
+      "obstacleId": "GLB-6-12"
+    },
+    {
+      "height": 113.43,
+      "occupied": true,
+      "obstacleId": "GLB-6-13"
+    },
+    {
+      "height": 7.38,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.65,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 92.32,
+      "occupied": true,
+      "obstacleId": "GLB-6-16"
+    },
+    {
+      "height": 67.2,
+      "occupied": true,
+      "obstacleId": "GLB-6-17"
+    },
+    {
+      "height": 1.61,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 17.11,
+      "occupied": true,
+      "obstacleId": "GLB-6-22"
+    },
+    {
+      "height": 19.41,
+      "occupied": true,
+      "obstacleId": "GLB-6-23"
+    },
+    {
+      "height": 18.39,
+      "occupied": true,
+      "obstacleId": "GLB-6-24"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 65.09,
+      "occupied": true,
+      "obstacleId": "GLB-7-0"
+    },
+    {
+      "height": 0.81,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 17.58,
+      "occupied": true,
+      "obstacleId": "GLB-7-7"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 113.42,
+      "occupied": true,
+      "obstacleId": "GLB-7-12"
+    },
+    {
+      "height": 113.56,
+      "occupied": true,
+      "obstacleId": "GLB-7-13"
+    },
+    {
+      "height": 94.29,
+      "occupied": true,
+      "obstacleId": "GLB-7-14"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 18.09,
+      "occupied": true,
+      "obstacleId": "GLB-7-23"
+    },
+    {
+      "height": 18.25,
+      "occupied": true,
+      "obstacleId": "GLB-7-24"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 9.36,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 17.81,
+      "occupied": true,
+      "obstacleId": "GLB-8-7"
+    },
+    {
+      "height": 23.75,
+      "occupied": true,
+      "obstacleId": "GLB-8-8"
+    },
+    {
+      "height": 13.71,
+      "occupied": true,
+      "obstacleId": "GLB-8-9"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 7.38,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 13.74,
+      "occupied": true,
+      "obstacleId": "GLB-9-0"
+    },
+    {
+      "height": 9.38,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 118.73,
+      "occupied": true,
+      "obstacleId": "GLB-9-2"
+    },
+    {
+      "height": 118.72,
+      "occupied": true,
+      "obstacleId": "GLB-9-3"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 2.52,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 3.74,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 14.63,
+      "occupied": true,
+      "obstacleId": "GLB-9-9"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 7.7,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 118.34,
+      "occupied": true,
+      "obstacleId": "GLB-9-24"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 18.18,
+      "occupied": true,
+      "obstacleId": "GLB-9-27"
+    },
+    {
+      "height": 17.57,
+      "occupied": true,
+      "obstacleId": "GLB-9-28"
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 18.25,
+      "occupied": true,
+      "obstacleId": "GLB-10-0"
+    },
+    {
+      "height": 7.88,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 119.28,
+      "occupied": true,
+      "obstacleId": "GLB-10-2"
+    },
+    {
+      "height": 118.8,
+      "occupied": true,
+      "obstacleId": "GLB-10-3"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 51.57,
+      "occupied": true,
+      "obstacleId": "GLB-10-7"
+    },
+    {
+      "height": 67.69,
+      "occupied": true,
+      "obstacleId": "GLB-10-8"
+    },
+    {
+      "height": 69.43,
+      "occupied": true,
+      "obstacleId": "GLB-10-9"
+    },
+    {
+      "height": 4.3,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 24.77,
+      "occupied": true,
+      "obstacleId": "GLB-10-15"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 24.73,
+      "occupied": true,
+      "obstacleId": "GLB-10-18"
+    },
+    {
+      "height": 24.73,
+      "occupied": true,
+      "obstacleId": "GLB-10-19"
+    },
+    {
+      "height": 24.72,
+      "occupied": true,
+      "obstacleId": "GLB-10-20"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 120.07,
+      "occupied": true,
+      "obstacleId": "GLB-10-22"
+    },
+    {
+      "height": 118.47,
+      "occupied": true,
+      "obstacleId": "GLB-10-23"
+    },
+    {
+      "height": 124.71,
+      "occupied": true,
+      "obstacleId": "GLB-10-24"
+    },
+    {
+      "height": 98.62,
+      "occupied": true,
+      "obstacleId": "GLB-10-25"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 21.02,
+      "occupied": true,
+      "obstacleId": "GLB-10-27"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 7.88,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 118.72,
+      "occupied": true,
+      "obstacleId": "GLB-11-2"
+    },
+    {
+      "height": 118.75,
+      "occupied": true,
+      "obstacleId": "GLB-11-3"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 5.16,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 69.35,
+      "occupied": true,
+      "obstacleId": "GLB-11-8"
+    },
+    {
+      "height": 69.43,
+      "occupied": true,
+      "obstacleId": "GLB-11-9"
+    },
+    {
+      "height": 6.82,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 3.92,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 114.47,
+      "occupied": true,
+      "obstacleId": "GLB-11-13"
+    },
+    {
+      "height": 101.83,
+      "occupied": true,
+      "obstacleId": "GLB-11-14"
+    },
+    {
+      "height": 85.85,
+      "occupied": true,
+      "obstacleId": "GLB-11-15"
+    },
+    {
+      "height": 98.48,
+      "occupied": true,
+      "obstacleId": "GLB-11-16"
+    },
+    {
+      "height": 24.73,
+      "occupied": true,
+      "obstacleId": "GLB-11-17"
+    },
+    {
+      "height": 24.72,
+      "occupied": true,
+      "obstacleId": "GLB-11-18"
+    },
+    {
+      "height": 24.72,
+      "occupied": true,
+      "obstacleId": "GLB-11-19"
+    },
+    {
+      "height": 24.72,
+      "occupied": true,
+      "obstacleId": "GLB-11-20"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 98.41,
+      "occupied": true,
+      "obstacleId": "GLB-11-22"
+    },
+    {
+      "height": 118.41,
+      "occupied": true,
+      "obstacleId": "GLB-11-23"
+    },
+    {
+      "height": 118.07,
+      "occupied": true,
+      "obstacleId": "GLB-11-24"
+    },
+    {
+      "height": 7.7,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 3.87,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 3.51,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 8.93,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 34.87,
+      "occupied": true,
+      "obstacleId": "GLB-12-10"
+    },
+    {
+      "height": 26.64,
+      "occupied": true,
+      "obstacleId": "GLB-12-11"
+    },
+    {
+      "height": 7.68,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 114.71,
+      "occupied": true,
+      "obstacleId": "GLB-12-13"
+    },
+    {
+      "height": 101.15,
+      "occupied": true,
+      "obstacleId": "GLB-12-14"
+    },
+    {
+      "height": 90.13,
+      "occupied": true,
+      "obstacleId": "GLB-12-15"
+    },
+    {
+      "height": 99.67,
+      "occupied": true,
+      "obstacleId": "GLB-12-16"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 3.8,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 4.95,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 14.99,
+      "occupied": true,
+      "obstacleId": "GLB-13-8"
+    },
+    {
+      "height": 46.24,
+      "occupied": true,
+      "obstacleId": "GLB-13-9"
+    },
+    {
+      "height": 39.9,
+      "occupied": true,
+      "obstacleId": "GLB-13-10"
+    },
+    {
+      "height": 30.65,
+      "occupied": true,
+      "obstacleId": "GLB-13-11"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 2.11,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.18,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 16.4,
+      "occupied": true,
+      "obstacleId": "GLB-13-23"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.52,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 4.69,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 67.51,
+      "occupied": true,
+      "obstacleId": "GLB-14-7"
+    },
+    {
+      "height": 67.52,
+      "occupied": true,
+      "obstacleId": "GLB-14-8"
+    },
+    {
+      "height": 58.79,
+      "occupied": true,
+      "obstacleId": "GLB-14-9"
+    },
+    {
+      "height": 6.87,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.99,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.78,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 68.4,
+      "occupied": true,
+      "obstacleId": "GLB-14-23"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.2,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.41,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 68.12,
+      "occupied": true,
+      "obstacleId": "GLB-14-28"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 19.51,
+      "occupied": true,
+      "obstacleId": "GLB-15-2"
+    },
+    {
+      "height": 19.52,
+      "occupied": true,
+      "obstacleId": "GLB-15-3"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 2.41,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 4.63,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 67.52,
+      "occupied": true,
+      "obstacleId": "GLB-15-7"
+    },
+    {
+      "height": 67.49,
+      "occupied": true,
+      "obstacleId": "GLB-15-8"
+    },
+    {
+      "height": 58.74,
+      "occupied": true,
+      "obstacleId": "GLB-15-9"
+    },
+    {
+      "height": 8.82,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.82,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.95,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.11,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.95,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 77.3,
+      "occupied": true,
+      "obstacleId": "GLB-15-21"
+    },
+    {
+      "height": 97.27,
+      "occupied": true,
+      "obstacleId": "GLB-15-22"
+    },
+    {
+      "height": 92.41,
+      "occupied": true,
+      "obstacleId": "GLB-15-23"
+    },
+    {
+      "height": 0.73,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 29.46,
+      "occupied": true,
+      "obstacleId": "GLB-15-26"
+    },
+    {
+      "height": 85.11,
+      "occupied": true,
+      "obstacleId": "GLB-15-27"
+    },
+    {
+      "height": 68.48,
+      "occupied": true,
+      "obstacleId": "GLB-15-28"
+    },
+    {
+      "height": 0.66,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 26.57,
+      "occupied": true,
+      "obstacleId": "GLB-16-2"
+    },
+    {
+      "height": 19.49,
+      "occupied": true,
+      "obstacleId": "GLB-16-3"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 7.9,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 118.73,
+      "occupied": true,
+      "obstacleId": "GLB-16-6"
+    },
+    {
+      "height": 118.74,
+      "occupied": true,
+      "obstacleId": "GLB-16-7"
+    },
+    {
+      "height": 4.56,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 4.54,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 3.44,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 16.1,
+      "occupied": true,
+      "obstacleId": "GLB-16-12"
+    },
+    {
+      "height": 36.68,
+      "occupied": true,
+      "obstacleId": "GLB-16-13"
+    },
+    {
+      "height": 33.18,
+      "occupied": true,
+      "obstacleId": "GLB-16-14"
+    },
+    {
+      "height": 0.62,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.62,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.95,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 19.23,
+      "occupied": true,
+      "obstacleId": "GLB-16-19"
+    },
+    {
+      "height": 19.65,
+      "occupied": true,
+      "obstacleId": "GLB-16-20"
+    },
+    {
+      "height": 1.64,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.97,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.74,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 2.58,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.96,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 19.09,
+      "occupied": true,
+      "obstacleId": "GLB-17-2"
+    },
+    {
+      "height": 18.78,
+      "occupied": true,
+      "obstacleId": "GLB-17-3"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 9.38,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 118.71,
+      "occupied": true,
+      "obstacleId": "GLB-17-6"
+    },
+    {
+      "height": 125.03,
+      "occupied": true,
+      "obstacleId": "GLB-17-7"
+    },
+    {
+      "height": 118.7,
+      "occupied": true,
+      "obstacleId": "GLB-17-8"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 31.68,
+      "occupied": true,
+      "obstacleId": "GLB-17-10"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 2.07,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 71.75,
+      "occupied": true,
+      "obstacleId": "GLB-17-13"
+    },
+    {
+      "height": 6.63,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 8.16,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 4.51,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.05,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 19.84,
+      "occupied": true,
+      "obstacleId": "GLB-17-19"
+    },
+    {
+      "height": 19.94,
+      "occupied": true,
+      "obstacleId": "GLB-17-20"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 18.13,
+      "occupied": true,
+      "obstacleId": "GLB-17-23"
+    },
+    {
+      "height": 18.97,
+      "occupied": true,
+      "obstacleId": "GLB-17-24"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 106.3,
+      "occupied": true,
+      "obstacleId": "GLB-17-29"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 7.88,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 118.73,
+      "occupied": true,
+      "obstacleId": "GLB-18-7"
+    },
+    {
+      "height": 7.92,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 30.09,
+      "occupied": true,
+      "obstacleId": "GLB-18-10"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 11.51,
+      "occupied": true,
+      "obstacleId": "GLB-18-12"
+    },
+    {
+      "height": 72.46,
+      "occupied": true,
+      "obstacleId": "GLB-18-13"
+    },
+    {
+      "height": 72.35,
+      "occupied": true,
+      "obstacleId": "GLB-18-14"
+    },
+    {
+      "height": 14.56,
+      "occupied": true,
+      "obstacleId": "GLB-18-15"
+    },
+    {
+      "height": 2.7,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.95,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 18.74,
+      "occupied": true,
+      "obstacleId": "GLB-18-19"
+    },
+    {
+      "height": 18.99,
+      "occupied": true,
+      "obstacleId": "GLB-18-20"
+    },
+    {
+      "height": 1.2,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 13.04,
+      "occupied": true,
+      "obstacleId": "GLB-18-22"
+    },
+    {
+      "height": 19.27,
+      "occupied": true,
+      "obstacleId": "GLB-18-23"
+    },
+    {
+      "height": 19.27,
+      "occupied": true,
+      "obstacleId": "GLB-18-24"
+    },
+    {
+      "height": 19.3,
+      "occupied": true,
+      "obstacleId": "GLB-18-25"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 84.71,
+      "occupied": true,
+      "obstacleId": "GLB-18-28"
+    },
+    {
+      "height": 94.2,
+      "occupied": true,
+      "obstacleId": "GLB-18-29"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.78,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.67,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 46.15,
+      "occupied": true,
+      "obstacleId": "GLB-19-27"
+    },
+    {
+      "height": 81.31,
+      "occupied": true,
+      "obstacleId": "GLB-19-28"
+    },
+    {
+      "height": 74.46,
+      "occupied": true,
+      "obstacleId": "GLB-19-29"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 16.86,
+      "occupied": true,
+      "obstacleId": "GLB-20-23"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 91.8,
+      "occupied": true,
+      "obstacleId": "GLB-20-28"
+    },
+    {
+      "height": 1.4,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.98,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.98,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.75,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.57,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 17.25,
+      "occupied": true,
+      "obstacleId": "GLB-21-23"
+    },
+    {
+      "height": 16.73,
+      "occupied": true,
+      "obstacleId": "GLB-21-24"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 15.45,
+      "occupied": true,
+      "obstacleId": "GLB-22-2"
+    },
+    {
+      "height": 1.33,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 31.73,
+      "occupied": true,
+      "obstacleId": "GLB-22-5"
+    },
+    {
+      "height": 1.18,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 71.79,
+      "occupied": true,
+      "obstacleId": "GLB-22-7"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.28,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 21.43,
+      "occupied": true,
+      "obstacleId": "GLB-22-10"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 17.86,
+      "occupied": true,
+      "obstacleId": "GLB-22-12"
+    },
+    {
+      "height": 79.81,
+      "occupied": true,
+      "obstacleId": "GLB-22-13"
+    },
+    {
+      "height": 79.26,
+      "occupied": true,
+      "obstacleId": "GLB-22-14"
+    },
+    {
+      "height": 64.09,
+      "occupied": true,
+      "obstacleId": "GLB-22-15"
+    },
+    {
+      "height": 64.12,
+      "occupied": true,
+      "obstacleId": "GLB-22-16"
+    },
+    {
+      "height": 64.11,
+      "occupied": true,
+      "obstacleId": "GLB-22-17"
+    },
+    {
+      "height": 1.56,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 2.6,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 31.68,
+      "occupied": true,
+      "obstacleId": "GLB-22-20"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 16.03,
+      "occupied": true,
+      "obstacleId": "GLB-22-23"
+    },
+    {
+      "height": 12.61,
+      "occupied": true,
+      "obstacleId": "GLB-22-24"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 32.24,
+      "occupied": true,
+      "obstacleId": "GLB-22-28"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 36.02,
+      "occupied": true,
+      "obstacleId": "GLB-23-5"
+    },
+    {
+      "height": 87.87,
+      "occupied": true,
+      "obstacleId": "GLB-23-6"
+    },
+    {
+      "height": 76.87,
+      "occupied": true,
+      "obstacleId": "GLB-23-7"
+    },
+    {
+      "height": 118.27,
+      "occupied": true,
+      "obstacleId": "GLB-23-8"
+    },
+    {
+      "height": 118.29,
+      "occupied": true,
+      "obstacleId": "GLB-23-9"
+    },
+    {
+      "height": 118.3,
+      "occupied": true,
+      "obstacleId": "GLB-23-10"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 16.46,
+      "occupied": true,
+      "obstacleId": "GLB-23-12"
+    },
+    {
+      "height": 108.31,
+      "occupied": true,
+      "obstacleId": "GLB-23-13"
+    },
+    {
+      "height": 106.08,
+      "occupied": true,
+      "obstacleId": "GLB-23-14"
+    },
+    {
+      "height": 78.21,
+      "occupied": true,
+      "obstacleId": "GLB-23-15"
+    },
+    {
+      "height": 96.96,
+      "occupied": true,
+      "obstacleId": "GLB-23-16"
+    },
+    {
+      "height": 73.16,
+      "occupied": true,
+      "obstacleId": "GLB-23-17"
+    },
+    {
+      "height": 1.7,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 81.59,
+      "occupied": true,
+      "obstacleId": "GLB-23-19"
+    },
+    {
+      "height": 33.02,
+      "occupied": true,
+      "obstacleId": "GLB-23-20"
+    },
+    {
+      "height": 0.83,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.39,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.78,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.73,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.68,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 15.61,
+      "occupied": true,
+      "obstacleId": "GLB-24-5"
+    },
+    {
+      "height": 1.49,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 10.95,
+      "occupied": true,
+      "obstacleId": "GLB-24-7"
+    },
+    {
+      "height": 118.74,
+      "occupied": true,
+      "obstacleId": "GLB-24-8"
+    },
+    {
+      "height": 118.72,
+      "occupied": true,
+      "obstacleId": "GLB-24-9"
+    },
+    {
+      "height": 118.74,
+      "occupied": true,
+      "obstacleId": "GLB-24-10"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 16.47,
+      "occupied": true,
+      "obstacleId": "GLB-24-12"
+    },
+    {
+      "height": 140.49,
+      "occupied": true,
+      "obstacleId": "GLB-24-13"
+    },
+    {
+      "height": 138.51,
+      "occupied": true,
+      "obstacleId": "GLB-24-14"
+    },
+    {
+      "height": 98.69,
+      "occupied": true,
+      "obstacleId": "GLB-24-15"
+    },
+    {
+      "height": 108.4,
+      "occupied": true,
+      "obstacleId": "GLB-24-16"
+    },
+    {
+      "height": 73.15,
+      "occupied": true,
+      "obstacleId": "GLB-24-17"
+    },
+    {
+      "height": 1,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 2.75,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 3.13,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.67,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.77,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 98.71,
+      "occupied": true,
+      "obstacleId": "GLB-25-2"
+    },
+    {
+      "height": 50.35,
+      "occupied": true,
+      "obstacleId": "GLB-25-3"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 118.64,
+      "occupied": true,
+      "obstacleId": "GLB-25-8"
+    },
+    {
+      "height": 118.67,
+      "occupied": true,
+      "obstacleId": "GLB-25-9"
+    },
+    {
+      "height": 118.69,
+      "occupied": true,
+      "obstacleId": "GLB-25-10"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 16.47,
+      "occupied": true,
+      "obstacleId": "GLB-25-12"
+    },
+    {
+      "height": 143.17,
+      "occupied": true,
+      "obstacleId": "GLB-25-13"
+    },
+    {
+      "height": 167.58,
+      "occupied": true,
+      "obstacleId": "GLB-25-14"
+    },
+    {
+      "height": 159.76,
+      "occupied": true,
+      "obstacleId": "GLB-25-15"
+    },
+    {
+      "height": 118.55,
+      "occupied": true,
+      "obstacleId": "GLB-25-16"
+    },
+    {
+      "height": 73.15,
+      "occupied": true,
+      "obstacleId": "GLB-25-17"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 29.53,
+      "occupied": true,
+      "obstacleId": "GLB-25-21"
+    },
+    {
+      "height": 29.39,
+      "occupied": true,
+      "obstacleId": "GLB-25-22"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 16.59,
+      "occupied": true,
+      "obstacleId": "GLB-25-24"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.79,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 91.39,
+      "occupied": true,
+      "obstacleId": "GLB-26-2"
+    },
+    {
+      "height": 52.07,
+      "occupied": true,
+      "obstacleId": "GLB-26-3"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 16.47,
+      "occupied": true,
+      "obstacleId": "GLB-26-12"
+    },
+    {
+      "height": 141.05,
+      "occupied": true,
+      "obstacleId": "GLB-26-13"
+    },
+    {
+      "height": 161.73,
+      "occupied": true,
+      "obstacleId": "GLB-26-14"
+    },
+    {
+      "height": 159.76,
+      "occupied": true,
+      "obstacleId": "GLB-26-15"
+    },
+    {
+      "height": 117.02,
+      "occupied": true,
+      "obstacleId": "GLB-26-16"
+    },
+    {
+      "height": 73.15,
+      "occupied": true,
+      "obstacleId": "GLB-26-17"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 22.65,
+      "occupied": true,
+      "obstacleId": "GLB-26-24"
+    },
+    {
+      "height": 16.48,
+      "occupied": true,
+      "obstacleId": "GLB-26-25"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.8,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 106.94,
+      "occupied": true,
+      "obstacleId": "GLB-27-2"
+    },
+    {
+      "height": 51.21,
+      "occupied": true,
+      "obstacleId": "GLB-27-3"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.62,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 31.24,
+      "occupied": true,
+      "obstacleId": "GLB-27-9"
+    },
+    {
+      "height": 0.8,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 16.48,
+      "occupied": true,
+      "obstacleId": "GLB-27-12"
+    },
+    {
+      "height": 89.85,
+      "occupied": true,
+      "obstacleId": "GLB-27-13"
+    },
+    {
+      "height": 86.62,
+      "occupied": true,
+      "obstacleId": "GLB-27-14"
+    },
+    {
+      "height": 90.78,
+      "occupied": true,
+      "obstacleId": "GLB-27-15"
+    },
+    {
+      "height": 100.77,
+      "occupied": true,
+      "obstacleId": "GLB-27-16"
+    },
+    {
+      "height": 73.15,
+      "occupied": true,
+      "obstacleId": "GLB-27-17"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 17.02,
+      "occupied": true,
+      "obstacleId": "GLB-27-24"
+    },
+    {
+      "height": 12.53,
+      "occupied": true,
+      "obstacleId": "GLB-27-25"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.81,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.68,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.43,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 16.47,
+      "occupied": true,
+      "obstacleId": "GLB-28-12"
+    },
+    {
+      "height": 89.82,
+      "occupied": true,
+      "obstacleId": "GLB-28-13"
+    },
+    {
+      "height": 86.6,
+      "occupied": true,
+      "obstacleId": "GLB-28-14"
+    },
+    {
+      "height": 73.16,
+      "occupied": true,
+      "obstacleId": "GLB-28-15"
+    },
+    {
+      "height": 79.76,
+      "occupied": true,
+      "obstacleId": "GLB-28-16"
+    },
+    {
+      "height": 73.15,
+      "occupied": true,
+      "obstacleId": "GLB-28-17"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 39.22,
+      "occupied": true,
+      "obstacleId": "GLB-28-29"
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 120.48,
+      "occupied": true,
+      "obstacleId": "GLB-29-13"
+    },
+    {
+      "height": 100.47,
+      "occupied": true,
+      "obstacleId": "GLB-29-14"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.17,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.6,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 121.52,
+      "occupied": true,
+      "obstacleId": "GLB-30-12"
+    },
+    {
+      "height": 120.87,
+      "occupied": true,
+      "obstacleId": "GLB-30-13"
+    },
+    {
+      "height": 120.82,
+      "occupied": true,
+      "obstacleId": "GLB-30-14"
+    },
+    {
+      "height": 7.86,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 34.79,
+      "occupied": true,
+      "obstacleId": "GLB-30-25"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 31.44,
+      "occupied": true,
+      "obstacleId": "GLB-30-28"
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 1.98,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 47.7,
+      "occupied": true,
+      "obstacleId": "GLB-31-1"
+    },
+    {
+      "height": 4.2,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 120.87,
+      "occupied": true,
+      "obstacleId": "GLB-31-12"
+    },
+    {
+      "height": 120.95,
+      "occupied": true,
+      "obstacleId": "GLB-31-13"
+    },
+    {
+      "height": 120.38,
+      "occupied": true,
+      "obstacleId": "GLB-31-14"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 7.45,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 115.67,
+      "occupied": true,
+      "obstacleId": "GLB-31-20"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 13.26,
+      "occupied": true,
+      "obstacleId": "GLB-32-0"
+    },
+    {
+      "height": 12.26,
+      "occupied": true,
+      "obstacleId": "GLB-32-1"
+    },
+    {
+      "height": 63.11,
+      "occupied": true,
+      "obstacleId": "GLB-32-2"
+    },
+    {
+      "height": 3.34,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 20.68,
+      "occupied": true,
+      "obstacleId": "GLB-32-9"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 120.64,
+      "occupied": true,
+      "obstacleId": "GLB-32-13"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 114.82,
+      "occupied": true,
+      "obstacleId": "GLB-32-19"
+    },
+    {
+      "height": 120.96,
+      "occupied": true,
+      "obstacleId": "GLB-32-20"
+    },
+    {
+      "height": 7.47,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 9.87,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 64.79,
+      "occupied": true,
+      "obstacleId": "GLB-33-1"
+    },
+    {
+      "height": 64.78,
+      "occupied": true,
+      "obstacleId": "GLB-33-2"
+    },
+    {
+      "height": 3.66,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 7.48,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 114.8,
+      "occupied": true,
+      "obstacleId": "GLB-33-19"
+    },
+    {
+      "height": 114.77,
+      "occupied": true,
+      "obstacleId": "GLB-33-20"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 21.01,
+      "occupied": true,
+      "obstacleId": "GLB-33-23"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 41.11,
+      "occupied": true,
+      "obstacleId": "GLB-34-0"
+    },
+    {
+      "height": 33.94,
+      "occupied": true,
+      "obstacleId": "GLB-34-1"
+    },
+    {
+      "height": 5.76,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.78,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 30.78,
+      "occupied": true,
+      "obstacleId": "GLB-34-17"
+    },
+    {
+      "height": 0.77,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 7.49,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 19.56,
+      "occupied": true,
+      "obstacleId": "GLB-34-21"
+    },
+    {
+      "height": 27.1,
+      "occupied": true,
+      "obstacleId": "GLB-34-22"
+    },
+    {
+      "height": 20.71,
+      "occupied": true,
+      "obstacleId": "GLB-34-23"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 41.57,
+      "occupied": true,
+      "obstacleId": "GLB-35-0"
+    },
+    {
+      "height": 36.13,
+      "occupied": true,
+      "obstacleId": "GLB-35-1"
+    },
+    {
+      "height": 5.16,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 4.16,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 19.8,
+      "occupied": true,
+      "obstacleId": "GLB-35-21"
+    },
+    {
+      "height": 20.4,
+      "occupied": true,
+      "obstacleId": "GLB-35-22"
+    },
+    {
+      "height": 20.41,
+      "occupied": true,
+      "obstacleId": "GLB-35-23"
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 8.08,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 6.83,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 2.71,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 3.95,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.85,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ],
+  [
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 68.52,
+      "occupied": true,
+      "obstacleId": "GLB-39-5"
+    },
+    {
+      "height": 1.62,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 1.1,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 32.83,
+      "occupied": true,
+      "obstacleId": "GLB-39-16"
+    },
+    {
+      "height": 32.84,
+      "occupied": true,
+      "obstacleId": "GLB-39-17"
+    },
+    {
+      "height": 75.38,
+      "occupied": true,
+      "obstacleId": "GLB-39-18"
+    },
+    {
+      "height": 84.25,
+      "occupied": true,
+      "obstacleId": "GLB-39-19"
+    },
+    {
+      "height": 2.77,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0.59,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    },
+    {
+      "height": 0,
+      "occupied": false,
+      "obstacleId": null
+    }
+  ]
+]
