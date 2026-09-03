@@ -396,8 +396,12 @@ fetch('http://localhost:3001/api/mission/map')
 
         const peopleModels = ['../people/female2.glb'];
         
+        const spawnedSurvivors = new Map(); // Track by ID to avoid respawning
+        
         // Helper to load, perfectly auto-scale, and auto-center any messy model
-        function spawnPerson(worldX, worldZ, isTarget) {
+        function spawnPerson(worldX, worldZ, isTarget, survivorId = null) {
+            if (survivorId && spawnedSurvivors.has(survivorId)) return; // Already spawned
+            
             const randomModelPath = peopleModels[0];
             const loader = new GLTFLoader();
             
@@ -433,13 +437,14 @@ fetch('http://localhost:3001/api/mission/map')
                 // Add a very prominent red pillar to ALL females so they are easy to spot
                 const pillarGeo = new THREE.CylinderGeometry(0.8, 0.8, 120, 8); // much thicker and taller
                 const pillarMat = new THREE.MeshBasicMaterial({ 
-                    color: 0xff0000, transparent: true, opacity: 0.8 // very opaque and bright red
+                    color: isTarget ? 0x00ffcc : 0xff0000, transparent: true, opacity: 0.8 // target is cyan, hidden is red
                 });
                 const pillar = new THREE.Mesh(pillarGeo, pillarMat);
                 pillar.position.y = 60; 
                 wrapper.add(pillar);
                 
                 personGroup.add(wrapper);
+                if (survivorId) spawnedSurvivors.set(survivorId, wrapper);
                 
                 // Raycast downward to put them precisely on the street or roof!
                 function dropToGround() {
@@ -463,34 +468,29 @@ fetch('http://localhost:3001/api/mission/map')
             });
         }
         
-        // Spawn the Mission Targets
-        rawSurvivors.forEach(surv => {
-            const worldX = mapPyCoord(surv[0]);
-            const worldZ = mapPyCoord(surv[1]);
-            spawnPerson(worldX, worldZ, true); // true = isTarget
-        });
-
-        // Spawn 40 females in small, spaced-out clusters across the ENTIRE map
-        let remaining = 40;
-        while (remaining > 0) {
-            // Clusters of 1 to 3 people max
-            const clusterSize = Math.min(remaining, Math.floor(Math.random() * 3) + 1); 
-            
-            // Polar coordinates guarantee they spawn on the outskirts too, not just clustered in the center
-            const r = Math.sqrt(Math.random()) * (worldBoundary * 0.95); // Uniform distribution across circle
-            const theta = Math.random() * 2 * Math.PI;
-            const cx = r * Math.cos(theta);
-            const cz = r * Math.sin(theta);
-            
-            for (let i = 0; i < clusterSize; i++) {
-                // Ensure they don't hug! Keep them 3 to 8 units apart from the cluster center
-                const angle = (Math.PI * 2 / clusterSize) * i + Math.random();
-                const dist = 3 + Math.random() * 5; 
-                const rx = cx + Math.cos(angle) * dist;
-                const rz = cz + Math.sin(angle) * dist;
-                spawnPerson(rx, rz, false);
-            }
-            remaining -= clusterSize;
+        // Spawn the Mission Targets (only if we have a rawSurvivors array — real worldMap won't have this)
+        if (Array.isArray(rawSurvivors)) {
+            rawSurvivors.forEach((surv, idx) => {
+                const worldX = mapPyCoord(surv[0]);
+                const worldZ = mapPyCoord(surv[1]);
+                spawnPerson(worldX, worldZ, true, `RAW-${idx}`); // true = isTarget
+            });
+        }
+        
+        // Listen to Socket.IO for hiddenSurvivors updates
+        if (window.io) {
+            const socket = window.io('http://localhost:3001', {
+                transports: ['websocket', 'polling']
+            });
+            socket.on('telemetrySnapshot', (snapshot) => {
+                if (snapshot.hiddenSurvivors && Array.isArray(snapshot.hiddenSurvivors)) {
+                    snapshot.hiddenSurvivors.forEach(surv => {
+                        const worldX = surv.x; // Already in world coords
+                        const worldZ = surv.y; // Already in world coords
+                        spawnPerson(worldX, worldZ, false, surv.id);
+                    });
+                }
+            });
         }
     })
     .catch(err => console.error('Map data fetch error:', err));

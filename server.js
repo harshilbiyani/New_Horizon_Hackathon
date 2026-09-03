@@ -26,7 +26,15 @@ const SIM_CONFIG = JSON.parse(
 
 const app = express();
 app.use(cors({ origin: '*' }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '25mb' }));
+
+// ─── Prevent server from dying on any uncaught error ───────────────────────
+process.on('uncaughtException', (err) => {
+  console.error('[SERVER] Uncaught exception (server kept alive):', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[SERVER] Unhandled promise rejection (server kept alive):', reason);
+});
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -485,67 +493,75 @@ function startSimulationTick() {
   initZoneWaypoints();
   tickInterval = setInterval(() => {
     if (!simulationRunning) return;
+    try {
+      const activeDroneIds = drones.filter((d) => d.status === 'active').map((d) => d.id);
+      const missionState = {
+        waypointQueues,
+        obstacles,
+        allDroneIds: activeDroneIds,
+      };
 
-    const activeDroneIds = drones.filter((d) => d.status === 'active').map((d) => d.id);
-    const missionState = {
-      waypointQueues,
-      obstacles,
-      allDroneIds: activeDroneIds,
-    };
-
-    // STAGE 1+2: Decision → Actuation (per drone)
-    for (const drone of drones) {
-      if (drone.status === 'failed') continue;
-      const command = computeCommand(drone, currentWorldMap, missionState);   // STAGE 1 (decisionEngine)
-      applyActuation(drone, command);                                         // STAGE 2 (physics)
-    }
-
-    // STAGE 3A: Survivor detection (returns raw list — mesh decides delivery)
-    const rawDetections = detectSurvivors(drones, hiddenSurvivors, detectedSurvivorIds);
-
-    // STAGE 3B: Mesh connectivity + relay — replaces cosmetic buildMeshLinks
-    // Delivers detections only for drones with a path to BASE; queues the rest.
-    const { meshLinks: realMeshLinks, pendingFlush } = buildMeshState(
-      drones, SIM_CONFIG, rawDetections
-    );
-    // Store real mesh links so buildSnapshot() picks them up
-    _currentMeshLinks = realMeshLinks;
-
-    // Commit detections that made it through the mesh
-    for (const d of pendingFlush) {
-      foundSurvivors.unshift(d);
-      if (foundSurvivors.length > 120) foundSurvivors.length = 120;
-      pushAlert(
-        'critical',
-        `Survivor detected by ${d.droneId} at [${d.x.toFixed(1)}, ${d.y.toFixed(1)}]. ` +
-        `Confidence ${(d.confidence * 100).toFixed(0)}%.`
-      );
-      io.emit('survivorFound', d);
-    }
-
-    if (Math.random() < 0.08) {
-      pushAlert('info', 'Sector update complete. Adaptive reassignment initiated.');
-    }
-    if (Math.random() < 0.04) {
-      const lowBatteryDrone = drones.find((d) => d.battery < 25 && d.status === 'active');
-      if (lowBatteryDrone) {
-        pushAlert('warning', `${lowBatteryDrone.id} entering return path. Battery ${lowBatteryDrone.battery.toFixed(0)}%.`);
+      // STAGE 1+2: Decision → Actuation (per drone)
+      for (const drone of drones) {
+        if (drone.status === 'failed') continue;
+        const command = computeCommand(drone, currentWorldMap, missionState);
+        applyActuation(drone, command);
+        
+        // Apply GPS degradation if inside a denial zone
+        applyGpsUpdate(drone, TICK_MS, GPS_DENIAL_ZONES);
       }
-    }
 
-    const snapshot = buildSnapshot();
+      // STAGE 3A: Survivor detection
+      const rawDetections = detectSurvivors(drones, hiddenSurvivors, detectedSurvivorIds);
 
-    // Log tick to append-only JSONL file
-    if (currentMissionLogPath) {
-      try {
-        appendFileSync(currentMissionLogPath, JSON.stringify(snapshot) + '\n');
-      } catch (err) {
-        console.error('[LOGGER] Error writing tick log:', err);
+      // STAGE 3B: Mesh connectivity + relay
+      const meshResult = buildMeshState(drones, SIM_CONFIG, rawDetections);
+      const realMeshLinks = meshResult?.meshLinks ?? [];
+      const pendingFlush  = meshResult?.pendingFlush ?? [];
+      _currentMeshLinks = realMeshLinks;
+
+      for (const d of pendingFlush) {
+        foundSurvivors.unshift(d);
+        if (foundSurvivors.length > 120) foundSurvivors.length = 120;
+        pushAlert(
+          'critical',
+          `Survivor detected by ${d.droneId} at [${d.x.toFixed(1)}, ${d.y.toFixed(1)}]. ` +
+          `Confidence ${(d.confidence * 100).toFixed(0)}%.`
+        );
+        io.emit('survivorFound', d);
       }
-    }
 
-    emitSnapshot(snapshot);
+      if (Math.random() < 0.08) {
+        pushAlert('info', 'Sector update complete. Adaptive reassignment initiated.');
+      }
+      if (Math.random() < 0.04) {
+        const lowBatteryDrone = drones.find((d) => d.battery < 25 && d.status === 'active');
+        if (lowBatteryDrone) {
+          pushAlert('warning', `${lowBatteryDrone.id} entering return path. Battery ${lowBatteryDrone.battery.toFixed(0)}%.`);
+        }
+      }
+
+      const snapshot = buildSnapshot();
+
+      if (currentMissionLogPath) {
+        try {
+          appendFileSync(currentMissionLogPath, JSON.stringify(snapshot) + '\n');
+        } catch (err) {
+          console.error('[LOGGER] Error writing tick log:', err);
+        }
+      }
+
+      emitSnapshot(snapshot);
+    } catch (tickErr) {
+      console.error('[TICK] Error in simulation tick (skipped — server alive):', tickErr);
+    }
   }, TICK_MS);
+}
+
+// Helper — broadcast a snapshot (or build a fresh one) to all connected clients
+function emitSnapshot(snapshot) {
+  const s = snapshot ?? buildSnapshot();
+  io.emit('telemetrySnapshot', s);
 }
 
 // Emit snapshots even when paused so dashboard shows current state

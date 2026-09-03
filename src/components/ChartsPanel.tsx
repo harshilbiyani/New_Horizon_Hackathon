@@ -18,8 +18,8 @@ export default function ChartsPanel({ historyData, batteryHistory, drones }: Cha
       <h2 className="text-lg font-semibold text-gray-300">Coverage & Battery Analysis</h2>
       
       {/* Search Area Coverage Chart */}
-      <div className="min-h-[120px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="w-full" style={{ height: 120 }}>
+        <ResponsiveContainer width="100%" height={120}>
           <AreaChart data={historyData.length > 0 ? historyData : [{ time: '0', coverage: 0 }]} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="colorCover" x1="0" y1="0" x2="0" y2="1">
@@ -39,8 +39,8 @@ export default function ChartsPanel({ historyData, batteryHistory, drones }: Cha
       </div>
 
       {/* Battery trend chart */}
-      <div className="min-h-[100px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="w-full" style={{ height: 90 }}>
+        <ResponsiveContainer width="100%" height={90}>
           <AreaChart data={batteryHistory.length > 0 ? batteryHistory : [{ time: '0', battery: 0 }]} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="colorBattery" x1="0" y1="0" x2="0" y2="1">
