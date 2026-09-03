@@ -1,3 +1,4 @@
+# TODO: unused — not imported by ai_bridge.py. Wire in or remove before demo (Phase 4 decision).
 """
 A* Path Planner for Autonomous Drone Navigation
 Provides intelligent path planning with obstacle avoidance
@@ -374,3 +375,4 @@ if __name__ == "__main__":
         print(f"Diagnostics: {planner.get_diagnostics()}")
     else:
         print("No survivors found")
+

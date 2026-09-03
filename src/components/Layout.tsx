@@ -47,6 +47,14 @@ export default function Layout() {
           >
             XAI MATRIX
           </Link>
+          <Link
+            to="/replay"
+            className={`text-sm font-semibold tracking-wide border-b-2 transition-colors pb-1 ${
+              path === '/replay' ? 'border-[#00ffcc] text-white' : 'border-transparent text-gray-500 hover:text-white'
+            }`}
+          >
+            REPLAY
+          </Link>
         </div>
       </nav>
       <main className="flex-grow flex flex-col w-full relative">

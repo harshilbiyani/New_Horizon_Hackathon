@@ -1,3 +1,7 @@
+# UNUSED / FUTURE MODULE — Retained for architectural completeness.
+# Active live pipeline uses Node.js decision engine & Python ai_bridge.py
+
+# TODO: unused — not imported by ai_bridge.py. Wire in or remove before demo (Phase 4 decision).
 # survivor_detector.py
 
 import random
@@ -66,3 +70,4 @@ def detect_survivors(drone_id, drone_pos, survivors, radius=DETECTION_RADIUS):
             })
 
     return detections
+

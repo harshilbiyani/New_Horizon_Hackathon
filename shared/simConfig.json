@@ -1,0 +1,7 @@
+{
+  "WORLD_BOUNDARY": 350,
+  "GRID_SIZE": 40,
+  "DETECTION_RADIUS": 35,
+  "COMM_RANGE": 90,
+  "TICK_MS": 700
+}

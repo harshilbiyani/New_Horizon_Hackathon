@@ -2,123 +2,62 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import { spawnSync, spawn } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
+import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { applyGpsUpdate, GPS_DENIAL_ZONES } from './server/gpsModel.js';
+import { buildMeshState } from './server/meshNetwork.js';
+import { computeCommand } from './server/decisionEngine.js';
+import { buildZoneWaypoints } from './server/zonePlanner.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Ensure data and logs directories exist
+const DATA_DIR = path.join(__dirname, 'data');
+const LOGS_DIR = path.join(__dirname, 'logs');
+if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
+if (!existsSync(LOGS_DIR)) mkdirSync(LOGS_DIR, { recursive: true });
+
+// ─── Shared Config (single source of truth: shared/simConfig.json) ──────────
+const SIM_CONFIG = JSON.parse(
+  readFileSync(path.join(__dirname, 'shared', 'simConfig.json'), 'utf8')
+);
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+app.use(cors({ origin: '*' }));
+app.use(express.json({ limit: '10mb' }));
 
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
 });
 
-// ─── Config ────────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 3001;
-const PYTHON_EXECUTABLE = process.env.PYTHON_EXECUTABLE || 'python';
-const SIM_SERVER_SCRIPT = path.join(process.cwd(), 'simulation', 'sim_server.py');
-const AI_BRIDGE_SCRIPT = path.join(process.cwd(), 'simulation', 'ai_bridge.py');
-const TICK_MS = 300;          // default tick rate (overridden per scenario)
-const AI_INSIGHTS_TTL_MS = 2500;
+const WORLD_BOUNDARY = SIM_CONFIG.WORLD_BOUNDARY;
+const GRID_SIZE = SIM_CONFIG.GRID_SIZE;
+const TICK_MS = SIM_CONFIG.TICK_MS;
+const DRONE_DETECTION_RADIUS = SIM_CONFIG.DETECTION_RADIUS;
+const COMMUNICATION_RANGE = SIM_CONFIG.COMM_RANGE;
+const TOTAL_CELLS = GRID_SIZE * GRID_SIZE;
 
-// ─── Persistent Python bridge helper ─────────────────────────────────────────
-let pythonProc = null;
-let stdoutBuffer = '';
-const pendingQueue = [];
+// ─── World Map & Mission Logging Persistence State ───────────────────────────
+let currentWorldMap = null;
+const WORLD_MAP_FILE = path.join(DATA_DIR, 'worldMap.json');
 
-function ensurePythonProcess() {
-  if (pythonProc && !pythonProc.killed) return pythonProc;
-
-  pythonProc = spawn(PYTHON_EXECUTABLE, [SIM_SERVER_SCRIPT], {
-    stdio: ['pipe', 'pipe', 'inherit'],
-    env: process.env,
-  });
-
-  stdoutBuffer = '';
-
-  pythonProc.stdout.on('data', (chunk) => {
-    stdoutBuffer += chunk.toString();
-    const lines = stdoutBuffer.split('\n');
-    stdoutBuffer = lines.pop(); // keep remainder
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      try {
-        const parsed = JSON.parse(trimmed);
-        const next = pendingQueue.shift();
-        if (next) {
-          next.resolve(parsed);
-        }
-      } catch (err) {
-        console.error('[Python Stdout Parse Error]:', err, trimmed);
-      }
-    }
-  });
-
-  pythonProc.on('error', (err) => {
-    console.error('[Python Process Error]:', err);
-    while (pendingQueue.length) {
-      pendingQueue.shift().resolve({ ok: false, error: err.message });
-    }
-  });
-
-  pythonProc.on('exit', (code) => {
-    console.log('[Python Process Exit]:', code);
-    pythonProc = null;
-    while (pendingQueue.length) {
-      pendingQueue.shift().resolve({ ok: false, error: 'Process exited' });
-    }
-  });
-
-  return pythonProc;
-}
-
-function sendPythonCommand(cmd, timeoutMs = 3000) {
-  return new Promise((resolve) => {
-    try {
-      const proc = ensurePythonProcess();
-      const timer = setTimeout(() => {
-        const idx = pendingQueue.findIndex(item => item.resolve === resolve);
-        if (idx !== -1) {
-          pendingQueue.splice(idx, 1);
-        }
-        resolve({ ok: false, error: 'Python bridge timeout' });
-      }, timeoutMs);
-
-      pendingQueue.push({
-        resolve: (val) => {
-          clearTimeout(timer);
-          resolve(val);
-        }
-      });
-
-      proc.stdin.write(JSON.stringify(cmd) + '\n');
-    } catch (err) {
-      resolve({ ok: false, error: err.message });
-    }
-  });
-}
-
-function callPythonSync(script, payload, timeoutMs = 2000) {
+// Boot check: load cached worldMap if present
+if (existsSync(WORLD_MAP_FILE)) {
   try {
-    const result = spawnSync(PYTHON_EXECUTABLE, [script], {
-      input: JSON.stringify(payload),
-      encoding: 'utf8',
-      timeout: timeoutMs,
-      maxBuffer: 4 * 1024 * 1024,
-    });
-    if (result.error || result.status !== 0) {
-      return { ok: false, error: result.stderr || result.error?.message || 'python error' };
-    }
-    return JSON.parse(result.stdout || '{}');
+    currentWorldMap = JSON.parse(readFileSync(WORLD_MAP_FILE, 'utf8'));
+    console.log(`[BOOT] Loaded cached 3D city worldMap from disk (${WORLD_MAP_FILE})`);
   } catch (err) {
-    return { ok: false, error: String(err) };
+    console.error('[BOOT] Failed to load worldMap.json:', err);
   }
 }
 
-// ─── Simulation state (now driven by Python) ───────────────────────────────
+let currentMissionId = null;
+let currentMissionLogPath = null;
+
+// --- Simulation State (mutable, resettable) ---
 let simulationRunning = false;
 let startedAt = null;
 let currentTickMs = TICK_MS;
@@ -130,15 +69,153 @@ let currentSeed = 42;
 let lastSnapshot = null;
 let aiInsightsCache = null;
 let aiInsightsCacheAt = 0;
+let _currentMeshLinks = []; // Updated each tick by meshNetwork.buildMeshState
 
-// ─── Python simulation calls ───────────────────────────────────────────────
-async function pyInit(scenarioId = null, seed = 42) {
-  const result = await sendPythonCommand({ action: 'snapshot' }, 5000);
-  if (result.ok || result.step !== undefined) {
-    lastSnapshot = result;
-    console.log(`[Python sim] Initialized OK — step=${result.step ?? 0}`);
-  } else {
-    console.warn('[Python sim] Init warning:', result.error);
+// Config defaults
+let simConfig = {
+  droneCount: 5,
+  battery: 100,
+  startPositions: [],  // auto-distributed if empty
+};
+
+function buildObstacleField() {
+  const rng = seededRandom(91357);
+  const out = [];
+  let idCounter = 1;
+  const obstacleKinds = ['boulder_field', 'deadwood', 'ruin_tower', 'wall_segment', 'vehicle_wreck'];
+
+  // Hard barriers to force realistic pathing pressure around edges and valleys.
+  const ridgeBands = [
+    { x: -98, y: -42, count: 16, spreadX: 46, spreadY: 24, severity: 'high' },
+    { x: 76, y: 58, count: 14, spreadX: 42, spreadY: 28, severity: 'high' },
+    { x: 18, y: -92, count: 12, spreadX: 46, spreadY: 22, severity: 'medium' },
+  ];
+
+  ridgeBands.forEach((band) => {
+    for (let i = 0; i < band.count; i++) {
+      out.push({
+        id: `OBS-${String(idCounter++).padStart(3, '0')}`,
+        x: band.x + (rng() - 0.5) * band.spreadX,
+        y: band.y + (rng() - 0.5) * band.spreadY,
+        radius: Number((10 + rng() * 11).toFixed(2)),
+        height: Number(randomBetween(150, 380).toFixed(2)), // Taller to match city
+        severity: band.severity,
+        kind: obstacleKinds[Math.floor(rng() * obstacleKinds.length)],
+      });
+    }
+  });
+
+  // Scatter medium/low debris across the map with center exclusion for launch zone.
+  while (out.length < 96) {
+    const x = randomBetween(-WORLD_BOUNDARY + 10, WORLD_BOUNDARY - 10);
+    const y = randomBetween(-WORLD_BOUNDARY + 10, WORLD_BOUNDARY - 10);
+    const centerDist = Math.sqrt(x * x + y * y);
+    if (centerDist < 28) continue;
+
+    const p = rng();
+    const severity = p < 0.2 ? 'high' : p < 0.62 ? 'medium' : 'low';
+    const radius = severity === 'high'
+      ? randomBetween(12, 22)
+      : severity === 'medium'
+        ? randomBetween(8, 15)
+        : randomBetween(5, 10);
+
+    out.push({
+      id: `OBS-${String(idCounter++).padStart(3, '0')}`,
+      x: Number(x.toFixed(2)),
+      y: Number(y.toFixed(2)),
+      radius: Number(radius.toFixed(2)),
+      height: Number(randomBetween(150, 380).toFixed(2)), // Taller to match city
+      severity,
+      kind: obstacleKinds[Math.floor(rng() * obstacleKinds.length)],
+    });
+  }
+
+  return out;
+}
+
+let obstacles = buildObstacleField();
+
+let hiddenSurvivors = [
+  { id: 'HSV-001', x: -175, y: 49, severity: 'critical' },
+  { id: 'HSV-002', x: 98, y: 161, severity: 'stable' },
+  { id: 'HSV-003', x: 259, y: -91, severity: 'critical' },
+  { id: 'HSV-004', x: -42, y: -266, severity: 'stable' },
+  { id: 'HSV-005', x: 10, y: 7, severity: 'unknown' },
+];
+
+const AI_INSIGHTS_TTL_MS = 2500;
+const AI_BRIDGE_SCRIPT = path.join(process.cwd(), 'simulation', 'ai_bridge.py');
+const PYTHON_EXECUTABLE = process.env.PYTHON_EXECUTABLE || 'python';
+
+// --- Helpers ---
+function randomBetween(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function worldToCellCoord(value) {
+  const normalized = (value + WORLD_BOUNDARY) / (WORLD_BOUNDARY * 2);
+  return clamp(Math.floor(normalized * GRID_SIZE), 0, GRID_SIZE - 1);
+}
+
+// --- Drone Factory ---
+function createDrone(index, x, y, heading, battery) {
+  return {
+    id: `DRN-${String(index + 1).padStart(3, '0')}`,
+    x,
+    y,
+    z: randomBetween(60, 130),
+    targetZ: randomBetween(60, 130),
+    heading,
+    targetHeading: heading,
+    speed: randomBetween(35, 60),
+    targetSpeed: randomBetween(35, 60),
+    task: 'idle',
+    status: 'active',
+    battery: battery,
+    signalStrength: randomBetween(75, 99),
+    distanceTraveled: 0,
+    lastSeen: new Date().toISOString(),
+    trail: [{ x, y }],
+    gpsMode: 'gps',
+    positionUncertainty: 0,
+    relayPath: null,
+  };
+}
+
+function generateStartPositions(count) {
+  const positions = [];
+  const angleStep = (2 * Math.PI) / count;
+  for (let i = 0; i < count; i++) {
+    const angle = angleStep * i;
+    // Spread drones randomly across the whole map instead of central cluster
+    const radius = randomBetween(20, WORLD_BOUNDARY * 0.9);
+    positions.push({
+      x: Math.cos(angle) * radius,
+      y: Math.sin(angle) * radius,
+      heading: (angle * 180) / Math.PI,
+    });
+  }
+  return positions;
+}
+
+function initDrones(config) {
+  const count = clamp(config.droneCount || 5, 1, 10);
+  const battery = clamp(config.battery || 100, 10, 100);
+  let positions = config.startPositions || [];
+
+  if (positions.length < count) {
+    positions = generateStartPositions(count);
+  }
+
+  drones = [];
+  for (let i = 0; i < count; i++) {
+    const pos = positions[i] || { x: 0, y: 0, heading: 0 };
+    drones.push(createDrone(i, pos.x, pos.y, pos.heading, battery));
   }
 }
 
@@ -154,66 +231,278 @@ async function pyStep() {
   return lastSnapshot;
 }
 
-async function pyStart(scenarioId, seed) {
-  return await sendPythonCommand({ action: 'start', scenario_id: scenarioId, seed }, 3000);
-}
+// ═════════════════════════════════════════════════════════════════════════════
+//  TICK LOOP — Three distinct, swappable stages
+// ═════════════════════════════════════════════════════════════════════════════
 
-async function pyStop() {
-  return await sendPythonCommand({ action: 'stop' }, 2000);
-}
+// ─── STAGE 1: Decision Engine ─────────────────────────────────────────────────
+//
+// TODO(Person B): replace stubDecisionEngine with:
+//   import { computeCommand } from './server/decisionEngine.js'
+// once decisionEngine.test.js passes all fixtures.
+// The swap is a single call-site change — nothing in applyActuation changes.
+//
+function stubDecisionEngine(drone) {
+  let task = 'exploring';
+  let targetHeading = (drone.targetHeading + randomBetween(-10, 10) + 360) % 360;
+  let targetSpeed = clamp(drone.targetSpeed + randomBetween(-1.2, 1.2), 8, 21);
+  let targetZ = clamp(drone.targetZ + randomBetween(-4, 4), 60, 130);
 
-async function pyReset(scenarioId, seed) {
-  return await sendPythonCommand({ action: 'reset', scenario_id: scenarioId, seed }, 3000);
-}
-
-async function pySetGpsDenied(enabled) {
-  return await sendPythonCommand({ action: 'set_gps_denied', enabled }, 2000);
-}
-
-async function pyGetScenarios() {
-  const result = await sendPythonCommand({ action: 'scenarios' }, 3000);
-  return result?.scenarios || [];
-}
-
-// ─── AI Insights ────────────────────────────────────────────────────────────
-function getAiInsights(snapshot) {
-  const now = Date.now();
-  if (aiInsightsCache && now - aiInsightsCacheAt < AI_INSIGHTS_TTL_MS) {
-    return aiInsightsCache;
+  if (drone.battery < 22) {
+    task = 'returning';
   }
-  const result = callPythonSync(AI_BRIDGE_SCRIPT, snapshot, 1800);
-  aiInsightsCache = result?.ok ? { ...result, source: 'python-ai-bridge' } : buildFallbackAiInsights(snapshot);
-  aiInsightsCacheAt = now;
-  return aiInsightsCache;
+
+  // Obstacle avoidance — find nearest obstacle and steer away
+  let nearest = null;
+  let nearestDist = Number.POSITIVE_INFINITY;
+  for (const obs of obstacles) {
+    const dx = drone.x - obs.x;
+    const dy = drone.y - obs.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < nearestDist) { nearestDist = dist; nearest = obs; }
+  }
+
+  let reason = task === 'returning' ? 'low-battery-rtb' : 'autonomous-sweep';
+
+  if (nearest) {
+    const cautionRadius = nearest.radius + 12;
+    const clearanceZ = nearest.height + 25;
+
+    if (nearestDist < cautionRadius && drone.z < clearanceZ) {
+      const awayAngle = (Math.atan2(drone.y - nearest.y, drone.x - nearest.x) * 180) / Math.PI;
+      const blend = nearestDist < nearest.radius + 3 ? 0.78 : 0.42;
+      targetHeading = ((1 - blend) * targetHeading + blend * awayAngle + 360) % 360;
+      targetSpeed = clamp(targetSpeed * 0.82, 7, 16);
+      targetZ = Math.max(targetZ, clearanceZ + 5);
+      task = 'evading';
+      reason = 'obstacle-avoidance';
+    }
+  }
+
+  return {
+    droneId: drone.id,
+    targetHeading,
+    targetSpeed,
+    targetZ,
+    task,
+    reason,
+    priority: task === 'evading' ? 'high' : 'normal',
+    issuedAt: new Date().toISOString(),
+    issuedBy: 'stub',
+  };
 }
 
-function buildFallbackAiInsights(snapshot) {
-  const drones = snapshot?.drones || [];
-  const active = drones.filter(d => d.status === 'active').length;
-  const failed = drones.length - active;
-  const avgBattery = drones.length ? drones.reduce((s, d) => s + (d.battery || 0), 0) / drones.length : 0;
-  const suggestions = [];
-  if (failed > 0) suggestions.push('RETURN_FAILED_UNITS');
-  if (avgBattery < 28) suggestions.push('ROTATE_LOW_BATTERY_DRONES');
-  if ((snapshot?.foundSurvivors?.length || 0) > 0) suggestions.push('PRIORITIZE_MEDICAL_EXTRACTION_ZONE');
-  if (!suggestions.length) suggestions.push('CONTINUE_AUTONOMOUS_SWEEP');
+// ─── STAGE 2: Actuation Layer ─────────────────────────────────────────────────
+// Pure physics — applies a Command and steps the drone's state forward one tick.
+// No decisions made here; no obstacle arrays read here.
+//
+function applyActuation(drone, command) {
+  drone.targetHeading = command.targetHeading ?? drone.targetHeading;
+  drone.targetSpeed = command.targetSpeed ?? drone.targetSpeed;
+  drone.targetZ = command.targetZ ?? drone.targetZ;
+  drone.task = command.task ?? drone.task;
+
+  const speedMultiplier = drone.task === 'returning' ? 1.3 : 1;
+
+  // 1. Turn Rate Cap (max 25°/tick)
+  let turnDiff = (drone.targetHeading - drone.heading + 360) % 360;
+  if (turnDiff > 180) turnDiff -= 360;
+  drone.heading = (drone.heading + clamp(turnDiff, -25, 25) + 360) % 360;
+
+  // 2. Acceleration Cap (max 3.5 units/tick)
+  drone.speed = clamp(drone.targetSpeed, drone.speed - 3.5, drone.speed + 3.5);
+
+  // 3. Climb/Descent Rate Cap (max 12 units/tick)
+  drone.z = clamp(drone.targetZ, drone.z - 12, drone.z + 12);
+
+  // 4. Position advance
+  const distanceStep = (drone.speed * speedMultiplier * TICK_MS) / 1000;
+  const radians = (drone.heading * Math.PI) / 180;
+  const previousX = drone.x;
+  const previousY = drone.y;
+  drone.x += Math.cos(radians) * distanceStep;
+  drone.y += Math.sin(radians) * distanceStep;
+
+  // 5. Boundary bounce
+  if (drone.x < -WORLD_BOUNDARY || drone.x > WORLD_BOUNDARY) {
+    drone.targetHeading = (180 - drone.heading + 360) % 360;
+    drone.x = clamp(drone.x, -WORLD_BOUNDARY, WORLD_BOUNDARY);
+  }
+  if (drone.y < -WORLD_BOUNDARY || drone.y > WORLD_BOUNDARY) {
+    drone.targetHeading = (360 - drone.heading + 360) % 360;
+    drone.y = clamp(drone.y, -WORLD_BOUNDARY, WORLD_BOUNDARY);
+  }
+
+  // 6. Odometer
+  const actualDx = drone.x - previousX;
+  const actualDy = drone.y - previousY;
+  drone.distanceTraveled += Math.sqrt(actualDx * actualDx + actualDy * actualDy);
+
+  // 7. Battery drain
+  drone.battery = clamp(drone.battery - randomBetween(0.2, 0.8), 0, 100);
+
+  // 8. Signal degrade
+  drone.signalStrength = clamp(
+    95 - (Math.abs(drone.x) + Math.abs(drone.y)) / 3 + randomBetween(-2.5, 2.5),
+    28, 99
+  );
+
+  // 9. GPS mode — geographic denial zones override signal-strength heuristic
+  applyGpsUpdate(drone, TICK_MS, GPS_DENIAL_ZONES);
+
+  // 10. Failure check
+  if (drone.battery <= 1 && drone.status === 'active') {
+    drone.status = 'failed';
+    drone.task = 'idle';
+    pushAlert('warning', `${drone.id} battery depleted. Drone marked as failed.`);
+  }
+
+  // 11. Coverage tracking
+  if (drone.status === 'active') {
+    scannedCells.add(`${worldToCellCoord(drone.x)}:${worldToCellCoord(drone.y)}`);
+  }
+
+  // 12. Trail
+  drone.trail.push({ x: drone.x, y: drone.y });
+  if (drone.trail.length > 40) drone.trail.shift();
+  drone.lastSeen = new Date().toISOString();
+}
+
+// ─── STAGE 3A: Survivor Detection (pure — no global mutation) ─────────────────
+function detectSurvivors(droneStates, survivors, alreadyDetectedIds) {
+  const newDetections = [];
+  for (const drone of droneStates) {
+    if (drone.status !== 'active') continue;
+    for (const survivor of survivors) {
+      if (alreadyDetectedIds.has(survivor.id)) continue;
+      const dx = drone.x - survivor.x;
+      const dy = drone.y - survivor.y;
+      if (Math.sqrt(dx * dx + dy * dy) <= DRONE_DETECTION_RADIUS) {
+        alreadyDetectedIds.add(survivor.id);
+        newDetections.push({
+          id: `SURV-${Math.floor(Math.random() * 100000)}`,
+          sourceId: survivor.id,
+          x: survivor.x,
+          y: survivor.y,
+          timestamp: new Date().toISOString(),
+          confidence: clamp(0.7 + Math.random() * 0.29, 0, 0.99),
+          droneId: drone.id,
+        });
+      }
+    }
+  }
+  return newDetections;
+}
+
+// ─── STAGE 3B: Mesh Links (pure) ─────────────────────────────────────────────
+function buildMeshLinks(droneStates) {
+  const links = [];
+  for (let i = 0; i < droneStates.length; i++) {
+    const a = droneStates[i];
+    for (let j = i + 1; j < droneStates.length; j++) {
+      const b = droneStates[j];
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > COMMUNICATION_RANGE) continue;
+      links.push({
+        from: a.id,
+        to: b.id,
+        distance: Number(dist.toFixed(2)),
+        signal: Number(Math.max(0.1, 1 - (dist / COMMUNICATION_RANGE) * 0.9).toFixed(2)),
+      });
+    }
+  }
+  return links;
+}
+
+function buildMissionData() {
+  const activeDrones = drones.filter((d) => d.status === 'active').length;
+  const failedDrones = drones.length - activeDrones;
+  const avgBattery   = drones.length ? drones.reduce((s, d) => s + d.battery, 0) / drones.length : 0;
+  const avgSignal    = drones.length ? drones.reduce((s, d) => s + d.signalStrength, 0) / drones.length : 0;
+  const elapsedMs    = startedAt ? Date.now() - startedAt : 0;
   return {
-    ok: true, source: 'node-fallback',
-    health: { total_drones: drones.length, healthy: active, failed, health_pct: drones.length ? (active / drones.length * 100).toFixed(1) : 0 },
-    missionStats: { detections: snapshot?.new_detections?.length || 0 },
-    topZones: [],
-    assignments: [],
-    commandSuggestions: suggestions,
+    coverage: Math.round((scannedCells.size / TOTAL_CELLS) * 100),
+    scannedCells: Array.from(scannedCells),
+    totalCells: TOTAL_CELLS,
+    activeDrones,
+    failedDrones,
+    avgBattery: Number(avgBattery.toFixed(1)),
+    avgSignal: Number(avgSignal.toFixed(1)),
+    foundSurvivors: foundSurvivors.length,
+    missionTimeSec: Math.floor(elapsedMs / 1000),
   };
+}
+
+function buildSnapshot() {
+  return {
+    timestamp: new Date().toISOString(),
+    simulationRunning,
+    missionId: currentMissionId,
+    config: simConfig,
+    missionData: buildMissionData(),
+    drones,
+    foundSurvivors,
+    alerts,
+    obstacles,
+    hiddenSurvivors,
+    meshLinks: _currentMeshLinks,
+    gpsDenialZones: GPS_DENIAL_ZONES,
+    worldMap: currentWorldMap,
+  };
+}
+
+let waypointQueues = new Map();
+
+function initZoneWaypoints() {
+  const activeIds = drones.filter((d) => d.status === 'active').map((d) => d.id);
+  waypointQueues = buildZoneWaypoints(activeIds, currentWorldMap, SIM_CONFIG);
 }
 
 // ─── Tick loop ───────────────────────────────────────────────────────────────
 function startTick() {
   if (tickInterval) clearInterval(tickInterval);
-  tickInterval = setInterval(async () => {
+  initZoneWaypoints();
+  tickInterval = setInterval(() => {
     if (!simulationRunning) return;
-    const snapshot = await pyStep();
-    if (!snapshot) return;
+
+    const activeDroneIds = drones.filter((d) => d.status === 'active').map((d) => d.id);
+    const missionState = {
+      waypointQueues,
+      obstacles,
+      allDroneIds: activeDroneIds,
+    };
+
+    // STAGE 1+2: Decision → Actuation (per drone)
+    for (const drone of drones) {
+      if (drone.status === 'failed') continue;
+      const command = computeCommand(drone, currentWorldMap, missionState);   // STAGE 1 (decisionEngine)
+      applyActuation(drone, command);                                         // STAGE 2 (physics)
+    }
+
+    // STAGE 3A: Survivor detection (returns raw list — mesh decides delivery)
+    const rawDetections = detectSurvivors(drones, hiddenSurvivors, detectedSurvivorIds);
+
+    // STAGE 3B: Mesh connectivity + relay — replaces cosmetic buildMeshLinks
+    // Delivers detections only for drones with a path to BASE; queues the rest.
+    const { meshLinks: realMeshLinks, pendingFlush } = buildMeshState(
+      drones, SIM_CONFIG, rawDetections
+    );
+    // Store real mesh links so buildSnapshot() picks them up
+    _currentMeshLinks = realMeshLinks;
+
+    // Commit detections that made it through the mesh
+    for (const d of pendingFlush) {
+      foundSurvivors.unshift(d);
+      if (foundSurvivors.length > 120) foundSurvivors.length = 120;
+      pushAlert(
+        'critical',
+        `Survivor detected by ${d.droneId} at [${d.x.toFixed(1)}, ${d.y.toFixed(1)}]. ` +
+        `Confidence ${(d.confidence * 100).toFixed(0)}%.`
+      );
+      io.emit('survivorFound', d);
+    }
 
     // Build enriched payload for frontend
     const payload = buildFrontendPayload(snapshot);
@@ -224,14 +513,19 @@ function startTick() {
     io.emit('lidarCloud', payload.lidar_cloud);
     io.emit('aiInsights', getAiInsights(snapshot));
 
-    // Stop loop if Python sim finished
-    if (snapshot.running === false) {
-      simulationRunning = false;
-      clearInterval(tickInterval);
-      tickInterval = null;
-      io.emit('missionComplete', { step: snapshot.step });
+    const snapshot = buildSnapshot();
+
+    // Log tick to append-only JSONL file
+    if (currentMissionLogPath) {
+      try {
+        appendFileSync(currentMissionLogPath, JSON.stringify(snapshot) + '\n');
+      } catch (err) {
+        console.error('[LOGGER] Error writing tick log:', err);
+      }
     }
-  }, currentTickMs);
+
+    emitSnapshot(snapshot);
+  }, TICK_MS);
 }
 
 function stopTick() {
@@ -353,7 +647,9 @@ io.on('connection', socket => {
   socket.on('disconnect', () => console.log('Client disconnected:', socket.id));
 });
 
-// ─── REST API ─────────────────────────────────────────────────────────────────
+// --- REST API ---
+app.get('/api/config', (_req, res) => res.json(SIM_CONFIG));
+
 app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'droneshield', timestamp: new Date().toISOString() });
 });
@@ -364,7 +660,51 @@ app.get('/api/mission/snapshot', async (_req, res) => {
 });
 
 app.get('/api/mission/status', (_req, res) => {
-  res.json({ simulationRunning, scenario_id: currentScenarioId, seed: currentSeed });
+  res.json({ simulationRunning, config: simConfig, missionId: currentMissionId });
+});
+
+// GET /api/mission/logs - list available mission log files
+app.get('/api/mission/logs', (_req, res) => {
+  try {
+    const files = readdirSync(LOGS_DIR)
+      .filter(f => f.endsWith('.jsonl'))
+      .sort((a, b) => b.localeCompare(a));
+    const logList = files.map(f => {
+      const logPath = path.join(LOGS_DIR, f);
+      const stat = existsSync(logPath) ? readFileSync(logPath, 'utf8').split('\n').length - 1 : 0;
+      return {
+        id: f.replace('.jsonl', ''),
+        filename: f,
+        ticks: stat,
+      };
+    });
+    res.json({ ok: true, logs: logList });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/mission/history/:id - read past mission JSONL log file
+app.get('/api/mission/history/:id', (req, res) => {
+  try {
+    const rawId = req.params.id;
+    const filename = rawId.endsWith('.jsonl') ? rawId : `${rawId}.jsonl`;
+    const logPath = path.join(LOGS_DIR, filename);
+
+    if (!existsSync(logPath)) {
+      return res.status(404).json({ error: `Mission log '${filename}' not found` });
+    }
+
+    const content = readFileSync(logPath, 'utf8');
+    const ticks = content
+      .split('\n')
+      .filter(line => line.trim().length > 0)
+      .map(line => JSON.parse(line));
+
+    res.json({ ok: true, missionId: rawId, ticksCount: ticks.length, ticks });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/mission/ai-insights', (_req, res) => {
@@ -380,11 +720,18 @@ app.get('/api/scenarios', async (_req, res) => {
 
 // Configure simulation
 app.post('/api/mission/configure', (req, res) => {
-  if (simulationRunning) return res.status(400).json({ error: 'Stop simulation first.' });
-  const { scenario_id, seed } = req.body || {};
-  if (scenario_id) currentScenarioId = scenario_id;
-  if (seed) currentSeed = Number(seed);
-  res.json({ ok: true, scenario_id: currentScenarioId, seed: currentSeed });
+  if (simulationRunning) {
+    return res.status(400).json({ error: 'Cannot configure while simulation is running. Stop first.' });
+  }
+
+  const { droneCount, battery, startPositions } = req.body;
+  if (droneCount !== undefined) simConfig.droneCount = clamp(Number(droneCount), 1, 10);
+  if (battery !== undefined) simConfig.battery = clamp(Number(battery), 10, 100);
+  if (startPositions) simConfig.startPositions = startPositions;
+
+  initDrones(simConfig);
+  console.log(`Configured: ${simConfig.droneCount} drones, battery ${simConfig.battery}%`);
+  res.json({ ok: true, config: simConfig, drones: drones.length });
 });
 
 // Start simulation
@@ -398,11 +745,25 @@ app.post('/api/mission/start', async (req, res) => {
   if (!result?.ok && result?.error) {
     return res.status(500).json({ error: result.error });
   }
+
+  // Reset state but keep config
+  detectedSurvivorIds = new Set();
+  foundSurvivors = [];
+  alerts = [];
+  scannedCells = new Set();
+  initDrones(simConfig);
+
   simulationRunning = true;
   startedAt = Date.now();
-  startTick();
-  console.log(`[Sim] STARTED — scenario=${currentScenarioId} seed=${currentSeed}`);
-  res.json({ ok: true, message: 'Simulation started', scenario_id: currentScenarioId });
+  currentMissionId = `mission_${startedAt}`;
+  currentMissionLogPath = path.join(LOGS_DIR, `${currentMissionId}.jsonl`);
+
+  drones.forEach(d => { d.task = 'exploring'; });
+  pushAlert('info', `Mission started with ${drones.length} drones. Log: ${currentMissionId}.jsonl`);
+  startSimulationTick();
+
+  console.log(`Simulation STARTED (Log: ${currentMissionId}.jsonl)`);
+  res.json({ ok: true, message: 'Simulation started', missionId: currentMissionId });
 });
 
 // Stop simulation
@@ -428,12 +789,164 @@ app.post('/api/mission/reset', async (req, res) => {
   res.json({ ok: true, message: 'Simulation reset' });
 });
 
-// Toggle GPS-denied mode
-app.post('/api/mission/gps-denied', async (req, res) => {
-  const { enabled } = req.body || {};
-  const result = await pySetGpsDenied(!!enabled);
-  res.json({ ok: true, gps_denied: !!enabled, ...result });
+// Dynamic Mesh Synchronization (Frontend sends physical GLB boundaries)
+app.post('/api/mission/set-obstacles', (req, res) => {
+  if (req.body && Array.isArray(req.body.obstacles)) {
+    obstacles = req.body.obstacles;
+    console.log(`[PHYSICS SYNC] Received ${obstacles.length} physical building collisions from frontend scanner.`);
+    res.json({ ok: true, count: obstacles.length });
+  } else {
+    res.status(400).json({ error: 'invalid format' });
+  }
 });
+
+// POST /api/mission/world-map - Receive full occupancy grid from GLB scanner and persist to disk
+app.post('/api/mission/world-map', (req, res) => {
+  if (req.body && Array.isArray(req.body.worldMap)) {
+    currentWorldMap = req.body.worldMap;
+    initZoneWaypoints();
+    try {
+      writeFileSync(WORLD_MAP_FILE, JSON.stringify(currentWorldMap, null, 2), 'utf8');
+      console.log(`[WORLD MAP SYNC] Saved ${currentWorldMap.length}x${currentWorldMap[0]?.length || 0} occupancy grid to ${WORLD_MAP_FILE}`);
+      res.json({ ok: true, saved: true, file: WORLD_MAP_FILE });
+    } catch (err) {
+      console.error('[WORLD MAP SYNC] Failed to write worldMap.json:', err);
+      res.status(500).json({ error: 'Failed to write to disk' });
+    }
+  } else {
+    res.status(400).json({ error: 'invalid worldMap format' });
+  }
+});
+
+// POST /api/mission/survivor-positions - Receive real 3D scene survivor positions placed on unoccupied ground
+app.post('/api/mission/survivor-positions', (req, res) => {
+  if (req.body && Array.isArray(req.body.survivors) && req.body.survivors.length > 0) {
+    hiddenSurvivors = req.body.survivors;
+    console.log(`[SURVIVOR SYNC] Updated ${hiddenSurvivors.length} real 3D survivor positions on unoccupied ground cells.`);
+    res.json({ ok: true, count: hiddenSurvivors.length });
+  } else {
+    res.status(400).json({ error: 'invalid survivors format' });
+  }
+});
+
+// --- Procedural Height Map Generation ---
+let cachedMapData = null;
+
+function seededRandom(seed) {
+  let s = seed % 2147483647;
+  if (s <= 0) s += 2147483646;
+  return () => {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+function generatePerlinLikeNoise(width, height, seed) {
+  const rng = seededRandom(seed);
+  const permutation = Array.from({ length: 256 }, (_, i) => i);
+  for (let i = 255; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [permutation[i], permutation[j]] = [permutation[j], permutation[i]];
+  }
+  const perm = [...permutation, ...permutation];
+
+  function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+  function lerp(a, b, t) { return a + t * (b - a); }
+  function grad(hash, x, y) {
+    const h = hash & 3;
+    const u = h < 2 ? x : y;
+    const v = h < 2 ? y : x;
+    return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+  }
+
+  function noise2D(x, y) {
+    const xi = Math.floor(x) & 255;
+    const yi = Math.floor(y) & 255;
+    const xf = x - Math.floor(x);
+    const yf = y - Math.floor(y);
+    const u = fade(xf);
+    const v = fade(yf);
+    const aa = perm[perm[xi] + yi];
+    const ab = perm[perm[xi] + yi + 1];
+    const ba = perm[perm[xi + 1] + yi];
+    const bb = perm[perm[xi + 1] + yi + 1];
+    return lerp(
+      lerp(grad(aa, xf, yf), grad(ba, xf - 1, yf), u),
+      lerp(grad(ab, xf, yf - 1), grad(bb, xf - 1, yf - 1), u),
+      v
+    );
+  }
+
+  const heightMap = [];
+  for (let y = 0; y < height; y++) {
+    const row = [];
+    for (let x = 0; x < width; x++) {
+      let value = 0;
+      let amplitude = 1;
+      let frequency = 0.02;
+      let maxAmp = 0;
+      for (let octave = 0; octave < 6; octave++) {
+        value += noise2D(x * frequency + 0.5, y * frequency + 0.5) * amplitude;
+        maxAmp += amplitude;
+        amplitude *= 0.5;
+        frequency *= 2.1;
+      }
+      value = value / maxAmp;
+      const cx = (x / width - 0.5) * 2;
+      const cy = (y / height - 0.5) * 2;
+      const dist = Math.sqrt(cx * cx + cy * cy);
+      const falloff = 1.0 - Math.min(1.0, dist * 0.7);
+      value = value * 0.5 + 0.5;
+      value *= falloff;
+      const worldHeight = value * 85;
+      row.push(Math.round(worldHeight * 100) / 100);
+    }
+    heightMap.push(row);
+  }
+  return heightMap;
+}
+
+function getMapData() {
+  if (currentWorldMap && Array.isArray(currentWorldMap) && currentWorldMap.length > 0) {
+    const gridSize = currentWorldMap.length;
+    const heightMap = [];
+    for (let x = 0; x < gridSize; x++) {
+      const row = [];
+      for (let y = 0; y < gridSize; y++) {
+        row.push(currentWorldMap[x]?.[y]?.height || 0);
+      }
+      heightMap.push(row);
+    }
+    return {
+      worldMap: currentWorldMap,
+      heightMap,
+      gridSize,
+      worldBoundary: WORLD_BOUNDARY,
+      isRealWorldMap: true,
+    };
+  }
+
+  if (cachedMapData) return cachedMapData;
+  const mapWidth = 64;
+  const mapHeight = 64;
+  const mapSeed = 42;
+  const heightMap = generatePerlinLikeNoise(mapWidth, mapHeight, mapSeed);
+
+  const rng = seededRandom(mapSeed + 7);
+  const rawSurvivors = [];
+  for (let i = 0; i < 8; i++) {
+    let sx, sy, attempts = 0;
+    do {
+      sx = Math.floor(rng() * (mapWidth - 4)) + 2;
+      sy = Math.floor(rng() * (mapHeight - 4)) + 2;
+      attempts++;
+    } while (heightMap[sy][sx] > 55 && attempts < 50);
+    rawSurvivors.push([sx, sy]);
+  }
+
+  cachedMapData = { heightMap, rawSurvivors, gridSize: mapWidth, worldBoundary: WORLD_BOUNDARY, isRealWorldMap: false };
+  return cachedMapData;
+}
 
 // Map data (height map for 3D view)
 app.get('/api/mission/map', (_req, res) => {

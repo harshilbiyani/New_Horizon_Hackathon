@@ -1,22 +1,29 @@
-import type { Drone, HiddenSurvivor, Obstacle, Survivor } from '../types/telemetry';
+import type { Drone, HiddenSurvivor, MeshLink, Obstacle, Survivor } from '../types/telemetry';
+import { useSimConfig } from '../context/ConfigContext';
+
+const GPS_DENIAL_ZONES = [
+  { id: 'GDZ-A', cx: -98, cy: -42, radius: 55 },
+  { id: 'GDZ-B', cx: 76, cy: 58, radius: 50 },
+  { id: 'GDZ-C', cx: 18, cy: -92, radius: 45 },
+];
 
 interface MissionMapProps {
   drones: Drone[];
   obstacles: Obstacle[];
   foundSurvivors: Survivor[];
   hiddenSurvivors: HiddenSurvivor[];
+  meshLinks?: MeshLink[];
+  scannedCells?: string[];
   selectedDroneId?: string;
   onSelectDrone?: (droneId: string) => void;
 }
 
-const WORLD_BOUNDARY = 140;
-
-function worldToPercent(value: number) {
-  return ((value + WORLD_BOUNDARY) / (WORLD_BOUNDARY * 2)) * 100;
+function worldToPercent(value: number, worldBoundary: number) {
+  return ((value + worldBoundary) / (worldBoundary * 2)) * 100;
 }
 
-function toSvgPoint(x: number, y: number) {
-  return `${worldToPercent(x)},${100 - worldToPercent(y)}`;
+function toSvgPoint(x: number, y: number, worldBoundary: number) {
+  return `${worldToPercent(x, worldBoundary)},${100 - worldToPercent(y, worldBoundary)}`;
 }
 
 function obstacleColor(severity: Obstacle['severity']) {
@@ -25,7 +32,7 @@ function obstacleColor(severity: Obstacle['severity']) {
   return '#22c55e';
 }
 
-function DroneFOV({ drone, selectedId }: { drone: Drone; selectedId?: string }) {
+function DroneFOV({ drone, selectedId, worldBoundary }: { drone: Drone; selectedId?: string; worldBoundary: number }) {
   const isSelected = drone.id === selectedId;
   const lengthWorld = 20; 
   const fovDeg = 60; 
@@ -33,9 +40,9 @@ function DroneFOV({ drone, selectedId }: { drone: Drone; selectedId?: string }) 
   const headingRad = (drone.heading * Math.PI) / 180;
   const halfFovRad = ((fovDeg / 2) * Math.PI) / 180;
   
-  const cx = worldToPercent(drone.x);
-  const cy = 100 - worldToPercent(drone.y);
-  const ptDist = (lengthWorld / (WORLD_BOUNDARY * 2)) * 100;
+  const cx = worldToPercent(drone.x, worldBoundary);
+  const cy = 100 - worldToPercent(drone.y, worldBoundary);
+  const ptDist = (lengthWorld / (worldBoundary * 2)) * 100;
   
   const a1 = headingRad - halfFovRad;
   const a2 = headingRad + halfFovRad;
@@ -63,9 +70,21 @@ export default function MissionMap({
   obstacles,
   foundSurvivors,
   hiddenSurvivors,
+  meshLinks,
+  scannedCells,
   selectedDroneId,
   onSelectDrone,
 }: MissionMapProps) {
+  const config = useSimConfig();
+  const WORLD_BOUNDARY = config.WORLD_BOUNDARY;
+  const GRID_SIZE = config.GRID_SIZE || 40;
+
+  const toPct = (val: number) => worldToPercent(val, WORLD_BOUNDARY);
+  const toPt = (x: number, y: number) => toSvgPoint(x, y, WORLD_BOUNDARY);
+
+  const activeLinks = meshLinks ?? [];
+  const droneLookup = new Map(drones.map((drone) => [drone.id, drone]));
+
   return (
     <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-4 h-full flex flex-col">
       <div className="flex items-center justify-between mb-3">
@@ -85,11 +104,64 @@ export default function MissionMap({
           <line x1={50} y1={0} x2={50} y2={100} stroke="#334155" strokeWidth={0.3} />
           <line x1={0} y1={50} x2={100} y2={50} stroke="#334155" strokeWidth={0.3} />
 
+          {/* Explored grid tiles heatmap overlay */}
+          {scannedCells?.map((cellKey) => {
+            const [cxStr, cyStr] = cellKey.split(':');
+            const cx = Number(cxStr);
+            const cy = Number(cyStr);
+            const cellSizePct = 100 / GRID_SIZE;
+            const x = cx * cellSizePct;
+            const y = 100 - (cy + 1) * cellSizePct;
+            return (
+              <rect
+                key={`scanned-${cellKey}`}
+                x={x}
+                y={y}
+                width={cellSizePct}
+                height={cellSizePct}
+                fill="#00ffcc"
+                fillOpacity={0.12}
+                stroke="#00ffcc"
+                strokeOpacity={0.2}
+                strokeWidth={0.05}
+                style={{ pointerEvents: 'none' }}
+              />
+            );
+          })}
+
+          {/* GPS Denial Zones */}
+          {GPS_DENIAL_ZONES.map((zone) => (
+            <g key={zone.id}>
+              <circle
+                cx={toPct(zone.cx)}
+                cy={100 - toPct(zone.cy)}
+                r={(zone.radius / (WORLD_BOUNDARY * 2)) * 100}
+                fill="#f59e0b"
+                fillOpacity={0.08}
+                stroke="#f59e0b"
+                strokeDasharray="1 1"
+                strokeOpacity={0.6}
+                strokeWidth={0.2}
+              />
+              <text
+                x={toPct(zone.cx)}
+                y={100 - toPct(zone.cy)}
+                fill="#f59e0b"
+                fontSize={1.8}
+                fontFamily="monospace"
+                textAnchor="middle"
+                opacity={0.7}
+              >
+                {zone.id} (GPS-DENIED)
+              </text>
+            </g>
+          ))}
+
           {obstacles.map((obstacle) => (
             <circle
               key={obstacle.id}
-              cx={worldToPercent(obstacle.x)}
-              cy={100 - worldToPercent(obstacle.y)}
+              cx={toPct(obstacle.x)}
+              cy={100 - toPct(obstacle.y)}
               r={(obstacle.radius / (WORLD_BOUNDARY * 2)) * 100}
               fill={obstacleColor(obstacle.severity)}
               fillOpacity={0.18}
@@ -102,8 +174,8 @@ export default function MissionMap({
           {hiddenSurvivors.map((survivor) => (
             <g key={survivor.id} opacity={0.55}>
               <circle
-                cx={worldToPercent(survivor.x)}
-                cy={100 - worldToPercent(survivor.y)}
+                cx={toPct(survivor.x)}
+                cy={100 - toPct(survivor.y)}
                 r={0.7}
                 fill="#facc15"
               />
@@ -113,18 +185,18 @@ export default function MissionMap({
           {foundSurvivors.slice(0, 24).map((survivor) => (
             <g key={survivor.id}>
               <line
-                x1={worldToPercent(survivor.x) - 0.8}
-                y1={100 - worldToPercent(survivor.y) - 0.8}
-                x2={worldToPercent(survivor.x) + 0.8}
-                y2={100 - worldToPercent(survivor.y) + 0.8}
+                x1={toPct(survivor.x) - 0.8}
+                y1={100 - toPct(survivor.y) - 0.8}
+                x2={toPct(survivor.x) + 0.8}
+                y2={100 - toPct(survivor.y) + 0.8}
                 stroke="#fb7185"
                 strokeWidth={0.35}
               />
               <line
-                x1={worldToPercent(survivor.x) - 0.8}
-                y1={100 - worldToPercent(survivor.y) + 0.8}
-                x2={worldToPercent(survivor.x) + 0.8}
-                y2={100 - worldToPercent(survivor.y) - 0.8}
+                x1={toPct(survivor.x) - 0.8}
+                y1={100 - toPct(survivor.y) + 0.8}
+                x2={toPct(survivor.x) + 0.8}
+                y2={100 - toPct(survivor.y) - 0.8}
                 stroke="#fb7185"
                 strokeWidth={0.35}
               />
@@ -134,7 +206,7 @@ export default function MissionMap({
           {drones.map((drone) => (
             <g key={`trail-${drone.id}`}>
               <polyline
-                points={drone.trail.map((point) => toSvgPoint(point.x, point.y)).join(' ')}
+                points={drone.trail.map((point) => toPt(point.x, point.y)).join(' ')}
                 fill="none"
                 stroke={drone.id === selectedDroneId ? '#00ffcc' : '#38bdf8'}
                 strokeOpacity={drone.id === selectedDroneId ? 0.95 : 0.5}
@@ -143,12 +215,38 @@ export default function MissionMap({
             </g>
           ))}
 
+          {activeLinks.map((link, idx) => {
+            const from = droneLookup.get(link.from);
+            const to = droneLookup.get(link.to);
+            if (!from || !to) return null;
+
+            const isSelected =
+              link.from === selectedDroneId || link.to === selectedDroneId;
+            const baseOpacity = 0.25 + link.signal * 0.65;
+            const opacity = isSelected ? Math.min(0.95, baseOpacity + 0.2) : baseOpacity;
+            const strokeWidth = isSelected ? 0.65 : 0.4;
+
+            return (
+              <line
+                key={`${link.from}-${link.to}-${idx}`}
+                x1={toPct(from.x)}
+                y1={100 - toPct(from.y)}
+                x2={toPct(to.x)}
+                y2={100 - toPct(to.y)}
+                stroke="#22d3ee"
+                strokeOpacity={opacity}
+                strokeWidth={strokeWidth}
+                style={{ pointerEvents: 'none' }}
+              />
+            );
+          })}
+
           {drones.map((drone) => (
             <g key={drone.id}>
-              <DroneFOV drone={drone} selectedId={selectedDroneId} />
+              <DroneFOV drone={drone} selectedId={selectedDroneId} worldBoundary={WORLD_BOUNDARY} />
               <circle
-                cx={worldToPercent(drone.x)}
-                cy={100 - worldToPercent(drone.y)}
+                cx={toPct(drone.x)}
+                cy={100 - toPct(drone.y)}
                 r={drone.id === selectedDroneId ? 1.1 : 0.85}
                 fill={drone.status === 'active' ? '#22d3ee' : '#ef4444'}
                 stroke={drone.id === selectedDroneId ? '#ffffff' : '#0f172a'}
@@ -157,8 +255,8 @@ export default function MissionMap({
                 className="cursor-pointer"
               />
               <text
-                x={worldToPercent(drone.x) + 1.1}
-                y={100 - worldToPercent(drone.y) - 0.9}
+                x={toPct(drone.x) + 1.1}
+                y={100 - toPct(drone.y) - 0.9}
                 fontSize="1.6"
                 fill="#cbd5e1"
               >
@@ -181,6 +279,9 @@ export default function MissionMap({
         </div>
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-red-500"></span> High-Risk Obstacles
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-0.5 bg-cyan-300"></span> Mesh Links
         </div>
       </div>
     </div>

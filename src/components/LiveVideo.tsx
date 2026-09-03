@@ -22,10 +22,13 @@ export default function LiveVideo({ selectedDrone, connectionState, drones = [],
     <div className="flex flex-col h-full w-full bg-black/60 rounded-xl overflow-hidden border border-white/10 relative">
       {/* Top Bar */}
       <div className="absolute top-0 w-full flex justify-between items-center p-3 bg-gradient-to-b from-black/90 to-transparent z-20 pointer-events-auto">
-        <div className="flex items-center gap-2 text-red-500 font-bold text-xs tracking-widest">
-          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-          LIVE {droneLabel} FPV
+        <div className="flex items-center gap-2 text-yellow-400 font-bold text-xs tracking-widest">
+          <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span>
+          SIM FPV — {droneLabel}
         </div>
+        <span className="text-[9px] text-yellow-300/60 tracking-wider uppercase border border-yellow-400/20 px-1.5 py-0.5 rounded">
+          Simulated Feed · Placeholder for camera integration
+        </span>
         
         {/* Drone Selector Dropdown */}
         <div className="relative">

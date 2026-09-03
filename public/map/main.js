@@ -6,6 +6,12 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+let SIM_CONFIG = { WORLD_BOUNDARY: 350, GRID_SIZE: 40 };
+fetch('http://localhost:3001/api/config')
+  .then(res => res.json())
+  .then(cfg => { SIM_CONFIG = cfg; })
+  .catch(() => {});
+
 let loadedDroneModel = null;
 const _droneLoader = new GLTFLoader();
 _droneLoader.load('../drone.glb', (gltf) => {
@@ -347,6 +353,7 @@ fetch('http://localhost:3001/api/mission/map')
 
             scene.add(cityModel);
             window.cityModelForRaycasting = cityModel;
+            setTimeout(scanCityMesh, 500); // Give the renderer a moment to attach before scanning
         }, undefined, (error) => {
             console.error('Error loading city.glb:', error);
             const errDiv = document.createElement('div');
@@ -625,6 +632,36 @@ function createObstacleAsset(obs) {
     beacon.userData.isHazardBeacon = true;
     beacon.userData.baseColor = severityColor;
     group.add(beacon);
+
+    // 3D Danger Zone Volume for Altitude-Aware Avoidance
+    if (obs.height) {
+        const volHeight = obs.height;
+        const volGeo = new THREE.CylinderGeometry(obs.radius, obs.radius, volHeight, 16);
+        const volMat = new THREE.MeshBasicMaterial({
+            color: severityColor,
+            transparent: true,
+            opacity: 0.12,
+            wireframe: true,
+            depthWrite: false
+        });
+        const vol = new THREE.Mesh(volGeo, volMat);
+        vol.position.y = volHeight / 2; // Center vertically on base
+        group.add(vol);
+        
+        // Add a subtle glowing top cap
+        const capGeo = new THREE.CircleGeometry(obs.radius, 16);
+        const capMat = new THREE.MeshBasicMaterial({
+            color: severityColor,
+            transparent: true,
+            opacity: 0.18,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        const cap = new THREE.Mesh(capGeo, capMat);
+        cap.rotation.x = -Math.PI / 2;
+        cap.position.y = volHeight;
+        group.add(cap);
+    }
 
     group.scale.set(scale, 1, scale);
 
@@ -979,3 +1016,134 @@ function animate() {
     composer.render();
 }
 animate();
+
+// --- Dynamic GLB Mesh Scanner & Heatmap ---
+function scanCityMesh() {
+    if (!window.cityModelForRaycasting) return;
+    console.log("Scanning city mesh for full occupancy grid & collision boundaries...");
+    
+    const raycaster = new THREE.Raycaster();
+    const scannedObstacles = [];
+    const boundary = SIM_CONFIG.WORLD_BOUNDARY || 350;
+    const gridSize = SIM_CONFIG.GRID_SIZE || 40;
+    const cellSize = (boundary * 2) / gridSize;
+    
+    const heatmapGroup = new THREE.Group();
+    heatmapGroup.position.y = 1.0; // Slightly above ground to prevent Z-fighting
+    
+    // Initialize worldMap 2D array [cellX][cellY]
+    const worldMap = Array.from({ length: gridSize }, () => Array(gridSize).fill(null));
+    
+    for (let cellX = 0; cellX < gridSize; cellX++) {
+        for (let cellY = 0; cellY < gridSize; cellY++) {
+            const worldX = -boundary + (cellX + 0.5) * cellSize;
+            const worldY = -boundary + (cellY + 0.5) * cellSize;
+            
+            raycaster.set(new THREE.Vector3(worldX, 1500, worldY), new THREE.Vector3(0, -1, 0));
+            const intersects = raycaster.intersectObject(window.cityModelForRaycasting, true);
+            
+            const hitY = intersects.length > 0 ? intersects[0].point.y : 0;
+            const occupied = hitY > 10;
+            
+            worldMap[cellX][cellY] = {
+                height: Number(hitY.toFixed(2)),
+                occupied,
+                obstacleId: occupied ? `GLB-${cellX}-${cellY}` : null,
+            };
+            
+            if (occupied) {
+                scannedObstacles.push({
+                    id: `GLB-${cellX}-${cellY}`,
+                    x: Number(worldX.toFixed(2)),
+                    y: Number(worldY.toFixed(2)),
+                    radius: Number((cellSize * 0.7).toFixed(2)),
+                    height: Number(hitY.toFixed(2)),
+                    severity: hitY > 150 ? 'high' : hitY > 80 ? 'medium' : 'low',
+                });
+                
+                // Add tactical heatmap tile
+                const tileGeo = new THREE.PlaneGeometry(cellSize * 0.9, cellSize * 0.9);
+                const color = hitY > 150 ? 0xff0000 : hitY > 80 ? 0xffaa00 : 0xffff00;
+                const tileMat = new THREE.MeshBasicMaterial({
+                    color,
+                    transparent: true,
+                    opacity: 0.28,
+                    side: THREE.DoubleSide,
+                    depthWrite: false,
+                });
+                const tile = new THREE.Mesh(tileGeo, tileMat);
+                tile.rotation.x = -Math.PI / 2;
+                tile.position.set(worldX, 0, worldY);
+                heatmapGroup.add(tile);
+            }
+        }
+    }
+    
+    scene.add(heatmapGroup);
+    
+    // Post scanned obstacles to Node.js physics engine
+    fetch('http://localhost:3001/api/mission/set-obstacles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ obstacles: scannedObstacles }),
+    }).then(res => res.json())
+      .then(data => console.log('[PHYSICS SYNC] Synced ' + data.count + ' physical building collisions!'))
+      .catch(err => console.error('Failed to sync obstacles:', err));
+
+    // Post full worldMap matrix to Node.js backend
+    fetch('http://localhost:3001/api/mission/world-map', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ worldMap }),
+    }).then(res => res.json())
+      .then(data => console.log('[WORLD MAP SYNC] Synced full ' + gridSize + 'x' + gridSize + ' occupancy grid to server!'))
+      .catch(err => console.error('Failed to sync worldMap:', err));
+
+    // Place 3D survivors exclusively on unoccupied ground cells
+    const unoccupiedCells = [];
+    for (let cx = 0; cx < gridSize; cx++) {
+        for (let cy = 0; cy < gridSize; cy++) {
+            if (!worldMap[cx][cy].occupied) {
+                const wx = -boundary + (cx + 0.5) * cellSize;
+                const wy = -boundary + (cy + 0.5) * cellSize;
+                unoccupiedCells.push({ cx, cy, x: Number(wx.toFixed(2)), y: Number(wy.toFixed(2)) });
+            }
+        }
+    }
+
+    const realSurvivors = [];
+    const severities = ['critical', 'stable', 'unknown', 'critical', 'stable'];
+    const survivorGroup = new THREE.Group();
+
+    for (let i = 0; i < Math.min(5, unoccupiedCells.length); i++) {
+        const randomIndex = Math.floor(Math.random() * unoccupiedCells.length);
+        const cell = unoccupiedCells.splice(randomIndex, 1)[0];
+        const survivorId = `HSV-00${i + 1}`;
+        const severity = severities[i % severities.length];
+
+        realSurvivors.push({
+            id: survivorId,
+            x: cell.x,
+            y: cell.y,
+            severity,
+        });
+
+        // Visual 3D marker in scene at cell ground height
+        const markerGeo = new THREE.CylinderGeometry(2, 0, 8, 8);
+        const markerMat = new THREE.MeshBasicMaterial({ color: 0xff0055, wireframe: true });
+        const marker = new THREE.Mesh(markerGeo, markerMat);
+        marker.position.set(cell.x, 4, cell.y);
+        survivorGroup.add(marker);
+    }
+    scene.add(survivorGroup);
+
+    fetch('http://localhost:3001/api/mission/survivor-positions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ survivors: realSurvivors }),
+    }).then(res => res.json())
+      .then(data => console.log('[SURVIVOR SYNC] Synced ' + data.count + ' real 3D survivor positions on unoccupied ground cells!'))
+      .catch(err => console.error('Failed to sync survivor positions:', err));
+}
+
+

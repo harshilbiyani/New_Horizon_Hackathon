@@ -1,174 +1,104 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { io } from 'socket.io-client';
 import XAIDecisionPanel from '../components/XAIDecisionPanel';
 import { deriveZoneCoverage } from '../xai-engine';
 import type { XAIWorldState, XAIDroneState } from '../types/xai';
-
-const WORLD_BOUNDARY = 140;
-const GRID_SIZE = 40;
-const DETECTION_RADIUS = 16;
-const TICK_MS = 900;
-
-const SIM_OBSTACLES = [
-  { id: 'OBS-001', x: -62, y: -4, radius: 9, severity: 'high' },
-  { id: 'OBS-002', x: 52, y: 34, radius: 7, severity: 'medium' },
-  { id: 'OBS-003', x: -15, y: 72, radius: 6, severity: 'low' },
-  { id: 'OBS-004', x: 8, y: -58, radius: 10, severity: 'high' },
-  { id: 'OBS-005', x: 85, y: -36, radius: 8, severity: 'medium' },
-];
-
-const SIM_HIDDEN_SURVIVORS = [
-  { id: 'HSV-001', x: -50, y: 14 },
-  { id: 'HSV-002', x: 28, y: 46 },
-  { id: 'HSV-003', x: 74, y: -26 },
-  { id: 'HSV-004', x: -12, y: -76 },
-  { id: 'HSV-005', x: 3, y: 2 },
-];
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function randomBetween(min: number, max: number) {
-  return min + Math.random() * (max - min);
-}
-
-function worldToCellCoord(value: number) {
-  const normalized = (value + WORLD_BOUNDARY) / (WORLD_BOUNDARY * 2);
-  return clamp(Math.floor(normalized * GRID_SIZE), 0, GRID_SIZE - 1);
-}
-
-function createSimulationDrone(index: number, x: number, y: number, heading: number) {
-  return {
-    id: `DRN-${String(index + 1).padStart(3, '0')}`,
-    x,
-    y,
-    heading,
-    speed: randomBetween(10, 18),
-    task: 'exploring',
-    battery: randomBetween(72, 100),
-    signalStrength: randomBetween(75, 99),
-  };
-}
-
-function createSimulationDrones() {
-  return [
-    createSimulationDrone(0, -40, -25, 45),
-    createSimulationDrone(1, 38, -10, 120),
-    createSimulationDrone(2, 18, 60, 225),
-    createSimulationDrone(3, -75, 30, 310),
-    createSimulationDrone(4, 0, -70, 15),
-  ];
-}
-
-function updateDrone(drone: ReturnType<typeof createSimulationDrone>) {
-  const headingDrift = randomBetween(-10, 10);
-  drone.heading = (drone.heading + headingDrift + 360) % 360;
-
-  if (drone.battery < 24) {
-    drone.task = 'returning';
-  } else if (drone.task !== 'reassigned') {
-    drone.task = 'exploring';
-  }
-
-  drone.speed = clamp(drone.speed + randomBetween(-1.2, 1.2), 8, 21);
-  const distanceStep = drone.speed * 0.9;
-  const radians = (drone.heading * Math.PI) / 180;
-  drone.x += Math.cos(radians) * distanceStep;
-  drone.y += Math.sin(radians) * distanceStep;
-
-  if (drone.x < -WORLD_BOUNDARY || drone.x > WORLD_BOUNDARY) {
-    drone.heading = (180 - drone.heading + 360) % 360;
-    drone.x = clamp(drone.x, -WORLD_BOUNDARY, WORLD_BOUNDARY);
-  }
-  if (drone.y < -WORLD_BOUNDARY || drone.y > WORLD_BOUNDARY) {
-    drone.heading = (360 - drone.heading + 360) % 360;
-    drone.y = clamp(drone.y, -WORLD_BOUNDARY, WORLD_BOUNDARY);
-  }
-
-  drone.battery = clamp(drone.battery - randomBetween(0.2, 0.8), 0, 100);
-  drone.signalStrength = clamp(
-    95 - (Math.abs(drone.x) + Math.abs(drone.y)) / 3 + randomBetween(-2.5, 2.5),
-    28,
-    99
-  );
-}
+import type { TelemetrySnapshot, Drone, Obstacle, HiddenSurvivor, Survivor } from '../types/telemetry';
+import { useSimConfig } from '../context/ConfigContext';
 
 export default function XAIDecisions() {
+  const config = useSimConfig();
+  const WORLD_BOUNDARY = config.WORLD_BOUNDARY || 350;
+  const GRID_SIZE = config.GRID_SIZE || 40;
+
+  const [drones, setDrones] = useState<Drone[]>([]);
+  const [obstacles, setObstacles] = useState<Obstacle[]>([]);
+  const [hiddenSurvivors, setHiddenSurvivors] = useState<HiddenSurvivor[]>([]);
+  const [foundSurvivors, setFoundSurvivors] = useState<Survivor[]>([]);
   const [tick, setTick] = useState(0);
-  const [drones, setDrones] = useState(() => createSimulationDrones());
+  const [connectionState, setConnectionState] = useState<'connected' | 'disconnected'>('disconnected');
 
-  const dronesRef = useRef(drones);
   const scannedCellsRef = useRef(new Set<string>());
-  const discoveredIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
-    dronesRef.current = drones;
-  }, [drones]);
+    const socket = io('http://localhost:3001', {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 500,
+      reconnectionAttempts: Infinity,
+    });
 
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      const nextDrones = dronesRef.current.map((drone) => {
-        const next = { ...drone };
-        updateDrone(next);
+    socket.on('connect', () => {
+      setConnectionState('connected');
+    });
 
-        const cellX = worldToCellCoord(next.x);
-        const cellY = worldToCellCoord(next.y);
-        scannedCellsRef.current.add(`${cellX}:${cellY}`);
+    socket.on('disconnect', () => {
+      setConnectionState('disconnected');
+    });
 
-        for (const survivor of SIM_HIDDEN_SURVIVORS) {
-          if (discoveredIdsRef.current.has(survivor.id)) continue;
-          const dx = next.x - survivor.x;
-          const dy = next.y - survivor.y;
-          if (Math.hypot(dx, dy) <= DETECTION_RADIUS) {
-            discoveredIdsRef.current.add(survivor.id);
-          }
+    socket.on('telemetrySnapshot', (snapshot: TelemetrySnapshot) => {
+      setDrones(snapshot.drones || []);
+      setObstacles(snapshot.obstacles || []);
+      setHiddenSurvivors(snapshot.hiddenSurvivors || []);
+      setFoundSurvivors(snapshot.foundSurvivors || []);
+
+      // Accumulate scanned cells for zone coverage calculation
+      (snapshot.drones || []).forEach((drone) => {
+        if (drone.status === 'active') {
+          const normX = (drone.x + WORLD_BOUNDARY) / (WORLD_BOUNDARY * 2);
+          const normY = (drone.y + WORLD_BOUNDARY) / (WORLD_BOUNDARY * 2);
+          const cx = Math.min(GRID_SIZE - 1, Math.max(0, Math.floor(normX * GRID_SIZE)));
+          const cy = Math.min(GRID_SIZE - 1, Math.max(0, Math.floor(normY * GRID_SIZE)));
+          scannedCellsRef.current.add(`${cx}:${cy}`);
         }
-
-        return next;
       });
 
-      setDrones(nextDrones);
-      setTick((prev) => prev + 1);
-    }, TICK_MS);
+      setTick((t) => t + 1);
+    });
 
-    return () => window.clearInterval(interval);
-  }, []);
+    return () => {
+      socket.disconnect();
+    };
+  }, [WORLD_BOUNDARY, GRID_SIZE]);
 
   const zoneCoverage = useMemo(
     () => deriveZoneCoverage(scannedCellsRef.current, GRID_SIZE),
-    [tick]
+    [tick, GRID_SIZE]
   );
 
   const mapSize = WORLD_BOUNDARY * 2;
 
   const worldState: XAIWorldState = useMemo(() => {
+    const foundIds = new Set(foundSurvivors.map((s) => s.sourceId || s.id));
     return {
       mapWidth: mapSize,
       mapHeight: mapSize,
       tick,
       zoneCoverage,
-      survivors: SIM_HIDDEN_SURVIVORS.map((s) => ({
+      survivors: hiddenSurvivors.map((s) => ({
         x: s.x + WORLD_BOUNDARY,
         y: s.y + WORLD_BOUNDARY,
-        discovered: discoveredIdsRef.current.has(s.id),
+        discovered: foundIds.has(s.id),
       })),
-      obstacles: SIM_OBSTACLES.map((o) => ({
+      obstacles: obstacles.map((o) => ({
         x: o.x + WORLD_BOUNDARY,
         y: o.y + WORLD_BOUNDARY,
         severity: o.severity === 'high' ? 3 : o.severity === 'medium' ? 2 : 1,
       })),
     };
-  }, [tick, zoneCoverage, mapSize]);
+  }, [tick, zoneCoverage, mapSize, hiddenSurvivors, foundSurvivors, obstacles, WORLD_BOUNDARY]);
 
   const droneStates: XAIDroneState[] = useMemo(
     () =>
       drones.map((d) => {
         const status =
-          d.battery < 25
-            ? 'LOW BAT'
-            : d.task === 'returning'
-              ? 'RETURNING'
-              : 'SEARCHING';
+          d.status === 'failed'
+            ? 'FAILED'
+            : d.battery < 25
+              ? 'LOW BAT'
+              : d.task === 'returning'
+                ? 'RETURNING'
+                : 'SEARCHING';
         return {
           id: d.id,
           x: d.x + WORLD_BOUNDARY,
@@ -181,8 +111,33 @@ export default function XAIDecisions() {
           task: d.task,
         };
       }),
-    [drones]
+    [drones, WORLD_BOUNDARY]
   );
 
-  return <XAIDecisionPanel droneStates={droneStates} worldState={worldState} />;
+  return (
+    <div className="min-h-[calc(100vh-64px)] bg-[#000814] text-white p-6 font-sans">
+      <header className="mb-6 border-b border-white/10 pb-4 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold tracking-widest text-[#00ffcc]">
+            XAI DECISION MATRIX <span className="text-sm font-normal text-gray-400">v2.0</span>
+          </h1>
+          <p className="text-xs text-gray-400 mt-1">
+            Explainable AI evaluation engine — evaluating live backend telemetry in real time.
+          </p>
+        </div>
+        <span className={`flex items-center gap-2 text-xs uppercase tracking-wider ${connectionState === 'connected' ? 'text-green-400' : 'text-red-400'}`}>
+          <span className={`w-2.5 h-2.5 rounded-full ${connectionState === 'connected' ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></span>
+          Live Stream: {connectionState}
+        </span>
+      </header>
+
+      {drones.length === 0 ? (
+        <div className="text-center py-16 text-gray-500 border border-dashed border-white/10 rounded-xl">
+          Awaiting live drone telemetry stream... Launch a mission from the Admin Panel to start telemetry.
+        </div>
+      ) : (
+        <XAIDecisionPanel worldState={worldState} droneStates={droneStates} />
+      )}
+    </div>
+  );
 }
