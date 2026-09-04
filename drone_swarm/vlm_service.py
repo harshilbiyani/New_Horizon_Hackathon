@@ -86,22 +86,30 @@ def _load_index():
     import faiss
 
     if INDEX_FILE.exists() and META_FILE.exists():
-        log.info(f"Loading persisted FAISS index from {INDEX_FILE} ...")
-        _index = faiss.read_index(str(INDEX_FILE))
-        with open(META_FILE, "r") as f:
-            _metadata = json.load(f)
-        log.info(f"Loaded {_index.ntotal} vectors from disk ✓")
-    else:
-        log.info("Creating fresh FAISS IndexFlatIP (cosine via normalize) ...")
-        _index = faiss.IndexFlatIP(DIM)  # inner product on L2-normalised = cosine
-        _metadata = []
+        try:
+            log.info(f"Loading persisted FAISS index from {INDEX_FILE} ...")
+            _index = faiss.read_index(str(INDEX_FILE))
+            with open(META_FILE, "r") as f:
+                _metadata = json.load(f)
+            log.info(f"Loaded {_index.ntotal} vectors from disk ✓")
+            return
+        except Exception as e:
+            log.warning(f"Corrupted or invalid FAISS index ({e}). Creating fresh index...")
+
+    log.info("Creating fresh FAISS IndexFlatIP (cosine via normalize) ...")
+    _index = faiss.IndexFlatIP(DIM)  # inner product on L2-normalised = cosine
+    _metadata = []
 
 
 def _persist_index():
     import faiss
-    faiss.write_index(_index, str(INDEX_FILE))
-    with open(META_FILE, "w") as f:
+    tmp_index = str(INDEX_FILE) + ".tmp"
+    faiss.write_index(_index, tmp_index)
+    os.replace(tmp_index, str(INDEX_FILE))
+    tmp_meta = str(META_FILE) + ".tmp"
+    with open(tmp_meta, "w") as f:
         json.dump(_metadata, f, indent=2)
+    os.replace(tmp_meta, str(META_FILE))
 
 
 def _encode_image(pil_img: Image.Image) -> np.ndarray:
