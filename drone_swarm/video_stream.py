@@ -112,6 +112,9 @@ class VideoStreamReader:
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._lock = threading.Lock()
+        
+        import concurrent.futures
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
 
         # Stats
         self.frames_processed = 0
@@ -121,9 +124,11 @@ class VideoStreamReader:
         self.error: str | None = None
 
         # Determine source type
-        self._is_synthetic = (source == "synthetic" or source == "")
-        self._is_rtsp = source.lower().startswith("rtsp://")
-        self._is_file = not self._is_synthetic and not self._is_rtsp
+        from drone_swarm.yolo_stream import parse_source
+        self._is_camera, self._camera_idx = parse_source(source)
+        self._is_synthetic = (source == "synthetic" or source == "") and not self._is_camera
+        self._is_rtsp = str(source).lower().startswith("rtsp://")
+        self._is_file = not self._is_synthetic and not self._is_rtsp and not self._is_camera
 
         # SRT parser for real video files
         self._srt: object | None = None
@@ -195,12 +200,80 @@ class VideoStreamReader:
 
     # ── Internal run loop ─────────────────────────────────────────────────────
     def _run(self):
-        if self._is_synthetic:
+        if self._is_camera:
+            self._run_camera()
+        elif self._is_synthetic:
             self._run_synthetic()
         elif self._is_file or self._is_rtsp:
             self._run_opencv()
         else:
             log.error(f"Unknown source type: {self.source}")
+
+    def _run_camera(self):
+        """Sample frames periodically from local laptop camera/webcam via shared CameraManager."""
+        try:
+            import cv2
+        except ImportError:
+            self.error = "OpenCV not installed"
+            log.error(self.error)
+            return
+
+        from drone_swarm.srt_parser import synthetic_gps_walk
+        from drone_swarm.yolo_stream import get_yolo_model, CameraManager
+
+        cam_mgr = CameraManager.get_instance(self._camera_idx)
+        cam_mgr.acquire()
+
+        log.info(f"Attached to live camera index {self._camera_idx} for ingestion (interval={self.sample_interval_sec}s)")
+        model = get_yolo_model()
+        frame_idx = 0
+
+        try:
+            while not self._stop_event.is_set():
+                bgr_frame = cam_mgr.get_frame(timeout=3.0)
+                if bgr_frame is None:
+                    self._stop_event.wait(timeout=0.2)
+                    continue
+
+                rgb = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+                results = model(rgb, classes=[0], conf=0.15, verbose=False)
+                num_persons = len(results[0].boxes)
+
+                if num_persons > 0:
+                    lat, lon, alt, hdg = synthetic_gps_walk(
+                        frame_idx, 1000,
+                        lat_center=12.9716, lon_center=77.5946,
+                    )
+                    boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
+                    confs = results[0].boxes.conf.cpu().numpy()
+                    h, w = rgb.shape[:2]
+                    pad = 20
+
+                    for box, conf_val in zip(boxes, confs):
+                        x1, y1, x2, y2 = box
+                        px1 = max(0, x1 - pad)
+                        py1 = max(0, y1 - pad)
+                        px2 = min(w, x2 + pad)
+                        py2 = min(h, y2 + pad)
+                        crop = rgb[py1:py2, px1:px2]
+                        if crop.size == 0:
+                            continue
+                        crop_resized = cv2.resize(crop, None, fx=3.0, fy=3.0, interpolation=cv2.INTER_CUBIC)
+                        crop_pil = Image.fromarray(crop_resized)
+                        self._executor.submit(
+                            self._process_frame,
+                            crop_pil,
+                            lat=lat, lon=lon, altitude_m=alt, heading_deg=hdg,
+                            frame_idx=frame_idx, confidence=float(conf_val)
+                        )
+                else:
+                    log.info(f"Live Cam frame {frame_idx}: No persons detected")
+
+                frame_idx += 1
+                self._stop_event.wait(timeout=self.sample_interval_sec)
+        finally:
+            cam_mgr.release()
+            log.info("Live camera detached from ingestion")
 
     def _run_synthetic(self):
         """Generate synthetic frames at the sample interval."""
@@ -248,6 +321,9 @@ class VideoStreamReader:
 
             log.info(f"Opened video: fps={fps:.1f} total_frames={total_frames} sample_every={sample_every_n}")
 
+            from drone_swarm.yolo_stream import get_yolo_model
+            model = get_yolo_model()
+
             while not self._stop_event.is_set():
                 ret, bgr_frame = cap.read()
                 if not ret:
@@ -256,27 +332,63 @@ class VideoStreamReader:
 
                 # Only process every Nth frame
                 if frame_idx % sample_every_n == 0:
-                    # Convert BGR → RGB → PIL
+                    # Convert BGR → RGB
                     rgb = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
-                    img = Image.fromarray(rgb)
-
-                    # Get GPS from SRT or synthetic walk
-                    if self._srt and hasattr(self._srt, "get_frame_meta"):
-                        m = self._srt.get_frame_meta(frame_idx, fps)
-                        lat, lon, alt, hdg = m.lat, m.lon, m.altitude_m, m.heading_deg
-                        if lat == 0.0 and lon == 0.0:
+                    
+                    # RUN YOLO
+                    results = model(rgb, classes=[0], conf=0.15, verbose=False)
+                    num_persons = len(results[0].boxes)
+                    
+                    if num_persons > 0:
+                        # Get GPS from SRT or synthetic walk (only once per frame)
+                        if self._srt and hasattr(self._srt, "get_frame_meta"):
+                            m = self._srt.get_frame_meta(frame_idx, fps)
+                            lat, lon, alt, hdg = m.lat, m.lon, m.altitude_m, m.heading_deg
+                            if lat == 0.0 and lon == 0.0:
+                                lat, lon, alt, hdg = synthetic_gps_walk(
+                                    frame_idx, total_frames,
+                                    lat_center=12.9716, lon_center=77.5946,
+                                )
+                        else:
                             lat, lon, alt, hdg = synthetic_gps_walk(
                                 frame_idx, total_frames,
                                 lat_center=12.9716, lon_center=77.5946,
                             )
-                    else:
-                        lat, lon, alt, hdg = synthetic_gps_walk(
-                            frame_idx, total_frames,
-                            lat_center=12.9716, lon_center=77.5946,
-                        )
 
-                    self._process_frame(img, lat=lat, lon=lon, altitude_m=alt,
-                                        heading_deg=hdg, frame_idx=frame_idx)
+                        boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
+                        confs = results[0].boxes.conf.cpu().numpy()
+                        
+                        h, w = rgb.shape[:2]
+                        pad = 20
+
+                        for box, conf_val in zip(boxes, confs):
+                            x1, y1, x2, y2 = box
+                            
+                            # Pad the box
+                            px1 = max(0, x1 - pad)
+                            py1 = max(0, y1 - pad)
+                            px2 = min(w, x2 + pad)
+                            py2 = min(h, y2 + pad)
+                            
+                            crop = rgb[py1:py2, px1:px2]
+                            
+                            # Skip if crop is empty
+                            if crop.size == 0:
+                                continue
+                                
+                            # Upscale by 3x for clarity and better CLIP embeddings
+                            crop_resized = cv2.resize(crop, None, fx=3.0, fy=3.0, interpolation=cv2.INTER_CUBIC)
+                            crop_pil = Image.fromarray(crop_resized)
+
+                            # Process asynchronously via ThreadPoolExecutor
+                            self._executor.submit(
+                                self._process_frame,
+                                crop_pil, 
+                                lat=lat, lon=lon, altitude_m=alt, heading_deg=hdg, 
+                                frame_idx=frame_idx, confidence=float(conf_val)
+                            )
+                    else:
+                        log.info(f"Frame {frame_idx} (skip): No persons detected")
 
                     # Respect sample interval via sleep (approximate)
                     self._stop_event.wait(timeout=max(0.05, self.sample_interval_sec - 0.5))
@@ -293,6 +405,7 @@ class VideoStreamReader:
         lat: float, lon: float,
         altitude_m: float, heading_deg: float,
         frame_idx: int,
+        confidence: float = 0.85,
     ):
         """Send one frame through FrameCaptureService and push SSE event."""
         self.current_lat = lat
@@ -306,7 +419,7 @@ class VideoStreamReader:
             lon=lon,
             altitude_m=altitude_m,
             heading_deg=heading_deg,
-            confidence=round(random.uniform(0.62, 0.97), 2),
+            confidence=round(confidence, 2),
             detection_id=det_id,
         )
 

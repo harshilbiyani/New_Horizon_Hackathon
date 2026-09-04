@@ -71,23 +71,45 @@ class FrameCaptureService:
         Returns the indexed metadata dict, or None on failure.
         """
         det_id = detection_id or str(uuid.uuid4())
-        image_filename = f"{det_id}.jpg"
-        image_path = DETECTIONS_DIR / image_filename
-        rel_path = f"data/detections/{image_filename}"
 
-        # 1. Save frame
+        # 1. Convert frame to JPEG bytes
         try:
             frame_rgb = frame.convert("RGB")
-            frame_rgb.save(str(image_path), "JPEG", quality=85)
-            log.info(f"Saved frame: {image_path}")
+            buf = io.BytesIO()
+            frame_rgb.save(buf, "JPEG", quality=85)
+            frame_bytes = buf.getvalue()
         except Exception as e:
-            log.error(f"Failed to save frame: {e}")
+            log.error(f"Failed to encode frame: {e}")
             return None
 
-        # 2. Get embedding
+        # 2. Upload to Cloudinary
         try:
-            buf = io.BytesIO()
-            frame_rgb.save(buf, "JPEG")
+            import cloudinary
+            import cloudinary.uploader
+            import os
+            from dotenv import load_dotenv
+            load_dotenv()
+            
+            cloudinary.config(
+              cloud_name = os.getenv("VITE_CLOUDINARY_CLOUD_NAME"),
+              api_key = os.getenv("VITE_CLOUDINARY_API_KEY"),
+              api_secret = os.getenv("VITE_CLOUDINARY_API_SECRET"),
+              secure = True
+            )
+            
+            resp_cloud = cloudinary.uploader.upload(
+                frame_bytes,
+                public_id=f"drone_shield/detections/{det_id}",
+                resource_type="image"
+            )
+            cloud_url = resp_cloud.get("secure_url")
+            log.info(f"Uploaded to Cloudinary: {cloud_url}")
+        except Exception as e:
+            log.error(f"Cloudinary upload failed: {e}")
+            return None
+
+        # 3. Get embedding
+        try:
             buf.seek(0)
             resp = requests.post(
                 f"{self.vlm_base}/embed/image",
@@ -100,12 +122,12 @@ class FrameCaptureService:
             log.error(f"Failed to get embedding from VLM service: {e}")
             return None
 
-        # 3. Index
+        # 4. Index
         metadata = {
             "id": det_id,
             "drone_id": drone_id,
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "image_path": rel_path,
+            "image_path": cloud_url,
             "lat": lat,
             "lon": lon,
             "altitude_m": altitude_m,

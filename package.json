@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "start": "concurrently \"node server.js\" \"vite --open\"",
-    "dev": "concurrently \"node server.js\" \"vite --open\"",
+    "start": "concurrently \"node server.js\" \"vite --open\" \"python drone_swarm/vlm_service.py\"",
+    "dev": "concurrently \"node server.js\" \"vite --open\" \"python drone_swarm/vlm_service.py\"",
     "dev:full": "concurrently \"node server.js\" \"vite --open\" \"python drone_swarm/vlm_service.py\"",
     "ai:demo": "python drone_swarm/end_to_end_demo.py",
     "ai:bridge:test": "python simulation/ai_bridge.py < NUL",

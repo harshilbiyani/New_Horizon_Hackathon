@@ -98,7 +98,7 @@ export default function PersonSearch() {
     clearEvents: clearStreamEvents,
   } = useStreamStatus();
 
-  const [topK, setTopK] = useState(6);
+  const [topK, setTopK] = useState(3);
   const [threshold, setThreshold] = useState(0.0);
   const [showFilters, setShowFilters] = useState(false);
   const [health, setHealth] = useState<VLMHealth | null>(null);

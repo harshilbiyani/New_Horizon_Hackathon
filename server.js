@@ -1149,7 +1149,9 @@ app.get('/api/vlm/stream/yolo_feed', (req, res) => {
   });
   proxyReq.on('error', (err) => {
     console.error('[YOLO feed error]', err.message);
-    res.status(502).json({ error: 'Feed unavailable', detail: err.message });
+    if (!res.headersSent) {
+      res.status(502).json({ error: 'Feed unavailable', detail: err.message });
+    }
   });
   req.on('close', () => proxyReq.destroy());
   proxyReq.end();

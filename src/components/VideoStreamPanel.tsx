@@ -106,7 +106,7 @@ export default function VideoStreamPanel({
   onStop,
   onClearEvents,
 }: Props) {
-  const [source, setSource] = useState('data/videos/test_video.mp4');
+  const [source, setSource] = useState('webcam');
   const [interval, setInterval_] = useState(2);
   const [droneId, setDroneId] = useState('drone-1');
   const [expanded, setExpanded] = useState(true);
@@ -114,6 +114,14 @@ export default function VideoStreamPanel({
   const [showLiveYolo, setShowLiveYolo] = useState(true);
   const [playerMode, setPlayerMode] = useState<'yolo' | 'raw'>('yolo');
   const [feedKey, setFeedKey] = useState(Date.now());
+  const [feedLoading, setFeedLoading] = useState(true);
+  const [feedError, setFeedError] = useState(false);
+
+  const reconnectFeed = () => {
+    setFeedLoading(true);
+    setFeedError(false);
+    setFeedKey(Date.now());
+  };
 
   // Fetch available videos on mount
   useEffect(() => {
@@ -122,9 +130,7 @@ export default function VideoStreamPanel({
       .then((data) => {
         if (data.ok && data.videos) {
           setAvailableVideos(data.videos);
-          if (data.videos.length > 0 && source === 'data/videos/test_video.mp4') {
-            setSource(data.videos[0].path);
-          }
+          // keep webcam as preferred initial source
         }
       })
       .catch(() => {});
@@ -132,13 +138,19 @@ export default function VideoStreamPanel({
 
   const handleStart = () => {
     setShowLiveYolo(true);
-    setFeedKey(Date.now());
+    reconnectFeed();
     onStart(source, interval, droneId);
   };
 
   const handleSelectVideo = (path: string) => {
     setSource(path);
+    setFeedLoading(true);
+    setFeedError(false);
     setFeedKey(Date.now());
+    if (path === 'webcam' || path.startsWith('cam')) {
+      setPlayerMode('yolo');
+      setShowLiveYolo(true);
+    }
   };
 
   // Build MJPEG stream URL
@@ -216,27 +228,73 @@ export default function VideoStreamPanel({
                       key={feedKey}
                       src={yoloFeedUrl}
                       alt="YOLO Real-time Detection Feed"
-                      className="w-full h-full object-contain"
+                      onLoad={() => { setFeedLoading(false); setFeedError(false); }}
+                      onError={() => { setFeedLoading(false); setFeedError(true); }}
+                      className={`w-full h-full object-contain transition-opacity duration-300 ${feedLoading ? 'opacity-40' : 'opacity-100'}`}
                     />
+
+                    {/* Loading indicator overlay */}
+                    {feedLoading && !feedError && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/50 backdrop-blur-sm pointer-events-none">
+                        <RefreshCw size={24} className="text-[#00ffcc] animate-spin" />
+                        <span className="text-xs text-[#00ffcc] font-mono tracking-wider uppercase">
+                          Initializing Camera Feed...
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Error fallback overlay */}
+                    {feedError && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/85 backdrop-blur-md p-6 text-center z-10">
+                        <div className="w-12 h-12 rounded-full border border-red-500/30 bg-red-500/10 flex items-center justify-center text-red-400">
+                          <WifiOff size={22} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-white">Camera Feed Offline</p>
+                          <p className="text-xs text-gray-400 max-w-xs mt-1">
+                            Click below to reconnect to the live YOLO camera stream.
+                          </p>
+                        </div>
+                        <button
+                          onClick={reconnectFeed}
+                          className="flex items-center gap-2 text-xs font-bold bg-[#00ffcc] text-[#000814] px-4 py-2 rounded-xl hover:bg-[#00e6b8] transition-all"
+                        >
+                          <RefreshCw size={13} /> Reconnect Live Stream
+                        </button>
+                      </div>
+                    )}
 
                     {/* Refresh overlay button */}
                     <button
-                      onClick={() => setFeedKey(Date.now())}
+                      onClick={reconnectFeed}
                       title="Reconnect / Restart Video Stream"
-                      className="absolute top-3 right-3 p-1.5 rounded-lg bg-black/60 border border-white/20 text-white/80 hover:text-[#00ffcc] hover:border-[#00ffcc]/40 transition-all opacity-0 group-hover:opacity-100 backdrop-blur-sm"
+                      className="absolute top-3 right-3 p-1.5 rounded-lg bg-black/60 border border-white/20 text-white/80 hover:text-[#00ffcc] hover:border-[#00ffcc]/40 transition-all opacity-0 group-hover:opacity-100 backdrop-blur-sm z-20"
                     >
                       <RefreshCw size={13} />
                     </button>
                   </>
                 ) : playerMode === 'raw' ? (
-                  <video
-                    key={source}
-                    src={rawVideoUrl}
-                    controls
-                    autoPlay
-                    loop
-                    className="w-full h-full object-contain"
-                  />
+                  source === 'webcam' || source.startsWith('cam') ? (
+                    <div className="flex flex-col items-center justify-center p-8 text-center gap-3">
+                      <Crosshair size={32} className="text-[#00ffcc]/80 animate-pulse" />
+                      <p className="text-xs text-white/80 font-medium">Live Laptop Camera is active via YOLO Stream</p>
+                      <button
+                        onClick={() => { setPlayerMode('yolo'); setShowLiveYolo(true); }}
+                        className="text-xs text-[#000814] bg-[#00ffcc] px-3 py-1.5 rounded-lg font-bold hover:bg-[#00e6b8] transition-all"
+                      >
+                        Switch to Live YOLO View
+                      </button>
+                    </div>
+                  ) : (
+                    <video
+                      key={source}
+                      src={rawVideoUrl}
+                      controls
+                      autoPlay
+                      loop
+                      className="w-full h-full object-contain"
+                    />
+                  )
                 ) : (
                   <div className="flex flex-col items-center justify-center p-8 text-center gap-4">
                     <div className="w-16 h-16 rounded-full border border-[#00ffcc]/30 flex items-center justify-center bg-[#00ffcc]/5">
@@ -302,7 +360,7 @@ export default function VideoStreamPanel({
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
                   disabled={status.running}
-                  placeholder="data/videos/test_video.mp4 | synthetic"
+                  placeholder="webcam | data/videos/test_video.mp4 | synthetic"
                   className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-white/20 outline-none focus:border-[#00ffcc]/50 disabled:opacity-50 font-mono"
                 />
               </div>

@@ -75,7 +75,9 @@ interface Props {
 
 export default function DetectionCard({ detection, rank }: Props) {
   const [imgError, setImgError] = useState(false);
-  const imgSrc = `${SERVER}/${detection.image_path}`;
+  const imgSrc = detection.image_path.startsWith('http') 
+    ? detection.image_path 
+    : `${SERVER}/${detection.image_path}`;
   const confColor = confidenceColor(detection.confidence);
 
   return (
