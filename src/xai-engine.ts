@@ -53,7 +53,14 @@ export function deriveZoneCoverage(
     }
   });
 
-  const coverage: Record<ZoneId, number> = {};
+  const coverage: Record<ZoneId, number> = {
+    Z1: 0,
+    Z2: 0,
+    Z3: 0,
+    Z4: 0,
+    Z5: 0,
+    Z6: 0,
+  };
   ZONES.forEach((zone) => {
     const count = zoneCellCounts.get(zone.id) ?? 0;
     coverage[zone.id] = Math.min(1, count / cellsPerZone);
@@ -137,7 +144,7 @@ function scoreZone(
 function generateReasons(
   drone: XAIDroneState,
   topZone: ZoneScore,
-  zoneCoverage: Record<ZoneId, number>,
+  zoneCoverage: Partial<Record<ZoneId, number>>,
   survivors: Array<{ x: number; y: number; discovered: boolean }>
 ): string[] {
   const reasons: string[] = [];
@@ -201,7 +208,7 @@ function generateDetailedReasoning(
   drone: XAIDroneState,
   topZone: ZoneScore,
   allZones: ZoneScore[],
-  zoneCoverage: Record<ZoneId, number>,
+  zoneCoverage: Partial<Record<ZoneId, number>>,
   survivors: Array<{ x: number; y: number; discovered: boolean }>
 ): string {
   const distance = Math.hypot(drone.x - topZone.cx, drone.y - topZone.cy);

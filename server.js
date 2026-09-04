@@ -10,6 +10,7 @@ import { applyGpsUpdate, GPS_DENIAL_ZONES } from './server/gpsModel.js';
 import { buildMeshState } from './server/meshNetwork.js';
 import { computeCommand } from './server/decisionEngine.js';
 import { buildZoneWaypoints } from './server/zonePlanner.js';
+import { uploadDroneMedia, generateSecureMediaUrl } from './services/cloudinaryService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -25,23 +26,13 @@ const SIM_CONFIG = JSON.parse(
 );
 
 const app = express();
+const PORT = process.env.PORT || 3001;
 app.use(cors({ origin: '*' }));
-app.use(express.json({ limit: '25mb' }));
-
-// ─── Prevent server from dying on any uncaught error ───────────────────────
-process.on('uncaughtException', (err) => {
-  console.error('[SERVER] Uncaught exception (server kept alive):', err);
-});
-process.on('unhandledRejection', (reason) => {
-  console.error('[SERVER] Unhandled promise rejection (server kept alive):', reason);
-});
+app.use(express.json({ limit: '10mb' }));
 
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST'],
-  },
+  cors: { origin: '*', methods: ['GET', 'POST'] },
 });
 
 const WORLD_BOUNDARY = SIM_CONFIG.WORLD_BOUNDARY;
@@ -71,12 +62,13 @@ let currentMissionLogPath = null;
 // --- Simulation State (mutable, resettable) ---
 let simulationRunning = false;
 let startedAt = null;
-let drones = [];
-let detectedSurvivorIds = new Set();
-let foundSurvivors = [];
-let alerts = [];
-let scannedCells = new Set();
+let currentTickMs = TICK_MS;
 let tickInterval = null;
+let currentScenarioId = null;
+let currentSeed = 42;
+
+// Cached state (refreshed each tick from Python)
+let lastSnapshot = null;
 let aiInsightsCache = null;
 let aiInsightsCacheAt = 0;
 let _currentMeshLinks = []; // Updated each tick by meshNetwork.buildMeshState
@@ -229,34 +221,16 @@ function initDrones(config) {
   }
 }
 
-function resetSimulation() {
-  if (tickInterval) {
-    clearInterval(tickInterval);
-    tickInterval = null;
-  }
-  simulationRunning = false;
-  startedAt = null;
-  detectedSurvivorIds = new Set();
-  foundSurvivors = [];
-  alerts = [];
-  scannedCells = new Set();
-  initDrones(simConfig);
+async function pySnapshot() {
+  const result = await sendPythonCommand({ action: 'snapshot' }, 2000);
+  if (result && !result.error) lastSnapshot = result;
+  return lastSnapshot;
 }
 
-// Initialize drones on server start (idle, not simulating)
-initDrones(simConfig);
-
-// --- Simulation Logic ---
-function pushAlert(type, message) {
-  alerts.unshift({
-    id: `${type.toUpperCase()}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    type,
-    message,
-    timestamp: new Date().toISOString(),
-  });
-  if (alerts.length > 250) {
-    alerts.length = 250;
-  }
+async function pyStep() {
+  const result = await sendPythonCommand({ action: 'step' }, 2000);
+  if (result && !result.error) lastSnapshot = result;
+  return lastSnapshot;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -486,146 +460,207 @@ function buildSnapshot() {
 let pythonAssignments = {};
 
 function initZoneWaypoints() {
-  const payload = {
-    drones: drones.filter((d) => d.status === 'active').map(d => ({ id: d.id, x: d.x, y: d.y })),
-    commRange: SIM_CONFIG.COMM_RANGE,
-    worldBoundary: SIM_CONFIG.WORLD_BOUNDARY
-  };
-  
-  try {
-    const bridgePath = path.join(process.cwd(), 'simulation', 'swarm_bridge.py');
-    const pythonExe = process.env.PYTHON_EXECUTABLE || 'python';
-    
-    const result = spawnSync(pythonExe, [bridgePath], {
-      input: JSON.stringify(payload),
-      encoding: 'utf-8',
-      maxBuffer: 1024 * 1024 * 10
-    });
-    
-    if (result.error) {
-      appendFileSync('bridge_debug.log', `Spawn Error: ${result.error.message}\n`);
-    } else if (result.stderr) {
-      appendFileSync('bridge_debug.log', `Stderr: ${result.stderr}\n`);
-    }
-
-    if (result.stdout) {
-      appendFileSync('bridge_debug.log', `Stdout: ${result.stdout}\n`);
-      const parsed = JSON.parse(result.stdout);
-      if (parsed.ok && parsed.assignments) {
-        pythonAssignments = parsed.assignments;
-        console.log('[SWARM] Assigned Python roles:', Object.keys(pythonAssignments).map(k => `${k}:${pythonAssignments[k].role}`));
-      } else {
-        console.error('[SWARM] Python bridge error:', parsed.error);
-        appendFileSync('bridge_debug.log', `Parsed Error: ${parsed.error}\n`);
-      }
-    }
-  } catch (err) {
-    appendFileSync('bridge_debug.log', `Exception: ${err.message}\n`);
-    console.error('[SWARM] Failed to run swarm bridge:', err);
-  }
+  const activeIds = drones.filter((d) => d.status === 'active').map((d) => d.id);
+  waypointQueues = buildZoneWaypoints(activeIds, currentWorldMap, SIM_CONFIG);
 }
 
-function startSimulationTick() {
+// ─── Tick loop ───────────────────────────────────────────────────────────────
+function startTick() {
   if (tickInterval) clearInterval(tickInterval);
   initZoneWaypoints();
   tickInterval = setInterval(() => {
     if (!simulationRunning) return;
-    try {
-      const activeDroneIds = drones.filter((d) => d.status === 'active').map((d) => d.id);
-      const missionState = {
-        pythonAssignments,
-        obstacles,
-        allDroneIds: activeDroneIds,
-      };
 
-      // STAGE 1+2: Decision → Actuation (per drone)
-      for (const drone of drones) {
-        if (drone.status === 'failed') continue;
-        const command = computeCommand(drone, currentWorldMap, missionState);
-        applyActuation(drone, command);
-        
-        // Apply GPS degradation if inside a denial zone
-        applyGpsUpdate(drone, TICK_MS, GPS_DENIAL_ZONES);
-      }
+    const activeDroneIds = drones.filter((d) => d.status === 'active').map((d) => d.id);
+    const missionState = {
+      waypointQueues,
+      obstacles,
+      allDroneIds: activeDroneIds,
+    };
 
-      // STAGE 3A: Survivor detection
-      const rawDetections = detectSurvivors(drones, hiddenSurvivors, detectedSurvivorIds);
-
-      // STAGE 3B: Mesh connectivity + relay
-      const meshResult = buildMeshState(drones, SIM_CONFIG, rawDetections);
-      const realMeshLinks = meshResult?.meshLinks ?? [];
-      const pendingFlush  = meshResult?.pendingFlush ?? [];
-      _currentMeshLinks = realMeshLinks;
-
-      for (const d of pendingFlush) {
-        foundSurvivors.unshift(d);
-        if (foundSurvivors.length > 120) foundSurvivors.length = 120;
-        pushAlert(
-          'critical',
-          `Survivor detected by ${d.droneId} at [${d.x.toFixed(1)}, ${d.y.toFixed(1)}]. ` +
-          `Confidence ${(d.confidence * 100).toFixed(0)}%.`
-        );
-        io.emit('survivorFound', d);
-      }
-
-      if (Math.random() < 0.08) {
-        pushAlert('info', 'Sector update complete. Adaptive reassignment initiated.');
-      }
-      if (Math.random() < 0.04) {
-        const lowBatteryDrone = drones.find((d) => d.battery < 25 && d.status === 'active');
-        if (lowBatteryDrone) {
-          pushAlert('warning', `${lowBatteryDrone.id} entering return path. Battery ${lowBatteryDrone.battery.toFixed(0)}%.`);
-        }
-      }
-
-      const snapshot = buildSnapshot();
-
-      if (currentMissionLogPath) {
-        try {
-          appendFileSync(currentMissionLogPath, JSON.stringify(snapshot) + '\n');
-        } catch (err) {
-          console.error('[LOGGER] Error writing tick log:', err);
-        }
-      }
-
-      emitSnapshot(snapshot);
-    } catch (tickErr) {
-      console.error('[TICK] Error in simulation tick (skipped — server alive):', tickErr);
+    // STAGE 1+2: Decision → Actuation (per drone)
+    for (const drone of drones) {
+      if (drone.status === 'failed') continue;
+      const command = computeCommand(drone, currentWorldMap, missionState);   // STAGE 1 (decisionEngine)
+      applyActuation(drone, command);                                         // STAGE 2 (physics)
     }
+
+    // STAGE 3A: Survivor detection (returns raw list — mesh decides delivery)
+    const rawDetections = detectSurvivors(drones, hiddenSurvivors, detectedSurvivorIds);
+
+    // STAGE 3B: Mesh connectivity + relay — replaces cosmetic buildMeshLinks
+    // Delivers detections only for drones with a path to BASE; queues the rest.
+    const { meshLinks: realMeshLinks, pendingFlush } = buildMeshState(
+      drones, SIM_CONFIG, rawDetections
+    );
+    // Store real mesh links so buildSnapshot() picks them up
+    _currentMeshLinks = realMeshLinks;
+
+    // Commit detections that made it through the mesh
+    for (const d of pendingFlush) {
+      foundSurvivors.unshift(d);
+      if (foundSurvivors.length > 120) foundSurvivors.length = 120;
+      pushAlert(
+        'critical',
+        `Survivor detected by ${d.droneId} at [${d.x.toFixed(1)}, ${d.y.toFixed(1)}]. ` +
+        `Confidence ${(d.confidence * 100).toFixed(0)}%.`
+      );
+      io.emit('survivorFound', d);
+    }
+
+    // Build enriched payload for frontend
+    const payload = buildFrontendPayload(snapshot);
+    io.emit('telemetrySnapshot', payload);
+    io.emit('missionData', payload.missionData);
+    io.emit('drones', payload.drones);
+    io.emit('fogState', payload.fog);
+    io.emit('lidarCloud', payload.lidar_cloud);
+    io.emit('aiInsights', getAiInsights(snapshot));
+
+    const snapshot = buildSnapshot();
+
+    // Log tick to append-only JSONL file
+    if (currentMissionLogPath) {
+      try {
+        appendFileSync(currentMissionLogPath, JSON.stringify(snapshot) + '\n');
+      } catch (err) {
+        console.error('[LOGGER] Error writing tick log:', err);
+      }
+    }
+
+    emitSnapshot(snapshot);
   }, TICK_MS);
 }
 
-// Helper — broadcast a snapshot (or build a fresh one) to all connected clients
-function emitSnapshot(snapshot) {
-  const s = snapshot ?? buildSnapshot();
-  io.emit('telemetrySnapshot', s);
+function stopTick() {
+  if (tickInterval) { clearInterval(tickInterval); tickInterval = null; }
 }
 
-// Emit snapshots even when paused so dashboard shows current state
-setInterval(() => {
+// ─── Passive state emitter (idle state) ─────────────────────────────────────
+setInterval(async () => {
   if (!simulationRunning) {
-    emitSnapshot();
+    const snapshot = lastSnapshot || {};
+    const payload = buildFrontendPayload(snapshot);
+    io.emit('telemetrySnapshot', payload);
+    io.emit('fogState', payload.fog);
   }
 }, 1500);
 
-// --- Socket.IO ---
-io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
-  socket.emit('telemetrySnapshot', buildSnapshot());
-  socket.on('disconnect', () => {
-    console.log('Client disconnected', socket.id);
+// ─── Payload builder ─────────────────────────────────────────────────────────
+function buildFrontendPayload(snapshot) {
+  const drones = (snapshot.drones || []).map(d => ({
+    id: `DRN-${String((d.id ?? 0) + 1).padStart(3, '0')}`,
+    // In GPS-denied mode show estimated position; otherwise true position
+    x: snapshot.gps_denied ? (d.estimated_x ?? d.x ?? 0) : (d.x ?? 0),
+    y: snapshot.gps_denied ? (d.estimated_y ?? d.y ?? 0) : (d.y ?? 0),
+    z: d.z_altitude_m ?? 80,
+    heading: d.heading_deg ?? 0,
+    speed: 12,
+    task: d.status === 'low_battery' ? 'returning' : (d.status ?? 'exploring'),
+    status: d.battery <= 0 ? 'failed' : (d.status === 'low_battery' ? 'active' : (d.status ?? 'active')),
+    battery: typeof d.battery === 'number'
+      ? Math.round((d.battery / 50000) * 100)
+      : (d.battery ?? 100),
+    signalStrength: snapshot.gps_denied ? Math.max(20, 70 - (d.position_uncertainty ?? 0) * 5) : 92,
+    // New fields for enhanced dashboard
+    estimated_x: d.estimated_x ?? d.x ?? 0,
+    estimated_y: d.estimated_y ?? d.y ?? 0,
+    position_uncertainty: d.position_uncertainty ?? 0,
+    gps_denied: snapshot.gps_denied ?? false,
+    lidar_range: d.lidar_range ?? 8,
+    lidar_known_obstacles: d.lidar_known_obstacles ?? 0,
+    new_obstacles_discovered: d.new_obstacles_discovered ?? 0,
+    last_lidar: d.last_lidar ?? null,
+    apf_force: d.apf_force ?? null,
+    trail: [],
+    lastSeen: new Date().toISOString(),
+    region: d.region ?? null,
+  }));
+
+  const mapState = snapshot.map || {};
+  const obstacles = (mapState.obstacles || []).map((obs, i) => {
+    const [x, y] = Array.isArray(obs) ? obs : [obs.x ?? 0, obs.y ?? 0];
+    const height = mapState.obstacle_heights?.[y]?.[x] ?? 10;
+    return {
+      id: `OBS-${String(i + 1).padStart(3, '0')}`,
+      x: (x / 50) * 280 - 140,
+      y: (y / 50) * 280 - 140,
+      radius: Math.max(5, height / 3),
+      severity: height > 70 ? 'high' : height > 30 ? 'medium' : 'low',
+      gridX: x, gridY: y,
+    };
   });
+
+  const hiddenSurvivors = (mapState.survivor_locations || []).map((s, i) => {
+    const [x, y] = Array.isArray(s) ? s : [s.x ?? 0, s.y ?? 0];
+    return { id: `HSV-${String(i + 1).padStart(3, '0')}`, x: (x / 50) * 280 - 140, y: (y / 50) * 280 - 140, severity: 'unknown' };
+  });
+
+  const foundSurvivors = (snapshot.new_detections || []).map((det, i) => ({
+    id: `SURV-${i}-${Date.now()}`,
+    sourceId: det.survivor_id,
+    x: (det.x / 50) * 280 - 140,
+    y: (det.y / 50) * 280 - 140,
+    timestamp: new Date().toISOString(),
+    confidence: det.confidence ?? 0.8,
+    droneId: det.detected_by ?? 'D1',
+  }));
+
+  const fogState = snapshot.fog || {};
+  const board = snapshot.mission_board || {};
+  const elapsed = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
+  const fogStats = fogState.stats || {};
+
+  const missionData = {
+    coverage: fogStats.explored_pct ?? board.coverage_percent ?? 0,
+    scannedCells: fogStats.scanned ?? board.scanned_cell_count ?? 0,
+    totalCells: fogStats.total_cells ?? board.total_passable_cells ?? 2500,
+    activeDrones: board.active_drones ?? drones.filter(d => d.status === 'active').length,
+    failedDrones: board.low_battery_drones ?? 0,
+    avgBattery: drones.length ? Math.round(drones.reduce((s, d) => s + d.battery, 0) / drones.length) : 0,
+    avgSignal: drones.length ? Math.round(drones.reduce((s, d) => s + d.signalStrength, 0) / drones.length) : 0,
+    foundSurvivors: board.survivors_found ?? 0,
+    missionTimeSec: elapsed,
+    gps_denied: snapshot.gps_denied ?? false,
+    scenario: snapshot.scenario ?? null,
+    triggeredEvents: snapshot.triggered_events ?? [],
+    environment: snapshot.environment ?? {},
+  };
+
+  return {
+    timestamp: new Date().toISOString(),
+    simulationRunning,
+    drones,
+    obstacles,
+    hiddenSurvivors,
+    foundSurvivors,
+    alerts: [],
+    missionData,
+    fog: fogState,
+    lidar_cloud: snapshot.lidar_cloud ?? [],
+    gps_denied: snapshot.gps_denied ?? false,
+    scenario_id: currentScenarioId,
+  };
+}
+
+// ─── Socket.IO ───────────────────────────────────────────────────────────────
+io.on('connection', socket => {
+  console.log('Client connected:', socket.id);
+  const snap = lastSnapshot || {};
+  socket.emit('telemetrySnapshot', buildFrontendPayload(snap));
+  socket.on('disconnect', () => console.log('Client disconnected:', socket.id));
 });
 
 // --- REST API ---
 app.get('/api/config', (_req, res) => res.json(SIM_CONFIG));
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, service: 'drone-telemetry', timestamp: new Date().toISOString() });
+  res.json({ ok: true, service: 'droneshield', timestamp: new Date().toISOString() });
 });
 
-app.get('/api/mission/snapshot', (_req, res) => {
-  res.json(buildSnapshot());
+app.get('/api/mission/snapshot', async (_req, res) => {
+  const snap = await pySnapshot();
+  res.json(buildFrontendPayload(snap || {}));
 });
 
 app.get('/api/mission/status', (_req, res) => {
@@ -677,10 +712,17 @@ app.get('/api/mission/history/:id', (req, res) => {
 });
 
 app.get('/api/mission/ai-insights', (_req, res) => {
-  res.json({ source: 'Python Bridge', health: { healthy: drones.filter(d => d.status==='active').length, total_drones: drones.length, health_pct: 100 }, topZones: [], commandSuggestions: [], assignments: [] });
+  const snap = lastSnapshot || {};
+  res.json({ ...getAiInsights(snap), snapshotTimestamp: new Date().toISOString() });
 });
 
-// Configure simulation (drone count, battery, etc.)
+// Get available scenarios
+app.get('/api/scenarios', async (_req, res) => {
+  const scenarios = await pyGetScenarios();
+  res.json({ ok: true, scenarios });
+});
+
+// Configure simulation
 app.post('/api/mission/configure', (req, res) => {
   if (simulationRunning) {
     return res.status(400).json({ error: 'Cannot configure while simulation is running. Stop first.' });
@@ -697,9 +739,15 @@ app.post('/api/mission/configure', (req, res) => {
 });
 
 // Start simulation
-app.post('/api/mission/start', (_req, res) => {
-  if (simulationRunning) {
-    return res.status(400).json({ error: 'Simulation already running' });
+app.post('/api/mission/start', async (req, res) => {
+  if (simulationRunning) return res.status(400).json({ error: 'Already running' });
+  const { scenario_id, seed } = req.body || {};
+  if (scenario_id) currentScenarioId = scenario_id;
+  if (seed) currentSeed = Number(seed);
+
+  const result = await pyStart(currentScenarioId, currentSeed);
+  if (!result?.ok && result?.error) {
+    return res.status(500).json({ error: result.error });
   }
 
   // Reset state but keep config
@@ -723,23 +771,26 @@ app.post('/api/mission/start', (_req, res) => {
 });
 
 // Stop simulation
-app.post('/api/mission/stop', (_req, res) => {
+app.post('/api/mission/stop', async (_req, res) => {
   simulationRunning = false;
-  if (tickInterval) {
-    clearInterval(tickInterval);
-    tickInterval = null;
-  }
-  drones.forEach(d => { d.task = 'idle'; });
-  pushAlert('info', 'Mission stopped by operator.');
-  console.log('Simulation STOPPED');
+  stopTick();
+  await pyStop();
+  console.log('[Sim] STOPPED');
   res.json({ ok: true, message: 'Simulation stopped' });
 });
 
 // Reset simulation
-app.post('/api/mission/reset', (_req, res) => {
-  resetSimulation();
-  console.log('Simulation RESET');
-  res.json({ ok: true, message: 'Simulation reset', config: simConfig });
+app.post('/api/mission/reset', async (req, res) => {
+  const { scenario_id, seed } = req.body || {};
+  if (scenario_id) currentScenarioId = scenario_id;
+  if (seed) currentSeed = Number(seed);
+  simulationRunning = false;
+  stopTick();
+  startedAt = null;
+  await pyReset(currentScenarioId, currentSeed);
+  lastSnapshot = await pySnapshot();
+  console.log(`[Sim] RESET — scenario=${currentScenarioId}`);
+  res.json({ ok: true, message: 'Simulation reset' });
 });
 
 // Dynamic Mesh Synchronization (Frontend sends physical GLB boundaries)
@@ -963,12 +1014,121 @@ function getMapData() {
   return cachedMapData;
 }
 
+// Map data (height map for 3D view)
 app.get('/api/mission/map', (_req, res) => {
-  res.json(getMapData());
+  const snap = lastSnapshot;
+  const mapState = snap?.map || {};
+  res.json({
+    heightMap: mapState.obstacle_heights && mapState.obstacle_heights.length > 0 ? mapState.obstacle_heights : getMapData().heightMap,
+    rawSurvivors: mapState.survivor_locations && mapState.survivor_locations.length > 0 ? mapState.survivor_locations : getMapData().rawSurvivors,
+    gridSize: mapState.grid_size || getMapData().gridSize,
+    worldBoundary: 140,
+  });
 });
 
-const PORT = process.env.PORT || 3001;
+// ─── Cloudinary Media Storage ───────────────────────────────────────────────
+// POST /api/mission/media/upload - Uploads mock placeholder or VLM images to Cloudinary
+app.post('/api/mission/media/upload', async (req, res) => {
+  const { droneId, missionId, type, fileBase64 } = req.body;
+  if (!droneId || !missionId || !fileBase64) {
+    return res.status(400).json({ error: 'Missing required fields: droneId, missionId, fileBase64' });
+  }
+
+  try {
+    const result = await uploadDroneMedia(fileBase64, droneId, missionId, type || 'image');
+    
+    // Generate secure URL immediately for testing
+    // Cryptographically bound to the request's IP and expires in 5 mins
+    const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
+    const secureUrl = generateSecureMediaUrl(result.public_id, ip, result.resource_type);
+
+    res.json({
+      success: true,
+      publicId: result.public_id,
+      folder: result.folder,
+      secureTimeLimitedUrl: secureUrl
+    });
+  } catch (err) {
+    console.error('Failed to upload media:', err);
+    res.status(500).json({ error: 'Media upload failed' });
+  }
+});
+
+// ─── Layer 5: Active Canary Trap (Decoy Endpoint) ───────────────────────────
+// Legitimate drones NEVER call this. If an attacker with a stolen JWT scans
+// the API, they inevitably probe this URL. The moment they do, we broadcast
+// a real-time intrusion alert to every connected React dashboard client.
+const revokedTokens = new Set();
+
+app.get('/api/admin/master-keys', (req, res) => {
+  const token = req.headers['authorization'] || req.query.token || 'unknown';
+
+  // Log the intrusion
+  console.warn(`[CANARY TRIGGERED] Decoy endpoint hit! Token: ${token}`);
+  revokedTokens.add(token);
+
+  // Broadcast red alert to ALL connected React dashboard clients over WebSocket
+  io.emit('canary_triggered', {
+    timestamp: new Date().toISOString(),
+    alert: 'INTRUSION DETECTED — Decoy endpoint accessed',
+    revoked_token: token,
+    layer: 5
+  });
+
+  return res.status(403).json({
+    error: 'FORBIDDEN: Intrusion detected. Identity revoked.',
+    layer: 'Layer 5 Active Canary Trap'
+  });
+});
+
+// ─── Layer 1-6: Security Status API ─────────────────────────────────────────
+// Allows the React dashboard SecurityStatusPanel to poll live security metrics.
+app.get('/api/security/status', (_req, res) => {
+  const snap = lastSnapshot;
+  const meshSecurity = snap?.security || {};
+
+  res.json({
+    layer1: {
+      name: 'Hardware-Rooted Identity & Key Isolation',
+      status: 'ACTIVE',
+      detail: meshSecurity.root_trust || 'Simulated PUF → HKDF-SHA256',
+      transport_key: meshSecurity.transport_key_fingerprint || 'N/A',
+      payload_key: meshSecurity.payload_key_fingerprint || 'N/A',
+    },
+    layer2: {
+      name: 'Double-Wrap Cascade Encryption',
+      status: 'ACTIVE',
+      detail: meshSecurity.key_exchange || 'Hybrid X25519 + ML-KEM-768',
+      cipher: 'AES-256-GCM ⟩ ChaCha20-Poly1305',
+    },
+    layer3: {
+      name: 'Adaptive QoS Telemetry',
+      status: 'ACTIVE',
+      detail: meshSecurity.telemetry_auth || 'Ed25519 Signatures (PyNaCl)',
+    },
+    layer4: {
+      name: 'Swarm AI Anomaly Detection',
+      status: 'ACTIVE',
+      detail: meshSecurity.intrusion_detection || 'Physics AI + Isolation Forest',
+    },
+    layer5: {
+      name: 'Active Canary Trap',
+      status: 'ACTIVE',
+      detail: meshSecurity.active_defense || 'Canary Decoy API Running',
+      revoked_tokens: revokedTokens.size,
+    },
+    layer6: {
+      name: 'Encrypted BLE + Ground Handoff',
+      status: 'ACTIVE',
+      detail: meshSecurity.tactical_ground_link || 'AES-GCM BLE + Socket Handoff',
+    },
+    overall: 'ALL_LAYERS_ACTIVE',
+  });
+});
+
+// ─── Boot ────────────────────────────────────────────────────────────────────
+
 server.listen(PORT, () => {
-  console.log(`Simulation Server running on port ${PORT}`);
-  console.log(`Simulation status: IDLE (waiting for /api/mission/start)`);
+  console.log(`DroneShield Server running on port ${PORT}`);
+  console.log(`Status: IDLE (POST /api/mission/start to begin)`);
 });

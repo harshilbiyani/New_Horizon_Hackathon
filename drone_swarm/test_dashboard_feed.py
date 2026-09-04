@@ -136,8 +136,11 @@ print(f"Dashboard size: {len(html)} bytes")
 print("\nPreview (first 300 chars):")
 print(html[:300] + "...\n")
 
-# Save to file
-output_file = "dashboard.html"
+# Save to file (use subdirectory to avoid breaking Vite SPA routing)
+import os
+output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
+os.makedirs(output_dir, exist_ok=True)
+output_file = os.path.join(output_dir, "dashboard.html")
 with open(output_file, "w", encoding="utf-8") as f:
     f.write(html)
 

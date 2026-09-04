@@ -6,8 +6,25 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    port: 5191,
     watch: {
-      ignored: ['**/logs/**', '**/data/**']
+      ignored: [
+        '**/simulation/**',
+        '**/drone_swarm/**',
+        '**/*.py',
+        '**/*.pyc',
+        '**/__pycache__/**',
+        '**/*.json',
+        '**/*.md',
+        '**/.*/**',
+      ]
+    },
+    proxy: {
+      '/api': 'http://localhost:3001',
+      '/socket.io': {
+        target: 'http://localhost:3001',
+        ws: true
+      }
     }
   }
 })

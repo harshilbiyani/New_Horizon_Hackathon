@@ -74,6 +74,21 @@ class DeadReckoningEngine:
         self.known_allies = {}           # drone_id → LocalizationEstimate
         self.landmark_observations = []  # observed features
     
+    def update(self, speed=1.0, heading=0.0, delta_time=1.0):
+        """
+        Update estimated position based on speed and heading.
+        Returns the updated LocalizationEstimate.
+        """
+        rad = math.radians(heading)
+        dx = speed * math.cos(rad) * delta_time + random.gauss(0, self.imu_noise * 0.2)
+        dy = speed * math.sin(rad) * delta_time + random.gauss(0, self.imu_noise * 0.2)
+        
+        self.estimate.x += dx
+        self.estimate.y += dy
+        self.estimate.heading = heading % 360.0
+        self.estimate.uncertainty += math.sqrt(dx**2 + dy**2) * self.drift_rate
+        return self.estimate
+
     def integrate_imu(self, acceleration, dt=0.1):
         """
         Update position using IMU acceleration readings.

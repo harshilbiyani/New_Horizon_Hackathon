@@ -1,14 +1,23 @@
 """
-Bridge script to connect Node telemetry snapshots with the Python AI swarm modules
-(from the trupti branch).
+Bridge script to connect Node telemetry snapshots with the Python AI swarm modules.
 
 Usage:
 - Read JSON snapshot from stdin
 - Write AI insight JSON to stdout
+
+AI modules wired in this bridge:
+- ZoneDivider + compute_zone_fitness  : rank zones by exploration priority
+- SwarmAllocator (ABC)                : assign drones to zones (employer + onlooker + scout)
+- AICoordinator (Q-learning)          : reinforcement-learn which zones yield detections
+- AIDetector (logistic regression)    : score detection confidence from sensor features
+- FailureRecoveryManager             : track failed drones and redistribute tasks
+- MissionBlackboard                  : shared decentralized mission log
+- ai_state                           : persist Q-values and detector weights between runs
 """
 
 from __future__ import annotations
 
+import atexit
 import json
 import math
 import os
@@ -19,14 +28,27 @@ from typing import Any, Dict, List, Tuple
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 AI_DIR = os.path.join(ROOT_DIR, "drone_swarm")
-if AI_DIR not in sys.path:
-    sys.path.insert(0, AI_DIR)
+SIM_DIR = os.path.dirname(__file__)
+for _d in (AI_DIR, SIM_DIR):
+    if _d not in sys.path:
+        sys.path.insert(0, _d)
 
 try:
     from zone_fitness import ZoneDivider, compute_zone_fitness, rank_zones
     from task_allocator import SwarmAllocator
     from failure_recovery import FailureRecoveryManager, DroneStatus
     from mission_blackboard import MissionBlackboard
+    from ai_coordinator import AICoordinator
+    from ai_detector import AIDetector
+    from ai_state import load_all, save_all
+    
+    # Layer 1-4 Security Integration
+    from crypto_identity import DroneIdentity
+    from crypto_double_wrap import DoubleWrapCipher
+    from crypto_hybrid_kem import HybridKEMNode
+    from crypto_telemetry import TelemetrySigner
+    from crypto_ai_anomaly import PhysicsAnomalyDetector
+    from crypto_isolation_forest import IsolationForestDetector
 except Exception as exc:  # pragma: no cover - hard failure path
     print(json.dumps({"ok": False, "error": f"AI imports failed: {exc}"}))
     raise SystemExit(1)
@@ -44,6 +66,18 @@ except Exception:
 
 def clamp(value: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, value))
+
+
+_coordinator_instance = None
+_detector_instance = None
+
+def _get_ai_singletons():
+    global _coordinator_instance, _detector_instance
+    if _coordinator_instance is None:
+        _coordinator_instance = AICoordinator()
+        _detector_instance = AIDetector()
+        # In a real run, this loads persisted state
+    return _coordinator_instance, _detector_instance
 
 
 def world_to_grid(x: float, y: float) -> Tuple[int, int]:
@@ -92,9 +126,53 @@ def build_coverage_cells(drones: List[Dict[str, Any]]) -> set[Tuple[int, int]]:
 
 
 def parse_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
-    drones = payload.get("drones") or []
+    raw_drones = payload.get("drones") or []
     found_survivors = payload.get("foundSurvivors") or []
     obstacles = payload.get("obstacles") or []
+    
+    # ----------------------------------------------------------------
+    # LAYER 1-4: SECURITY INTEGRATION (The Gantlet)
+    # ----------------------------------------------------------------
+    anomaly_detector = PhysicsAnomalyDetector()
+    drones = []
+    
+    for idx, drone in enumerate(raw_drones, start=1):
+        if drone.get("status") != "active":
+            drones.append(drone)
+            continue
+            
+        try:
+            # 1. Simulate Drone Side Cryptography
+            drone_identity = DroneIdentity(drone_id=idx)
+            drone_signer = TelemetrySigner(node_id=idx)
+            drone_kem = HybridKEMNode(node_id=idx)
+            kem_cipher = DoubleWrapCipher.from_identity(drone_identity)
+            
+            signed_packet = drone_signer.sign_payload(drone)
+            raw_bytes = json.dumps(signed_packet, sort_keys=True).encode('utf-8')
+            encrypted_payload = kem_cipher.encrypt(raw_bytes)
+            
+            # --- TRANSMISSION HAPPENS HERE ---
+            
+            # 2. Simulate Ground Station / Bridge Validation
+            gs_cipher = DoubleWrapCipher.from_identity(drone_identity)
+            decrypted_bytes = gs_cipher.decrypt(encrypted_payload)
+            received_packet = json.loads(decrypted_bytes.decode('utf-8'))
+            
+            if not TelemetrySigner.verify_payload(received_packet, drone_signer.public_key_b64):
+                raise ValueError("Signature Verification Failed")
+                
+            # 3. AI Anomaly Quarantine (Physics Check)
+            anomaly_detector.evaluate_telemetry(idx, drone)
+            
+            drones.append(drone)
+            
+        except Exception as e:
+            print(f"[SECURITY ALERT] Drone {idx} Quarantine: {e}", file=sys.stderr)
+            drone["status"] = "failed"
+            drone["security_quarantine"] = str(e)
+            drones.append(drone)
+    # ----------------------------------------------------------------
 
     zone_divider = ZoneDivider(grid_size=GRID_SIZE, zone_size=10)
 
@@ -136,6 +214,25 @@ def parse_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
     allocator = SwarmAllocator(num_drones=max(1, len(drones)), scout_ratio=0.2, onlooker_ratio=0.2)
     allocator.initialize_roles()
     allocations = allocator.allocate_zones(ranked, drone_positions)
+
+    if ranked:
+        # Onlookers refine allocations for high-fitness zones already found
+        onlooker_list = allocator.onlooker_dance(
+            completed_task=None,
+            ranked_zones=ranked,
+        ) if hasattr(allocator, 'onlooker_dance') else []
+        for task in (onlooker_list or []):
+            if hasattr(task, 'drone_id') and task.drone_id not in allocations:
+                allocations[task.drone_id] = task
+
+        # Scouts randomly explore unvisited zones to avoid local optima
+        scout_list = allocator.scout_random_zones(
+            all_zones=zone_scores,
+        ) if hasattr(allocator, 'scout_random_zones') else []
+        for task in (scout_list or []):
+            if hasattr(task, 'drone_id') and task.drone_id not in allocations:
+                allocations[task.drone_id] = task
+
     if not allocations and alive_drones and ranked:
         for idx, drone in enumerate(alive_drones[: min(len(alive_drones), len(ranked))], start=1):
             zone = ranked[idx - 1]
@@ -218,6 +315,44 @@ def parse_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
             }
         )
 
+    # --- Q-learning coordinator: bias zone selection toward high-reward zones ---
+    coordinator, detector = _get_ai_singletons()
+
+    # Update coordinator with rewards from detections in each zone
+    if found_survivors:
+        for surv in found_survivors:
+            sx, sy = world_to_grid(float(surv.get("x", 0.0)), float(surv.get("y", 0.0)))
+            zone_id = zone_divider.get_zone((sx, sy))
+            conf    = float(surv.get("confidence", 0.7))
+            coordinator.update_reward(str(zone_id), reward=conf)
+
+    # Use coordinator to re-rank: top zones get a Q-value bonus
+    for zone in ranked:
+        zone_id_str = str(zone["zone_id"])
+        q_bonus = coordinator.get_zone_score(zone_id_str) if hasattr(coordinator, 'get_zone_score') else 0.0
+        zone["final_score"] = round(float(zone.get("final_score", 0.0)) + q_bonus * 0.15, 4)
+    # Re-sort after Q-bonus adjustment
+    ranked.sort(key=lambda z: z["final_score"], reverse=True)
+    for i, zone in enumerate(ranked):
+        zone["rank"] = i + 1
+
+    # Update AIDetector with detection confidence features
+    for surv in found_survivors:
+        battery_pct = float(surv.get("battery", 50.0)) / 100.0
+        confidence  = float(surv.get("confidence", 0.7))
+        zone_id     = float(zone_divider.get_zone(
+            world_to_grid(float(surv.get("x", 0.0)), float(surv.get("y", 0.0)))
+        ))
+        # Train detector: features = [thermal_proxy, motion_proxy, zone_exploration_ratio]
+        thermal = min(1.0, confidence + 0.1)
+        motion  = min(1.0, confidence * 0.9)
+        zone_ratio = zone_id / max(1, zone_divider.total_zones)
+        detector.train(features=[thermal, motion, zone_ratio], label=1 if confidence > 0.5 else 0)
+
+    # Save state if new survivors were trained on
+    if found_survivors:
+        save_all(coordinator, detector)
+
     avg_battery = (
         sum(float(d.get("battery", 0)) for d in drones) / max(1, len(drones))
         if drones
@@ -254,6 +389,11 @@ def parse_snapshot(payload: Dict[str, Any]) -> Dict[str, Any]:
         "topZones": top_zones,
         "assignments": ai_assignments,
         "commandSuggestions": command_suggestions,
+        "aiEngines": {
+            "coordinator": "active" if coordinator else "unavailable",
+            "detector": "active" if detector else "unavailable",
+            "abcAllocator": "active",
+        },
     }
 
 
