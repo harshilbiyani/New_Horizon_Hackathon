@@ -7,9 +7,9 @@ import Login from "./pages/Login";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Visualization from "./pages/Visualization";
-import MissionControl from "./pages/MissionControl";
 import XAIDecisions from "./pages/XAIDecisions";
 import Replay from "./pages/Replay";
+import PersonSearch from "./pages/PersonSearch";
 
 export default function App() {
   return (
@@ -28,6 +28,7 @@ export default function App() {
                 <Route path="map" element={<Visualization />} />
                 <Route path="xai" element={<XAIDecisions />} />
                 <Route path="replay" element={<Replay />} />
+                <Route path="search" element={<PersonSearch />} />
               </Route>
             </Route>
             

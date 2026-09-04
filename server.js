@@ -3,7 +3,9 @@ import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, readdirSync, createReadStream, statSync } from 'node:fs';
+import https_ from 'node:https';
+import http_ from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyGpsUpdate, GPS_DENIAL_ZONES } from './server/gpsModel.js';
@@ -66,6 +68,12 @@ let currentTickMs = TICK_MS;
 let tickInterval = null;
 let currentScenarioId = null;
 let currentSeed = 42;
+
+let drones = [];
+let detectedSurvivorIds = new Set();
+let foundSurvivors = [];
+let alerts = [];
+let scannedCells = new Set();
 
 // Cached state (refreshed each tick from Python)
 let lastSnapshot = null;
@@ -222,15 +230,11 @@ function initDrones(config) {
 }
 
 async function pySnapshot() {
-  const result = await sendPythonCommand({ action: 'snapshot' }, 2000);
-  if (result && !result.error) lastSnapshot = result;
-  return lastSnapshot;
+  return typeof buildSnapshot === 'function' ? buildSnapshot() : (lastSnapshot || {});
 }
 
 async function pyStep() {
-  const result = await sendPythonCommand({ action: 'step' }, 2000);
-  if (result && !result.error) lastSnapshot = result;
-  return lastSnapshot;
+  return typeof buildSnapshot === 'function' ? buildSnapshot() : (lastSnapshot || {});
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -439,6 +443,18 @@ function buildMissionData() {
   };
 }
 
+function getAiInsights(snapshot) {
+  if (aiInsightsCache) return aiInsightsCache;
+  return {
+    tactical_summary: "Awaiting AI insights...",
+    priority_targets: [],
+    recommended_actions: [],
+    heatmap_url: null,
+    risk_level: "Medium",
+    drone_assignments: {}
+  };
+}
+
 function buildSnapshot() {
   return {
     timestamp: new Date().toISOString(),
@@ -455,6 +471,10 @@ function buildSnapshot() {
     gpsDenialZones: GPS_DENIAL_ZONES,
     worldMap: currentWorldMap,
   };
+}
+
+function emitSnapshot(snapshot = buildSnapshot()) {
+  io.emit('telemetrySnapshot', snapshot);
 }
 
 let pythonAssignments = {};
@@ -658,9 +678,8 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'droneshield', timestamp: new Date().toISOString() });
 });
 
-app.get('/api/mission/snapshot', async (_req, res) => {
-  const snap = await pySnapshot();
-  res.json(buildFrontendPayload(snap || {}));
+app.get('/api/mission/snapshot', (_req, res) => {
+  res.json(buildSnapshot());
 });
 
 app.get('/api/mission/status', (_req, res) => {
@@ -1026,6 +1045,214 @@ app.get('/api/mission/map', (_req, res) => {
   });
 });
 
+// ─── VLM Person-Search API (proxy to Python CLIP microservice on :5001) ─────
+const VLM_BASE = process.env.VLM_BASE || 'http://localhost:5001';
+
+/**
+ * Generic proxy helper: forwards a request to the VLM Flask service.
+ * Supports GET and DELETE. For POST use vlmPost.
+ */
+function vlmProxy(vlmPath, req, res) {
+  const url = new URL(vlmPath, VLM_BASE);
+  // Forward query params
+  for (const [k, v] of Object.entries(req.query)) {
+    url.searchParams.set(k, v);
+  }
+  const lib = url.protocol === 'https:' ? https_ : http_;
+  const options = {
+    hostname: url.hostname,
+    port: url.port || (url.protocol === 'https:' ? 443 : 80),
+    path: url.pathname + url.search,
+    method: req.method,
+    headers: { 'Content-Type': 'application/json' },
+  };
+  const proxyReq = lib.request(options, (proxyRes) => {
+    res.status(proxyRes.statusCode);
+    proxyRes.pipe(res);
+  });
+  proxyReq.on('error', (err) => {
+    console.error('[VLM proxy error]', err.message);
+    res.status(502).json({ error: 'VLM service unavailable', detail: err.message });
+  });
+  if (req.body && Object.keys(req.body).length > 0) {
+    proxyReq.write(JSON.stringify(req.body));
+  }
+  proxyReq.end();
+}
+
+/** Health — GET /api/vlm/health */
+app.get('/api/vlm/health', (req, res) => vlmProxy('/health', req, res));
+
+/** Search — GET /api/vlm/search?q=<text>&k=<n>&threshold=<0-1> */
+app.get('/api/vlm/search', (req, res) => vlmProxy('/search', req, res));
+
+/** List all detections — GET /api/vlm/detections?page=1&per_page=50 */
+app.get('/api/vlm/detections', (req, res) => vlmProxy('/detections', req, res));
+
+/** Reset index — DELETE /api/vlm/reset */
+app.delete('/api/vlm/reset', (req, res) => vlmProxy('/index', req, res));
+
+/**
+ * Ingest a single detection from the sim pipeline.
+ * Body: { embedding: [...], metadata: {...} }
+ * POST /api/vlm/ingest
+ */
+app.post('/api/vlm/ingest', (req, res) => {
+  const url = new URL('/index', VLM_BASE);
+  const lib = url.protocol === 'https:' ? https_ : http_;
+  const body = JSON.stringify(req.body);
+  const options = {
+    hostname: url.hostname,
+    port: url.port || 80,
+    path: '/index',
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+  };
+  const proxyReq = lib.request(options, (proxyRes) => {
+    res.status(proxyRes.statusCode);
+    proxyRes.pipe(res);
+  });
+  proxyReq.on('error', (err) => {
+    res.status(502).json({ error: 'VLM service unavailable', detail: err.message });
+  });
+  proxyReq.write(body);
+  proxyReq.end();
+});
+
+/**
+ * Serve detection images: GET /data/detections/<filename>.jpg
+ * Maps to the local filesystem at <project>/data/detections/
+ */
+app.get('/data/detections/:filename', (req, res) => {
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(__dirname, 'data', 'detections', filename);
+  if (!existsSync(filePath)) {
+    return res.status(404).json({ error: 'Image not found' });
+  }
+  try {
+    const stat = statSync(filePath);
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Content-Length', stat.size);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    createReadStream(filePath).pipe(res);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to read image' });
+  }
+});
+
+// ─── Phase 2: VLM Stream Control proxy routes ─────────────────────────────────
+
+/** Start stream — POST /api/vlm/stream/start */
+app.post('/api/vlm/stream/start', (req, res) => {
+  const url = new URL('/stream/start', VLM_BASE);
+  const lib = url.protocol === 'https:' ? https_ : http_;
+  const body = JSON.stringify(req.body);
+  const options = {
+    hostname: url.hostname,
+    port: url.port || 80,
+    path: '/stream/start',
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+  };
+  const proxyReq = lib.request(options, (proxyRes) => {
+    res.status(proxyRes.statusCode);
+    proxyRes.pipe(res);
+  });
+  proxyReq.on('error', (err) => res.status(502).json({ error: 'VLM unavailable', detail: err.message }));
+  proxyReq.write(body);
+  proxyReq.end();
+});
+
+/** Stop stream — POST /api/vlm/stream/stop */
+app.post('/api/vlm/stream/stop', (req, res) => vlmProxy('/stream/stop', req, res));
+
+/** Stream status — GET /api/vlm/stream/status */
+app.get('/api/vlm/stream/status', (req, res) => vlmProxy('/stream/status', req, res));
+
+/**
+ * SSE passthrough — GET /api/vlm/stream/events?since=<n>
+ * Requires special handling: must NOT buffer the response body.
+ * We pipe the Flask SSE stream directly to the Express response.
+ */
+app.get('/api/vlm/stream/events', (req, res) => {
+  const since = req.query.since || '0';
+  const url = new URL(`/stream/events?since=${since}`, VLM_BASE);
+  const lib = url.protocol === 'https:' ? https_ : http_;
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  const options = {
+    hostname: url.hostname,
+    port: url.port || 80,
+    path: url.pathname + url.search,
+    method: 'GET',
+  };
+  const proxyReq = lib.request(options, (proxyRes) => {
+    proxyRes.on('data', (chunk) => {
+      res.write(chunk);
+      // Force flush for SSE
+      if (res.flush) res.flush();
+    });
+    proxyRes.on('end', () => res.end());
+  });
+  proxyReq.on('error', (err) => {
+    res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`);
+    res.end();
+  });
+  proxyReq.end();
+
+  // Clean up if client disconnects
+  req.on('close', () => proxyReq.destroy());
+});
+
+/**
+ * MJPEG YOLO live video stream proxy — GET /api/vlm/stream/yolo_feed?source=...
+ * Pipes the multipart/x-mixed-replace stream from Flask directly to the browser.
+ */
+app.get('/api/vlm/stream/yolo_feed', (req, res) => {
+  const url = new URL('/stream/yolo_feed', VLM_BASE);
+  for (const [k, v] of Object.entries(req.query)) {
+    url.searchParams.set(k, v);
+  }
+  const lib = url.protocol === 'https:' ? https_ : http_;
+  const options = {
+    hostname: url.hostname,
+    port: url.port || 80,
+    path: url.pathname + url.search,
+    method: 'GET',
+  };
+  const proxyReq = lib.request(options, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res);
+  });
+  proxyReq.on('error', (err) => {
+    console.error('[YOLO feed error]', err.message);
+    res.status(502).json({ error: 'Feed unavailable', detail: err.message });
+  });
+  req.on('close', () => proxyReq.destroy());
+  proxyReq.end();
+});
+
+/** Available video files for streaming — GET /api/vlm/stream/videos */
+app.get('/api/vlm/stream/videos', (req, res) => vlmProxy('/stream/videos', req, res));
+
+/** Serve raw local video files: GET /data/videos/:filename */
+app.get('/data/videos/:filename', (req, res) => {
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(__dirname, 'data', 'videos', filename);
+  if (!existsSync(filePath)) {
+    // Try data/ root
+    const rootPath = path.join(__dirname, 'data', filename);
+    if (existsSync(rootPath)) return res.sendFile(rootPath);
+    return res.status(404).json({ error: 'Video file not found' });
+  }
+  res.sendFile(filePath);
+});
+
 // ─── Cloudinary Media Storage ───────────────────────────────────────────────
 // POST /api/mission/media/upload - Uploads mock placeholder or VLM images to Cloudinary
 app.post('/api/mission/media/upload', async (req, res) => {
@@ -1132,3 +1359,4 @@ server.listen(PORT, () => {
   console.log(`DroneShield Server running on port ${PORT}`);
   console.log(`Status: IDLE (POST /api/mission/start to begin)`);
 });
+

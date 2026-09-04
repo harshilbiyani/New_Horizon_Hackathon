@@ -57,6 +57,14 @@ export default function Layout() {
           >
             REPLAY
           </Link>
+          <Link
+            to="/search"
+            className={`text-sm font-semibold tracking-wide border-b-2 transition-colors pb-1 ${
+              path === '/search' ? 'border-[#00ffcc] text-white' : 'border-transparent text-gray-500 hover:text-white'
+            }`}
+          >
+            PERSON SEARCH
+          </Link>
         </div>
         
         <div className="flex items-center gap-4">

@@ -18,7 +18,8 @@ import type {
   MeshLink,
   Obstacle,
   Survivor,
-  } from '../types/telemetry';
+  TelemetrySnapshot,
+} from '../types/telemetry';
 
 const EMPTY_MISSION_DATA: MissionData = {
   coverage: 0,
@@ -103,7 +104,7 @@ export default function Dashboard() {
       });
 
       setSelectedDroneId((current) => {
-        if (current && snapshot.drones.some((drone) => drone.id === current)) {
+        if (current && snapshot.drones.some((drone: Drone) => drone.id === current)) {
           return current;
         }
         return snapshot.drones[0]?.id;
@@ -151,6 +152,11 @@ export default function Dashboard() {
     ? new Date(lastSnapshotAt).toLocaleTimeString()
     : 'Awaiting snapshot';
 
+  const scannedCellKeys = Array.isArray(missionData.scannedCells) ? missionData.scannedCells : [];
+  const scannedCount = Array.isArray(missionData.scannedCells)
+    ? missionData.scannedCells.length
+    : (missionData.scannedCells || 0);
+
   return (
     <div className="min-h-[calc(100vh-64px)] bg-[#000814] text-white p-6 font-sans">
       <header className="mb-6 border-b border-white/10 pb-4 flex flex-wrap justify-between items-center gap-3">
@@ -173,7 +179,7 @@ export default function Dashboard() {
             dronesCount={missionData.activeDrones || drones.filter((drone) => drone.status === 'active').length}
             coverage={missionData.coverage}
             survivorsCount={missionData.foundSurvivors || survivors.length}
-            scannedCells={missionData.scannedCells}
+            scannedCells={scannedCount}
             avgBattery={missionData.avgBattery}
             avgSignal={missionData.avgSignal}
             missionTimeSec={missionData.missionTimeSec}
@@ -214,7 +220,7 @@ export default function Dashboard() {
               foundSurvivors={survivors}
               hiddenSurvivors={hiddenSurvivors}
               meshLinks={meshLinks}
-              scannedCells={Array.isArray(missionData?.scannedCells) ? missionData.scannedCells as string[] : []}
+              scannedCells={scannedCellKeys}
               selectedDroneId={selectedDroneId}
               onSelectDrone={setSelectedDroneId}
             />

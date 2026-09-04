@@ -20,6 +20,9 @@ export interface Drone {
   distanceTraveled: number;
   lastSeen: string;
   trail: TrailPoint[];
+  gpsMode?: string;
+  positionUncertainty?: number;
+  relayPath?: string[];
 }
 
 export interface Survivor {
@@ -122,4 +125,57 @@ export interface MeshLink {
   to: string;
   distance: number;
   signal: number;
+}
+
+// ─── VLM Person-Search Types ──────────────────────────────────────────────────
+
+export interface Detection {
+  id: string;
+  drone_id: string;
+  timestamp: string;
+  image_path: string;
+  lat: number;
+  lon: number;
+  altitude_m: number;
+  heading_deg: number;
+  confidence: number;
+  similarity?: number; // only present in search results
+  scene_label?: string;
+  description?: string;
+}
+
+export interface VLMSearchResult {
+  query: string;
+  results: Detection[];
+  total_indexed: number;
+  searched_at: string;
+}
+
+export interface VLMHealth {
+  ok: boolean;
+  indexed: number;
+  device: string;
+  model: string;
+}
+
+// ─── Phase 2: Stream Types ────────────────────────────────────────────────────
+
+export interface StreamStatus {
+  running: boolean;
+  source: string;
+  frames_processed: number;
+  fps_estimate: number;
+  current_lat: number;
+  current_lon: number;
+  sample_interval_sec: number;
+  drone_id: string;
+  error: string | null;
+}
+
+export interface StreamEvent {
+  type: 'frame_indexed' | 'error' | 'stopped';
+  detection?: Detection;
+  total: number;
+  timestamp: string;
+  message?: string;
 }

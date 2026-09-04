@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { User } from 'firebase/auth';
 import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 import { auth } from '../firebase/config';
@@ -9,6 +9,7 @@ interface AuthContextType {
   loading: boolean;
   setRole: (role: string) => void;
   signOut: () => Promise<void>;
+  signInAsDemo: (role?: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   setRole: () => {},
   signOut: async () => {},
+  signInAsDemo: () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -46,7 +48,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser: User | null) => {
       setUser(currentUser);
       setLoading(false);
     });
@@ -54,8 +56,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return unsubscribe;
   }, []);
 
+  const signInAsDemo = (demoRole: string = 'Disaster Management') => {
+    const mockUser = {
+      uid: 'demo-tactical-operator',
+      email: 'operator@droneshield.tactical',
+      displayName: 'Tactical Operator',
+    } as unknown as User;
+    setUser(mockUser);
+    setRole(demoRole);
+    setLoading(false);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, role, loading, setRole, signOut }}>
+    <AuthContext.Provider value={{ user, role, loading, setRole, signOut, signInAsDemo }}>
       {!loading && children}
     </AuthContext.Provider>
   );

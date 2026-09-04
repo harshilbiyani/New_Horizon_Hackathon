@@ -11,10 +11,12 @@ export default defineConfig({
       ignored: [
         '**/simulation/**',
         '**/drone_swarm/**',
+        '**/logs/**',
         '**/*.py',
         '**/*.pyc',
         '**/__pycache__/**',
         '**/*.json',
+        '**/*.jsonl',
         '**/*.md',
         '**/.*/**',
       ]
