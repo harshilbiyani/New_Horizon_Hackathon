@@ -69,6 +69,12 @@ let tickInterval = null;
 let currentScenarioId = null;
 let currentSeed = 42;
 
+let drones = [];
+let detectedSurvivorIds = new Set();
+let foundSurvivors = [];
+let alerts = [];
+let scannedCells = new Set();
+
 // Cached state (refreshed each tick from Python)
 let lastSnapshot = null;
 let aiInsightsCache = null;
@@ -432,6 +438,18 @@ function buildMissionData() {
     avgSignal: Number(avgSignal.toFixed(1)),
     foundSurvivors: foundSurvivors.length,
     missionTimeSec: Math.floor(elapsedMs / 1000),
+  };
+}
+
+function getAiInsights(snapshot) {
+  if (aiInsightsCache) return aiInsightsCache;
+  return {
+    tactical_summary: "Awaiting AI insights...",
+    priority_targets: [],
+    recommended_actions: [],
+    heatmap_url: null,
+    risk_level: "Medium",
+    drone_assignments: {}
   };
 }
 
