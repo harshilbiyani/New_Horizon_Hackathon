@@ -110,15 +110,11 @@ export function computeCommand(droneState, worldMap, missionState) {
     (missionState && missionState.obstacles) ||
     [];
 
-  const waypointQueues =
-    (missionState && missionState.waypointQueues) || null;
+  const pythonAssignments = (missionState && missionState.pythonAssignments) || {};
+  const allDroneIds = (missionState && missionState.allDroneIds) || [];
 
-  const allDroneIds =
-    (missionState && missionState.allDroneIds) || [];
-
-  // Derive zone label for schema field
-  const zoneIdx = allDroneIds.indexOf(droneState.id);
-  const assignedZoneId = zoneIdx >= 0 ? `Z${zoneIdx + 1}` : undefined;
+  const assignment = pythonAssignments[droneState.id];
+  let assignedZoneId = undefined;
 
   // --- Base command: maintain current trajectory ---
   const command = {
@@ -131,40 +127,79 @@ export function computeCommand(droneState, worldMap, missionState) {
     priority: 'normal',
     issuedAt: new Date().toISOString(),
     issuedBy: 'ai-bridge',
+    task: droneState.task || 'exploring',
   };
 
-  // --- Step 1: Waypoint pursuit steering ---
-  if (waypointQueues) {
-    const queue = waypointQueues.get(droneState.id);
-
-    if (queue && queue.length > 0) {
-      const target = queue[0];
-      const distToWaypoint = dist2D(droneState, target);
-
-      if (distToWaypoint < WAYPOINT_ARRIVAL_RADIUS) {
-        // Pop the reached waypoint in-place (caller owns the queue reference)
-        queue.shift();
+  if (assignment) {
+    if (assignment.role === 'relay') {
+      command.task = 'relay';
+      command.reason = 'mesh-checkpoint';
+      command.assignedZoneId = 'RELAY';
+      const target = assignment.checkpoint;
+      if (target) {
+        const dist = dist2D(droneState, target);
+        if (dist > 15) {
+          command.targetHeading = bearingTo(droneState, target);
+          command.targetSpeed = Math.min(droneState.targetSpeed + 1.5, 20);
+        } else {
+          // Hover at checkpoint
+          command.targetSpeed = 0;
+          command.targetHeading = droneState.heading; // Hold heading
+        }
+        command.targetZ = 120; // High altitude for relay
       }
+    } else if (assignment.role === 'searcher') {
+      command.task = 'exploring';
+      command.reason = 'ring-sweep';
+      
+      const sector = assignment.sector;
+      if (sector) {
+        command.assignedZoneId = `RING-${sector.ring}`;
+        // Calculate drone's current polar coordinates relative to launch (0,0)
+        const dx = droneState.x;
+        const dy = droneState.y;
+        const r = Math.sqrt(dx*dx + dy*dy);
+        let theta = Math.atan2(dy, dx);
+        if (theta < 0) theta += 2 * Math.PI;
 
-      // If there is still a waypoint to reach, steer toward it
-      const nextTarget = queue[0];
-      if (nextTarget) {
-        command.targetHeading = bearingTo(droneState, nextTarget);
-        // Match cruise altitude of the waypoint
-        command.targetZ = nextTarget.z;
-        // Fly at a purposeful speed during coverage
-        command.targetSpeed = Math.min(
-          droneState.targetSpeed + 1.5,
-          20
-        );
-        command.reason = 'sweeping';
-        command.priority = 'normal';
+        // Ensure drone stays within sector
+        let targetR = r;
+        let targetTheta = theta;
+        let outOfBounds = false;
+
+        if (r < sector.r_inner + 20) { targetR = sector.r_inner + 40; outOfBounds = true; }
+        if (r > sector.r_outer - 20) { targetR = sector.r_outer - 40; outOfBounds = true; }
+        
+        // Normalize thetas for comparison
+        let sStart = sector.theta_start;
+        let sEnd = sector.theta_end;
+        if (sEnd < sStart) sEnd += 2 * Math.PI;
+        let tNormalized = theta;
+        if (tNormalized < sStart) tNormalized += 2 * Math.PI;
+
+        if (tNormalized < sStart + 0.1) { targetTheta = sStart + 0.3; outOfBounds = true; }
+        if (tNormalized > sEnd - 0.1) { targetTheta = sEnd - 0.3; outOfBounds = true; }
+
+        if (outOfBounds) {
+          // Steer back into sector
+          const targetX = targetR * Math.cos(targetTheta);
+          const targetY = targetR * Math.sin(targetTheta);
+          command.targetHeading = bearingTo(droneState, {x: targetX, y: targetY});
+          command.targetSpeed = 15;
+        } else {
+          // Inside sector: random sweep (bounce off walls naturally handled by outOfBounds)
+          // Add slight random drift to sweep the area
+          if (Math.random() < 0.05) {
+             command.targetHeading = (command.targetHeading + (Math.random() * 60 - 30) + 360) % 360;
+          }
+          command.targetSpeed = 12;
+        }
+        command.targetZ = 80; // Lower altitude for searching
       }
     }
-    // If queue is exhausted, fall through to random-drift (inherited base values)
   }
 
-  // --- Step 1.5: GPS-denied hold — reduce speed, freeze heading to limit drift ---
+  // --- Step 1.5: GPS-denied hold ---
   if (droneState.gpsMode === 'dead-reckoning') {
     // Hold current heading (don't pursue waypoints we can't verify reaching)
     command.targetHeading = droneState.heading;

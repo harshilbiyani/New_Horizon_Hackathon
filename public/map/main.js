@@ -806,8 +806,56 @@ function updateDrones(drones) {
         const rad = (-d.heading * Math.PI) / 180 + Math.PI/2; 
         droneGroup.rotation.y = rad;
         
+        // Visual indicator based on Python role
+        let indicatorLight = droneGroup.children.find(c => c.isPointLight);
+        if (!indicatorLight) {
+            indicatorLight = new THREE.PointLight(0xffffff, 1.5, 30);
+            indicatorLight.position.set(0, -2, 0);
+            droneGroup.add(indicatorLight);
+        }
+        
+        let mesh = droneGroup.children.find(c => c.isMesh && !c.userData.isNavLight && !c.userData.isScanRing && !c.userData.isBeam);
+        
+        if (d.status === 'failed' || d.task === 'crashed') {
+            indicatorLight.color.setHex(0xff0000);
+            indicatorLight.intensity = 0.8;
+            if (mesh) mesh.material.color.setHex(0x222222); // Make it dark gray
+        } else if (d.task === 'relay') {
+            indicatorLight.color.setHex(0xffaa00); // Orange for relay
+            indicatorLight.intensity = 1.0;
+            if (mesh) mesh.material.color.setHex(0xe8e9ed);
+        } else if (d.task === 'exploring' || d.task === 'searcher') {
+            indicatorLight.color.setHex(0x00ffcc); // Cyan/Green for searcher
+            indicatorLight.intensity = 1.0;
+            if (mesh) mesh.material.color.setHex(0xe8e9ed);
+        } else {
+            indicatorLight.color.setHex(0xaaaaaa);
+            if (mesh) mesh.material.color.setHex(0xe8e9ed);
+        }
+        
         if (isFollowMode && d.id === followDroneId) {
             followTarget = { x: d.x, y: Math.max(d.z, 20), z: d.y };
+        }
+    });
+}
+
+// --- Jammer Rendering ---
+const jammerMeshes = {};
+function updateJammers(zones) {
+    if (!zones) return;
+    zones.forEach(z => {
+        if (!jammerMeshes[z.id]) {
+            const geo = new THREE.SphereGeometry(z.radius, 16, 16);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true, transparent: true, opacity: 0.1 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(z.cx, z.radius / 2, z.cy);
+            scene.add(mesh);
+            jammerMeshes[z.id] = mesh;
+        } else {
+            // Pulsing effect
+            const mesh = jammerMeshes[z.id];
+            mesh.scale.setScalar(1 + Math.sin(Date.now() * 0.005) * 0.05);
+            mesh.material.opacity = 0.1 + Math.sin(Date.now() * 0.005) * 0.05;
         }
     });
 }
@@ -819,6 +867,7 @@ function fetchTelemetry() {
         .then(data => {
             if (data.drones) updateDrones(data.drones);
             if (data.obstacles) updateObstacles(data.obstacles);
+            if (data.gpsDenialZones) updateJammers(data.gpsDenialZones);
             
             if (!isFollowMode && data.missionData) {
                 const activeCount = data.drones ? data.drones.filter(d => d.status === 'active').length : 0;
@@ -918,6 +967,54 @@ window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
     composer.setSize(window.innerWidth, window.innerHeight);
 }, false);
+
+// Interactive Raycasting for Manual Deploy
+window.addEventListener('pointerdown', (event) => {
+    if (!event.shiftKey) return; // Only trigger if holding Shift
+    
+    // Convert mouse position to normalized device coordinates
+    const mouse = new THREE.Vector2();
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+
+    if (window.cityModelForRaycasting) {
+        const intersects = raycaster.intersectObject(window.cityModelForRaycasting, true);
+        if (intersects.length > 0) {
+            const hitPoint = intersects[0].point;
+            
+            const mode = document.querySelector('input[name="clickMode"]:checked').value;
+            
+            if (mode === 'survivor') {
+                console.log(`[UI INTERACT] Manual deploy survivor at X:${hitPoint.x.toFixed(1)}, Y:${hitPoint.z.toFixed(1)}`);
+                fetch('http://localhost:3001/api/mission/add-survivor', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ x: hitPoint.x, y: hitPoint.z, severity: 'critical' })
+                }).then(res => res.json()).then(data => {
+                    if (data.ok) spawnPerson(hitPoint.x, hitPoint.z, false, data.survivor.id);
+                }).catch(console.error);
+            } else if (mode === 'jammer') {
+                console.log(`[UI INTERACT] Manual deploy jammer at X:${hitPoint.x.toFixed(1)}, Y:${hitPoint.z.toFixed(1)}`);
+                fetch('http://localhost:3001/api/mission/add-jammer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cx: hitPoint.x, cy: hitPoint.z, radius: 45 })
+                }).catch(console.error);
+            }
+        }
+    }
+});
+
+// --- UI Sidebar Button Wiring ---
+const postApi = (endpoint) => fetch(`http://localhost:3001/api/mission/${endpoint}`, { method: 'POST' }).catch(console.error);
+
+document.getElementById('btn-start').addEventListener('click', () => postApi('start'));
+document.getElementById('btn-stop').addEventListener('click', () => postApi('stop'));
+document.getElementById('btn-reset').addEventListener('click', () => postApi('reset'));
+document.getElementById('btn-emp').addEventListener('click', () => postApi('kill-drone'));
 
 // --- Animation Loop ---
 const clock = new THREE.Clock();
