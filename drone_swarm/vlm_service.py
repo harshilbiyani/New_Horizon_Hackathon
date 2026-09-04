@@ -308,6 +308,102 @@ def search():
 
 
 # ── List all detections ───────────────────────────────────────────────────────
+# ─── Image Similarity Search ────────────────────────────────────────────────
+@app.post("/search/image")
+def search_by_image():
+    """
+    Search indexed detections using an uploaded query image (suspect photo).
+    Accepts:
+      - multipart/form-data with 'file' or 'image' field
+      - application/json with 'image_base64' or 'image' field
+    Query / form params:
+      k - number of results (default 5)
+      threshold - minimum similarity 0-1 (default 0.0)
+      start_time, end_time - ISO8601 timestamps
+    """
+    _load_index()
+    if _index.ntotal == 0:
+        return jsonify({
+            "query_type": "image",
+            "results": [],
+            "total_indexed": 0,
+            "searched_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        })
+
+    pil_img = None
+    k = 5
+    threshold = 0.0
+    start_time = ""
+    end_time = ""
+
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        k = min(int(data.get("k", 5)), 20)
+        threshold = float(data.get("threshold", 0.0))
+        start_time = str(data.get("start_time", "")).strip()
+        end_time = str(data.get("end_time", "")).strip()
+        b64 = data.get("image_base64") or data.get("image")
+        if b64:
+            if "," in b64:
+                b64 = b64.split(",", 1)[1]
+            try:
+                img_bytes = base64.b64decode(b64)
+                pil_img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+            except Exception as e:
+                return jsonify({"error": f"Invalid base64 image: {e}"}), 400
+    else:
+        k = min(int(request.form.get("k", request.args.get("k", 5))), 20)
+        threshold = float(request.form.get("threshold", request.args.get("threshold", 0.0)))
+        start_time = str(request.form.get("start_time", request.args.get("start_time", ""))).strip()
+        end_time = str(request.form.get("end_time", request.args.get("end_time", ""))).strip()
+
+        file = request.files.get("file") or request.files.get("image")
+        if file:
+            try:
+                pil_img = Image.open(file.stream).convert("RGB")
+            except Exception as e:
+                return jsonify({"error": f"Invalid image file: {e}"}), 400
+
+    if pil_img is None:
+        return jsonify({"error": "Image required (file upload or image_base64 JSON)"}), 400
+
+    try:
+        vec = _encode_image(pil_img)
+        k_actual = min(k, _index.ntotal)
+        scores, indices = _index.search(vec, k_actual)
+
+        results = []
+        for score, idx in zip(scores[0], indices[0]):
+            if idx < 0 or idx >= len(_metadata):
+                continue
+            sim = float(score)  # cosine similarity
+            if sim < threshold:
+                continue
+            entry = dict(_metadata[idx])
+            if start_time or end_time:
+                ts = entry.get("timestamp", "")
+                if start_time and ts < start_time:
+                    continue
+                if end_time and ts > end_time:
+                    continue
+            entry["similarity"] = round(sim, 4)
+            results.append(entry)
+
+        results.sort(key=lambda x: x["similarity"], reverse=True)
+        log.info(f"Image search returned {len(results)} matches (from {_index.ntotal} total indexed)")
+        return jsonify(
+            {
+                "query_type": "image",
+                "results": results,
+                "total_indexed": _index.ntotal,
+                "searched_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            }
+        )
+    except Exception as e:
+        log.exception("search_by_image error")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.get("/detections")
 def list_detections():
     page = int(request.args.get("page", 1))

@@ -142,10 +142,12 @@ export interface Detection {
   similarity?: number; // only present in search results
   scene_label?: string;
   description?: string;
+  is_simulated_gps?: boolean;
 }
 
 export interface VLMSearchResult {
-  query: string;
+  query?: string;
+  query_type?: 'text' | 'image';
   results: Detection[];
   total_indexed: number;
   searched_at: string;

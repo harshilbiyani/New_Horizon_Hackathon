@@ -1004,6 +1004,40 @@ app.get('/api/vlm/health', (req, res) => vlmProxy('/health', req, res));
 /** Search — GET /api/vlm/search?q=<text>&k=<n>&threshold=<0-1> */
 app.get('/api/vlm/search', (req, res) => vlmProxy('/search', req, res));
 
+/** Search by Image - POST /api/vlm/search/image */
+app.post('/api/vlm/search/image', (req, res) => {
+  const url = new URL('/search/image', VLM_BASE);
+  for (const [k, v] of Object.entries(req.query)) {
+    url.searchParams.set(k, v);
+  }
+  const lib = url.protocol === 'https:' ? https_ : http_;
+  const headers = { ...req.headers };
+  delete headers.host;
+
+  const options = {
+    hostname: url.hostname,
+    port: url.port || (url.protocol === 'https:' ? 443 : 80),
+    path: url.pathname + url.search,
+    method: 'POST',
+    headers: headers,
+  };
+  const proxyReq = lib.request(options, (proxyRes) => {
+    res.status(proxyRes.statusCode);
+    proxyRes.pipe(res);
+  });
+  proxyReq.on('error', (err) => {
+    console.error('[VLM image search proxy error]', err.message);
+    res.status(502).json({ error: 'VLM service unavailable', detail: err.message });
+  });
+
+  if (req.body && Object.keys(req.body).length > 0 && !req.is('multipart/*')) {
+    proxyReq.write(JSON.stringify(req.body));
+    proxyReq.end();
+  } else {
+    req.pipe(proxyReq);
+  }
+});
+
 /** List all detections — GET /api/vlm/detections?page=1&per_page=50 */
 app.get('/api/vlm/detections', (req, res) => vlmProxy('/detections', req, res));
 

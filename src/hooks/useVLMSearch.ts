@@ -23,11 +23,21 @@ export interface UseVLMSearchReturn {
   results: Detection[];
   totalIndexed: number;
   query: string;
+  searchType: 'text' | 'image';
+  imagePreview: string | null;
   loading: boolean;
   error: string | null;
   searchedAt: string | null;
   history: string[];
   search: (q: string, k?: number, threshold?: number, timeRange?: { start: string; end: string }) => Promise<void>;
+  searchByImage: (
+    imageInput: File | Blob | string,
+    k?: number,
+    threshold?: number,
+    timeRange?: { start: string; end: string }
+  ) => Promise<void>;
+  setSearchType: (type: 'text' | 'image') => void;
+  setImagePreview: (url: string | null) => void;
   clearResults: () => void;
   clearHistory: () => void;
 }
@@ -36,6 +46,8 @@ export function useVLMSearch(): UseVLMSearchReturn {
   const [results, setResults] = useState<Detection[]>([]);
   const [totalIndexed, setTotalIndexed] = useState(0);
   const [query, setQuery] = useState('');
+  const [searchType, setSearchType] = useState<'text' | 'image'>('text');
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchedAt, setSearchedAt] = useState<string | null>(null);
@@ -54,6 +66,7 @@ export function useVLMSearch(): UseVLMSearchReturn {
       setLoading(true);
       setError(null);
       setQuery(trimmed);
+      setSearchType('text');
 
       const params = new URLSearchParams({
         q: trimmed,
@@ -91,9 +104,91 @@ export function useVLMSearch(): UseVLMSearchReturn {
     []
   );
 
+  const searchByImage = useCallback(
+    async (
+      imageInput: File | Blob | string,
+      k = 6,
+      threshold = 0.0,
+      timeRange?: { start: string; end: string }
+    ) => {
+      abortRef.current?.abort();
+      abortRef.current = new AbortController();
+
+      setLoading(true);
+      setError(null);
+      setSearchType('image');
+
+      // If File/Blob, generate a preview URL
+      if (typeof imageInput !== 'string') {
+        const objectUrl = URL.createObjectURL(imageInput);
+        setImagePreview(objectUrl);
+        setQuery(imageInput instanceof File ? imageInput.name : 'Uploaded Suspect Image');
+      } else {
+        setImagePreview(imageInput);
+        setQuery('Uploaded Suspect Image');
+      }
+
+      try {
+        let res: Response;
+        if (typeof imageInput === 'string') {
+          // Base64 JSON
+          const payload: Record<string, unknown> = {
+            image_base64: imageInput,
+            k,
+            threshold,
+          };
+          if (timeRange?.start) payload.start_time = timeRange.start;
+          if (timeRange?.end) payload.end_time = timeRange.end;
+
+          res = await fetch(`${API_BASE}/api/vlm/search/image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: abortRef.current.signal,
+          });
+        } else {
+          // FormData multipart
+          const formData = new FormData();
+          formData.append('file', imageInput);
+          formData.append('k', String(k));
+          formData.append('threshold', String(threshold));
+          if (timeRange?.start) formData.append('start_time', timeRange.start);
+          if (timeRange?.end) formData.append('end_time', timeRange.end);
+
+          res = await fetch(`${API_BASE}/api/vlm/search/image`, {
+            method: 'POST',
+            body: formData,
+            signal: abortRef.current.signal,
+          });
+        }
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `HTTP ${res.status}`);
+        }
+        const data: VLMSearchResult = await res.json();
+        setResults(data.results);
+        setTotalIndexed(data.total_indexed ?? 0);
+        setSearchedAt(data.searched_at ?? new Date().toISOString());
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Image search failed — is the VLM service running?'
+        );
+        setResults([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
   const clearResults = useCallback(() => {
     setResults([]);
     setQuery('');
+    setImagePreview(null);
     setError(null);
     setSearchedAt(null);
   }, []);
@@ -107,11 +202,16 @@ export function useVLMSearch(): UseVLMSearchReturn {
     results,
     totalIndexed,
     query,
+    searchType,
+    imagePreview,
     loading,
     error,
     searchedAt,
     history,
     search,
+    searchByImage,
+    setSearchType,
+    setImagePreview,
     clearResults,
     clearHistory,
   };

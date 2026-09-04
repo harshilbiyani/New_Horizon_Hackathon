@@ -1,8 +1,21 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Search, Database, AlertTriangle, RefreshCw, Layers, SlidersHorizontal, Trash2 } from 'lucide-react';
+import {
+  Search,
+  Database,
+  AlertTriangle,
+  RefreshCw,
+  Layers,
+  SlidersHorizontal,
+  Trash2,
+  FileText,
+  Camera,
+  Image as ImageIcon,
+  Sparkles,
+} from 'lucide-react';
 import { useVLMSearch } from '../hooks/useVLMSearch';
 import { useStreamStatus } from '../hooks/useStreamStatus';
 import VLMSearchBar from '../components/VLMSearchBar';
+import VLMImageSearchBar from '../components/VLMImageSearchBar';
 import DetectionCard from '../components/DetectionCard';
 import VideoStreamPanel from '../components/VideoStreamPanel';
 import DetectionTimeline from '../components/DetectionTimeline';
@@ -35,12 +48,16 @@ function SkeletonCard() {
 }
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
-function EmptyState({ hasQuery }: { hasQuery: boolean }) {
+function EmptyState({ hasQuery, searchMode }: { hasQuery: boolean; searchMode: 'text' | 'image' }) {
   return (
     <div className="col-span-full flex flex-col items-center justify-center py-24 gap-5 text-center">
       <div className="relative">
         <div className="w-20 h-20 rounded-full border border-[#00ffcc]/20 flex items-center justify-center">
-          <Search size={32} className="text-[#00ffcc]/30" />
+          {searchMode === 'image' ? (
+            <Camera size={32} className="text-[#00ffcc]/30" />
+          ) : (
+            <Search size={32} className="text-[#00ffcc]/30" />
+          )}
         </div>
         <div className="absolute inset-0 rounded-full border border-[#00ffcc]/10 animate-ping" />
       </div>
@@ -48,15 +65,18 @@ function EmptyState({ hasQuery }: { hasQuery: boolean }) {
         <>
           <h3 className="text-lg font-semibold text-white/70">No confident matches found</h3>
           <p className="text-sm text-gray-500 max-w-sm">
-            Try rephrasing your description, or lower the similarity threshold using the filter options.
+            Try adjusting your query or image, or lower the similarity threshold using the filter options.
           </p>
         </>
       ) : (
         <>
-          <h3 className="text-lg font-semibold text-white/50">Describe a person to search</h3>
-          <p className="text-sm text-gray-600 max-w-sm">
-            Type a natural-language description of the person you're looking for. CLIP will match it
-            against captured drone frames using vision-language embeddings.
+          <h3 className="text-lg font-semibold text-white/50">
+            {searchMode === 'image' ? 'Upload a Suspect Reference Image' : 'Describe a Person to Search'}
+          </h3>
+          <p className="text-sm text-gray-600 max-w-md">
+            {searchMode === 'image'
+              ? 'Upload a reference photograph or cropped photo. CLIP will generate a 512-D vector embedding to retrieve matching surveillance frames.'
+              : "Type a natural-language description (e.g., 'person wearing blue jacket'). CLIP matches it across captured drone frames via vision-language embeddings."}
           </p>
         </>
       )}
@@ -64,7 +84,7 @@ function EmptyState({ hasQuery }: { hasQuery: boolean }) {
   );
 }
 
-// ─── VLM Status chip ─────────────────────────────────────────────────────────
+// ─── VLM Status chip ──────────────────────────────────────────────────────────
 function VLMStatusChip({ health }: { health: VLMHealth | null; error?: boolean }) {
   if (!health) {
     return (
@@ -77,27 +97,41 @@ function VLMStatusChip({ health }: { health: VLMHealth | null; error?: boolean }
   return (
     <span className="flex items-center gap-2 text-xs text-[#00ffcc] bg-[#00ffcc]/10 border border-[#00ffcc]/20 px-3 py-1.5 rounded-full">
       <span className="w-2 h-2 rounded-full bg-[#00ffcc] animate-pulse" />
-      CLIP {health.model} · {health.device.toUpperCase()} · {health.indexed} indexed
+      CLIP {health.model} • {health.device.toUpperCase()} • {health.indexed} indexed
     </span>
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── Page Component ───────────────────────────────────────────────────────────
 export default function PersonSearch() {
   const {
-    results, totalIndexed, query, loading, error,
-    searchedAt, history, search, clearResults, clearHistory,
+    results,
+    totalIndexed,
+    query,
+    searchType,
+    imagePreview,
+    loading,
+    error,
+    searchedAt,
+    history,
+    search,
+    searchByImage,
+    clearResults,
+    clearHistory,
   } = useVLMSearch();
 
   const {
     status: streamStatus,
     events: streamEvents,
-    starting, stopping,
+    starting,
+    stopping,
     start: startStream,
     stop: stopStream,
     clearEvents: clearStreamEvents,
   } = useStreamStatus();
 
+  // Search mode: 'description' (natural text) vs 'image' (upload photo)
+  const [searchMode, setSearchMode] = useState<'description' | 'image'>('description');
   const [topK, setTopK] = useState(3);
   const [threshold, setThreshold] = useState(0.0);
   const [showFilters, setShowFilters] = useState(false);
@@ -136,7 +170,9 @@ export default function PersonSearch() {
       const r = await fetch(`${API_BASE}/api/vlm/detections?per_page=200`);
       const d = await r.json();
       setAllDetections(d.detections ?? []);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   useEffect(() => {
@@ -164,19 +200,27 @@ export default function PersonSearch() {
     }
   };
 
-  // Build search params including time range
-  const handleSearch = useCallback(
+  // Text search handler
+  const handleTextSearch = useCallback(
     (q: string) => {
       search(q, topK, threshold, timeRange ?? undefined);
     },
     [search, topK, threshold, timeRange]
   );
 
+  // Image search handler
+  const handleImageSearch = useCallback(
+    (file: File) => {
+      searchByImage(file, topK, threshold, timeRange ?? undefined);
+    },
+    [searchByImage, topK, threshold, timeRange]
+  );
+
   const displayResults = viewMode === 'gallery' ? allDetections : results;
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-[#000814] text-white font-sans flex flex-col">
-      {/* ── Sticky Header ── */}
+      {/* ── Sticky Header ────────────────────────────────────────────────── */}
       <div className="border-b border-white/8 bg-[#000814]/80 backdrop-blur-md sticky top-16 z-30">
         <div className="max-w-7xl mx-auto px-6 py-5 flex flex-col gap-4">
           {/* Title row */}
@@ -185,11 +229,11 @@ export default function PersonSearch() {
               <h1 className="text-2xl font-bold tracking-widest text-[#00ffcc]">
                 PERSON <span className="text-white">SEARCH</span>
                 <span className="ml-3 text-xs font-normal text-gray-500 tracking-normal align-middle">
-                  VLM · Phase 2
+                  VLM Dual-Mode Retrieval
                 </span>
               </h1>
               <p className="text-xs text-gray-500 mt-0.5">
-                Continuous video stream embedding · Natural-language frame retrieval · CLIP + FAISS
+                Multi-Modal Person Search • Natural-Language or Suspect Image Upload • Zero-Disk Queue & FAISS
               </p>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
@@ -198,13 +242,17 @@ export default function PersonSearch() {
               <div className="flex rounded-lg border border-white/10 overflow-hidden text-xs font-semibold">
                 <button
                   onClick={() => setViewMode('search')}
-                  className={`px-3 py-1.5 transition-colors ${viewMode === 'search' ? 'bg-[#00ffcc]/15 text-[#00ffcc]' : 'text-gray-500 hover:text-white'}`}
+                  className={`px-3 py-1.5 transition-colors ${
+                    viewMode === 'search' ? 'bg-[#00ffcc]/15 text-[#00ffcc]' : 'text-gray-500 hover:text-white'
+                  }`}
                 >
                   Search
                 </button>
                 <button
                   onClick={() => setViewMode('gallery')}
-                  className={`px-3 py-1.5 transition-colors flex items-center gap-1.5 ${viewMode === 'gallery' ? 'bg-[#00ffcc]/15 text-[#00ffcc]' : 'text-gray-500 hover:text-white'}`}
+                  className={`px-3 py-1.5 transition-colors flex items-center gap-1.5 ${
+                    viewMode === 'gallery' ? 'bg-[#00ffcc]/15 text-[#00ffcc]' : 'text-gray-500 hover:text-white'
+                  }`}
                 >
                   <Layers size={12} />
                   Gallery
@@ -223,38 +271,78 @@ export default function PersonSearch() {
             </div>
           </div>
 
-          {/* Search bar (only in search mode) */}
+          {/* Search bar & Mode Switcher (only in search mode) */}
           {viewMode === 'search' && (
-            <div className="flex flex-col gap-2">
-              <VLMSearchBar
-                onSearch={handleSearch}
-                loading={loading}
-                history={history}
-                onClearHistory={clearHistory}
-              />
+            <div className="flex flex-col gap-3">
+              {/* Mode Selector Tabs */}
+              <div className="flex items-center gap-2 border-b border-white/10 pb-2">
+                <button
+                  onClick={() => setSearchMode('description')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                    searchMode === 'description'
+                      ? 'bg-[#00ffcc]/15 text-[#00ffcc] border border-[#00ffcc]/30 shadow-[0_0_15px_rgba(0,255,204,0.15)]'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+                  }`}
+                >
+                  <FileText size={14} />
+                  Search with Description
+                </button>
+                <button
+                  onClick={() => setSearchMode('image')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                    searchMode === 'image'
+                      ? 'bg-[#00ffcc]/15 text-[#00ffcc] border border-[#00ffcc]/30 shadow-[0_0_15px_rgba(0,255,204,0.15)]'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+                  }`}
+                >
+                  <Camera size={14} />
+                  Search from Image (Suspect Upload)
+                </button>
+              </div>
+
+              {/* Active Search Mode Component */}
+              {searchMode === 'description' ? (
+                <VLMSearchBar
+                  onSearch={handleTextSearch}
+                  loading={loading}
+                  history={history}
+                  onClearHistory={clearHistory}
+                />
+              ) : (
+                <VLMImageSearchBar
+                  onSearchImage={handleImageSearch}
+                  loading={loading}
+                  onClear={clearResults}
+                />
+              )}
+
               {/* Filters toggle */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 pt-1">
                 <button
                   onClick={() => setShowFilters((f) => !f)}
                   className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-[#00ffcc] transition-colors"
                 >
                   <SlidersHorizontal size={12} />
-                  {showFilters ? 'Hide filters' : 'Filters'}
+                  {showFilters ? 'Hide filters' : 'Filters & Thresholds'}
                 </button>
-                {(query || timeRange) && (
+                {(query || timeRange || imagePreview) && (
                   <button
-                    onClick={() => { clearResults(); setTimeRange(null); }}
+                    onClick={() => {
+                      clearResults();
+                      setTimeRange(null);
+                    }}
                     className="text-xs text-gray-600 hover:text-gray-400 transition-colors flex items-center gap-1"
                   >
-                    <RefreshCw size={10} /> Clear
+                    <RefreshCw size={10} /> Clear Search
                   </button>
                 )}
                 {timeRange && (
                   <span className="text-xs text-[#00ffcc]/60">
-                    ⏱ Time filter active
+                    ● Time filter active
                   </span>
                 )}
               </div>
+
               {/* Filter panel */}
               {showFilters && (
                 <div className="flex items-center gap-8 bg-white/4 rounded-xl px-5 py-3 border border-white/8 flex-wrap gap-y-3">
@@ -263,7 +351,10 @@ export default function PersonSearch() {
                       Top K: <span className="text-[#00ffcc] font-bold">{topK}</span>
                     </label>
                     <input
-                      type="range" min={1} max={20} value={topK}
+                      type="range"
+                      min={1}
+                      max={20}
+                      value={topK}
                       onChange={(e) => setTopK(Number(e.target.value))}
                       className="w-28 accent-[#00ffcc]"
                     />
@@ -273,7 +364,11 @@ export default function PersonSearch() {
                       Min Similarity: <span className="text-[#00ffcc] font-bold">{threshold.toFixed(2)}</span>
                     </label>
                     <input
-                      type="range" min={0} max={0.5} step={0.01} value={threshold}
+                      type="range"
+                      min={0}
+                      max={0.5}
+                      step={0.01}
+                      value={threshold}
                       onChange={(e) => setThreshold(Number(e.target.value))}
                       className="w-28 accent-[#00ffcc]"
                     />
@@ -285,10 +380,9 @@ export default function PersonSearch() {
         </div>
       </div>
 
-      {/* ── Body ── */}
+      {/* ── Body ─────────────────────────────────────────────────────────── */}
       <div className="flex-1 max-w-7xl mx-auto w-full px-6 py-6 flex flex-col gap-6">
-
-        {/* ── Phase 2: Video Stream Panel ── */}
+        {/* Phase 2: Video Stream Panel */}
         <VideoStreamPanel
           status={streamStatus}
           events={streamEvents}
@@ -299,7 +393,7 @@ export default function PersonSearch() {
           onClearEvents={clearStreamEvents}
         />
 
-        {/* ── Detection Timeline ── */}
+        {/* Detection Timeline */}
         {allDetections.length > 0 && (
           <DetectionTimeline
             detections={allDetections}
@@ -308,22 +402,45 @@ export default function PersonSearch() {
           />
         )}
 
-        {/* ── Results context row ── */}
-        {(query || viewMode === 'gallery') && (
-          <div className="flex items-center justify-between flex-wrap gap-3">
+        {/* Results context row */}
+        {(query || viewMode === 'gallery' || imagePreview) && (
+          <div className="flex items-center justify-between flex-wrap gap-3 bg-white/3 border border-white/8 rounded-xl px-4 py-3">
             <div className="flex items-center gap-3">
-              {viewMode === 'search' && query && (
-                <p className="text-sm text-gray-400">
-                  Query: <span className="text-white font-medium">"{query}"</span>
-                  {searchedAt && (
-                    <span className="ml-2 text-gray-600 text-xs">
-                      · {new Date(searchedAt).toLocaleTimeString()}
-                    </span>
-                  )}
-                  {timeRange && (
-                    <span className="ml-2 text-[#00ffcc]/60 text-xs">· time-filtered</span>
-                  )}
-                </p>
+              {viewMode === 'search' && (
+                <>
+                  {searchType === 'image' && imagePreview ? (
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={imagePreview}
+                        alt="Query Suspect"
+                        className="w-10 h-10 rounded-lg object-cover border border-[#00ffcc]/40 shadow-[0_0_10px_rgba(0,255,204,0.2)]"
+                      />
+                      <div>
+                        <p className="text-xs text-gray-400">
+                          Suspect Reference Search:{' '}
+                          <span className="text-white font-medium">{query}</span>
+                        </p>
+                        {searchedAt && (
+                          <span className="text-gray-600 text-[11px]">
+                            Searched at {new Date(searchedAt).toLocaleTimeString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : query ? (
+                    <p className="text-sm text-gray-400">
+                      Query: <span className="text-white font-medium">"{query}"</span>
+                      {searchedAt && (
+                        <span className="ml-2 text-gray-600 text-xs">
+                          • {new Date(searchedAt).toLocaleTimeString()}
+                        </span>
+                      )}
+                      {timeRange && (
+                        <span className="ml-2 text-[#00ffcc]/60 text-xs">• time-filtered</span>
+                      )}
+                    </p>
+                  ) : null}
+                </>
               )}
               {viewMode === 'gallery' && (
                 <p className="text-sm text-gray-400 flex items-center gap-2">
@@ -332,9 +449,9 @@ export default function PersonSearch() {
                 </p>
               )}
             </div>
-            <span className="text-xs text-gray-600">
-              {displayResults.length} result{displayResults.length !== 1 ? 's' : ''} ·{' '}
-              {totalIndexed || health?.indexed || 0} total in index
+            <span className="text-xs text-gray-400 font-mono">
+              {displayResults.length} match{displayResults.length !== 1 ? 'es' : ''} •{' '}
+              {totalIndexed || health?.indexed || 0} total indexed
             </span>
           </div>
         )}
@@ -364,17 +481,12 @@ export default function PersonSearch() {
               <DetectionCard key={det.id} detection={det} rank={i + 1} />
             ))
           ) : (
-            <EmptyState hasQuery={!!query} />
+            <EmptyState
+              hasQuery={!!(query || imagePreview)}
+              searchMode={searchMode === 'image' ? 'image' : 'text'}
+            />
           )}
         </div>
-      </div>
-
-      {/* ── Footer ── */}
-      <div className="border-t border-white/5 py-4 px-6 text-center">
-        <p className="text-[11px] text-gray-600">
-          Phase 2 · Continuous video-level CLIP embeddings · FAISS cosine similarity ·
-          SSE live stream · Detection timeline filter
-        </p>
       </div>
     </div>
   );
