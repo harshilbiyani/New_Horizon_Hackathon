@@ -42,7 +42,12 @@ export default function DroneGrid({ drones, selectedDroneId, onSelectDrone }: Dr
                 </td>
                 <td className="px-4 py-3">
                   <div className="font-mono text-xs text-gray-300">{drone.heading.toFixed(0)}°</div>
-                  <div className="text-xs text-gray-500 capitalize">{drone.task} | {drone.speed.toFixed(1)} u/s</div>
+                  <div className="text-xs mt-1">
+                    <span className={`px-1.5 py-0.5 rounded uppercase font-bold text-[10px] ${drone.task === 'relay' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}`}>
+                      {drone.task === 'exploring' ? 'searcher' : drone.task}
+                    </span>
+                    <span className="text-gray-500 ml-1">| {drone.speed.toFixed(1)} u/s</span>
+                  </div>
                 </td>
                 {/* GPS / Dead-Reckoning column */}
                 <td className="px-4 py-3">

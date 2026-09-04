@@ -8,6 +8,7 @@ import LiveVideo from '../components/LiveVideo';
 import ChartsPanel from '../components/ChartsPanel';
 import MissionMap from '../components/MissionMap';
 import AICommandPanel from '../components/AICommandPanel';
+import MissionControls from '../components/MissionControls';
 import type {
   Alert,
   AiInsights,
@@ -219,7 +220,7 @@ export default function Dashboard() {
             />
           </div>
 
-          <AICommandPanel aiInsights={aiInsights} />
+          <MissionControls />
 
           <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-5 overflow-hidden flex flex-col min-h-[320px]">
             <h2 className="text-lg font-semibold mb-4 text-gray-300">System Logs</h2>

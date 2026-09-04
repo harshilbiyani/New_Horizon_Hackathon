@@ -32,32 +32,40 @@
             </div>
         </div>
 
-        <div class="mission-strip">
-            <div class="mission-pill">
-                <span>Sector Base XX</span>
-                <span class="mission-dot"></span>
-                <span id="hud-ai-top-zone">Top Zone: --</span>
+        <div class="sidebar">
+            <h3 class="sidebar-title">TACTICAL CONTROLS</h3>
+            
+            <div class="sidebar-section">
+                <h4>Engine Commands</h4>
+                <div class="button-row">
+                    <button id="btn-start" class="sidebar-btn start">Start</button>
+                    <button id="btn-stop" class="sidebar-btn stop">Stop</button>
+                    <button id="btn-reset" class="sidebar-btn reset">Reset</button>
+                </div>
             </div>
-            <div class="mission-actions">
-                <span class="action-pill emphasis" id="hud-ai-command">Command: --</span>
-                <span class="action-pill">Mark As Priority</span>
-                <span class="action-pill">Whitelist Corridor</span>
-                <span class="action-pill danger">Disrupt Signal</span>
+
+            <div class="sidebar-section">
+                <h4>Chaos Deployment</h4>
+                <button id="btn-emp" class="sidebar-btn danger">⚡ Trigger EMP (Kill Drone)</button>
+                
+                <div class="toggle-group mt-2">
+                    <label class="toggle-label">Shift+Click Action:</label>
+                    <div class="radio-row">
+                        <input type="radio" id="mode-survivor" name="clickMode" value="survivor" checked>
+                        <label for="mode-survivor">Deploy Survivor</label>
+                    </div>
+                    <div class="radio-row">
+                        <input type="radio" id="mode-jammer" name="clickMode" value="jammer">
+                        <label for="mode-jammer">Deploy Jammer</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <span class="hud-hint">Hold SHIFT and click the terrain to deploy!</span>
             </div>
         </div>
 
-        <div class="floating-actions">
-            <div class="action-node left">View Actions</div>
-            <div class="action-node right">Engage Now</div>
-            <div class="action-node right secondary">Cancel Target</div>
-        </div>
-
-        <div class="hud-bottom">
-            <span class="hud-label" id="hud-time">⏱ Mission: 0s</span>
-            <span class="hud-label" id="hud-battery">🔋 Avg Battery: 100%</span>
-            <span class="hud-label" id="hud-signal">📶 Signal: 95%</span>
-            <span class="hud-hint">Scroll to zoom · Drag to rotate · Right-drag to pan</span>
-        </div>
     </div>
 
     <!-- WebGL Canvas -->

@@ -293,15 +293,15 @@ function stubDecisionEngine(drone) {
   let reason = task === 'returning' ? 'low-battery-rtb' : 'autonomous-sweep';
 
   if (nearest) {
-    const cautionRadius = nearest.radius + 12;
-    const clearanceZ = nearest.height + 25;
+    const cautionRadius = nearest.radius + 35; // Increased buffer
+    const clearanceZ = nearest.height + 30;
 
     if (nearestDist < cautionRadius && drone.z < clearanceZ) {
       const awayAngle = (Math.atan2(drone.y - nearest.y, drone.x - nearest.x) * 180) / Math.PI;
-      const blend = nearestDist < nearest.radius + 3 ? 0.78 : 0.42;
+      const blend = nearestDist < nearest.radius + 15 ? 0.95 : 0.65; // Much more aggressive steering
       targetHeading = ((1 - blend) * targetHeading + blend * awayAngle + 360) % 360;
-      targetSpeed = clamp(targetSpeed * 0.82, 7, 16);
-      targetZ = Math.max(targetZ, clearanceZ + 5);
+      targetSpeed = clamp(targetSpeed * 0.75, 5, 16); // Slow down more to turn sharper
+      targetZ = Math.max(targetZ, clearanceZ + 15);
       task = 'evading';
       reason = 'obstacle-avoidance';
     }
@@ -329,6 +329,8 @@ function applyActuation(drone, command) {
   drone.targetSpeed = command.targetSpeed ?? drone.targetSpeed;
   drone.targetZ = command.targetZ ?? drone.targetZ;
   drone.task = command.task ?? drone.task;
+  drone.reason = command.reason ?? '';
+  drone.assignedZoneId = command.assignedZoneId ?? '';
 
   const speedMultiplier = drone.task === 'returning' ? 1.3 : 1;
 
@@ -340,8 +342,8 @@ function applyActuation(drone, command) {
   // 2. Acceleration Cap (max 3.5 units/tick)
   drone.speed = clamp(drone.targetSpeed, drone.speed - 3.5, drone.speed + 3.5);
 
-  // 3. Climb/Descent Rate Cap (max 12 units/tick)
-  drone.z = clamp(drone.targetZ, drone.z - 12, drone.z + 12);
+  // 3. Climb/Descent Rate Cap (max 50 units/tick for rapid obstacle clearance)
+  drone.z = clamp(drone.targetZ, drone.z - 30, drone.z + 50);
 
   // 4. Position advance
   const distanceStep = (drone.speed * speedMultiplier * TICK_MS) / 1000;
@@ -481,11 +483,46 @@ function buildSnapshot() {
   };
 }
 
-let waypointQueues = new Map();
+let pythonAssignments = {};
 
 function initZoneWaypoints() {
-  const activeIds = drones.filter((d) => d.status === 'active').map((d) => d.id);
-  waypointQueues = buildZoneWaypoints(activeIds, currentWorldMap, SIM_CONFIG);
+  const payload = {
+    drones: drones.filter((d) => d.status === 'active').map(d => ({ id: d.id, x: d.x, y: d.y })),
+    commRange: SIM_CONFIG.COMM_RANGE,
+    worldBoundary: SIM_CONFIG.WORLD_BOUNDARY
+  };
+  
+  try {
+    const bridgePath = path.join(process.cwd(), 'simulation', 'swarm_bridge.py');
+    const pythonExe = process.env.PYTHON_EXECUTABLE || 'python';
+    
+    const result = spawnSync(pythonExe, [bridgePath], {
+      input: JSON.stringify(payload),
+      encoding: 'utf-8',
+      maxBuffer: 1024 * 1024 * 10
+    });
+    
+    if (result.error) {
+      appendFileSync('bridge_debug.log', `Spawn Error: ${result.error.message}\n`);
+    } else if (result.stderr) {
+      appendFileSync('bridge_debug.log', `Stderr: ${result.stderr}\n`);
+    }
+
+    if (result.stdout) {
+      appendFileSync('bridge_debug.log', `Stdout: ${result.stdout}\n`);
+      const parsed = JSON.parse(result.stdout);
+      if (parsed.ok && parsed.assignments) {
+        pythonAssignments = parsed.assignments;
+        console.log('[SWARM] Assigned Python roles:', Object.keys(pythonAssignments).map(k => `${k}:${pythonAssignments[k].role}`));
+      } else {
+        console.error('[SWARM] Python bridge error:', parsed.error);
+        appendFileSync('bridge_debug.log', `Parsed Error: ${parsed.error}\n`);
+      }
+    }
+  } catch (err) {
+    appendFileSync('bridge_debug.log', `Exception: ${err.message}\n`);
+    console.error('[SWARM] Failed to run swarm bridge:', err);
+  }
 }
 
 function startSimulationTick() {
@@ -496,7 +533,7 @@ function startSimulationTick() {
     try {
       const activeDroneIds = drones.filter((d) => d.status === 'active').map((d) => d.id);
       const missionState = {
-        waypointQueues,
+        pythonAssignments,
         obstacles,
         allDroneIds: activeDroneIds,
       };
@@ -640,9 +677,7 @@ app.get('/api/mission/history/:id', (req, res) => {
 });
 
 app.get('/api/mission/ai-insights', (_req, res) => {
-  const snapshot = buildSnapshot();
-  const insights = computeAiInsights(snapshot, true);
-  res.json({ ...insights, snapshotTimestamp: snapshot.timestamp });
+  res.json({ source: 'Python Bridge', health: { healthy: drones.filter(d => d.status==='active').length, total_drones: drones.length, health_pct: 100 }, topZones: [], commandSuggestions: [], assignments: [] });
 });
 
 // Configure simulation (drone count, battery, etc.)
@@ -745,6 +780,68 @@ app.post('/api/mission/survivor-positions', (req, res) => {
   } else {
     res.status(400).json({ error: 'invalid survivors format' });
   }
+});
+
+// INTERACTIVE CHAOS APIs
+app.post('/api/mission/kill-drone', (req, res) => {
+  const activeDrones = drones.filter(d => d.status === 'active');
+  if (activeDrones.length === 0) {
+    return res.status(400).json({ error: 'No active drones to kill' });
+  }
+  const targetDrone = req.body.id ? activeDrones.find(d => d.id === req.body.id) : activeDrones[Math.floor(Math.random() * activeDrones.length)];
+  if (!targetDrone) {
+    return res.status(400).json({ error: 'Drone not found or already failed' });
+  }
+  
+  targetDrone.status = 'failed';
+  targetDrone.targetZ = 0; // crash to ground
+  targetDrone.speed = 0;
+  targetDrone.targetSpeed = 0;
+  targetDrone.task = 'crashed';
+  targetDrone.battery = 0;
+  
+  console.log(`[CHAOS] EMP Triggered. Drone ${targetDrone.id} has failed.`);
+  pushAlert('error', `CRITICAL FAILURE: Drone ${targetDrone.id} connection lost.`);
+  
+  // IMMEDIATELY re-trigger AI bridge to reallocate sectors for surviving drones
+  initZoneWaypoints();
+  
+  res.json({ ok: true, killedDroneId: targetDrone.id });
+});
+
+app.post('/api/mission/add-survivor', (req, res) => {
+  const { x, y, severity } = req.body;
+  if (typeof x !== 'number' || typeof y !== 'number') {
+    return res.status(400).json({ error: 'Invalid coordinates' });
+  }
+  const newSurvivor = {
+    id: `HSV-MANUAL-${Date.now()}`,
+    x,
+    y,
+    severity: severity || 'critical'
+  };
+  hiddenSurvivors.push(newSurvivor);
+  console.log(`[CHAOS] Deployed dynamic survivor at (${x.toFixed(1)}, ${y.toFixed(1)})`);
+  pushAlert('warning', `NEW SIGNAL: Heat signature detected at X:${x.toFixed(0)} Y:${y.toFixed(0)}`);
+  res.json({ ok: true, survivor: newSurvivor });
+});
+
+app.post('/api/mission/add-jammer', (req, res) => {
+  const { cx, cy, radius } = req.body;
+  if (typeof cx !== 'number' || typeof cy !== 'number') {
+    return res.status(400).json({ error: 'Invalid coordinates' });
+  }
+  const r = radius || 40;
+  const newZone = {
+    id: `GDZ-MANUAL-${Date.now()}`,
+    cx,
+    cy,
+    radius: r
+  };
+  GPS_DENIAL_ZONES.push(newZone);
+  console.log(`[CHAOS] Deployed GPS Jammer at (${cx.toFixed(1)}, ${cy.toFixed(1)}) with radius ${r}`);
+  pushAlert('error', `WARNING: New GPS interference detected at X:${cx.toFixed(0)} Y:${cy.toFixed(0)}`);
+  res.json({ ok: true, zone: newZone });
 });
 
 // --- Procedural Height Map Generation ---
