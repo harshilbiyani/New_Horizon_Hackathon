@@ -1,4 +1,4 @@
-﻿"""
+"""
 AI Integration Demo
 Demonstrates probabilistic detection and adaptive zone coordination
 working together in the drone swarm system

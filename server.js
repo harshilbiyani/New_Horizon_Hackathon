@@ -37,6 +37,38 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
 });
 
+// --- VLM Reverse Proxy to Python Service on Port 5001 ---
+const VLM_TARGET = process.env.VLM_URL || 'http://127.0.0.1:5001';
+app.use('/api/vlm', (req, res) => {
+  try {
+    const targetPath = req.url; // e.g. /health, /search, /stream/yolo_feed
+    const targetUrl = new URL(targetPath, VLM_TARGET);
+
+    const proxyReq = http.request(targetUrl, {
+      method: req.method,
+      headers: {
+        ...req.headers,
+        host: targetUrl.host,
+      },
+    }, (proxyRes) => {
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res);
+    });
+
+    proxyReq.on('error', (err) => {
+      if (!res.headersSent) {
+        res.status(502).json({ ok: false, error: 'VLM Service Unavailable on port 5001', detail: err.message });
+      }
+    });
+
+    req.pipe(proxyReq);
+  } catch (err) {
+    if (!res.headersSent) {
+      res.status(500).json({ ok: false, error: 'VLM proxy error', detail: err.message });
+    }
+  }
+});
+
 const WORLD_BOUNDARY = SIM_CONFIG.WORLD_BOUNDARY;
 const GRID_SIZE = SIM_CONFIG.GRID_SIZE;
 const TICK_MS = SIM_CONFIG.TICK_MS;
@@ -297,6 +329,14 @@ async function pyStop() {
   return result;
 }
 
+async function pyReset(scenario_id, seed) {
+  const args = { action: 'reset' };
+  if (scenario_id) args.scenario_id = scenario_id;
+  if (seed) args.seed = seed;
+  const result = await sendPythonCommand(args, 3000);
+  return result;
+}
+
 async function pyGetScenarios() {
   const result = await sendPythonCommand({ action: 'get_scenarios' }, 2000);
   return result && result.scenarios ? result.scenarios : [];
@@ -535,6 +575,7 @@ function pushAlert(type, message) {
   alerts.unshift(alert);
   if (alerts.length > 50) alerts.length = 50;
   io.emit('newAlert', alert);
+  io.emit('alert', alert);
 }
 
 async function startSimulationTick() {
@@ -869,7 +910,9 @@ app.get('/api/scenarios', async (_req, res) => {
 // Configure simulation
 app.post('/api/mission/configure', (req, res) => {
   if (simulationRunning) {
-    return res.status(400).json({ error: 'Cannot configure while simulation is running. Stop first.' });
+    simulationRunning = false;
+    stopTick();
+    console.log('[Sim] Reconfiguring active simulation');
   }
 
   const { droneCount, battery, startPositions } = req.body;
@@ -1072,22 +1115,54 @@ app.post('/api/mission/pause', (req, res) => {
   res.json({ ok: true, message: 'Simulation paused' });
 });
 
-app.post('/api/mission/reset', (req, res) => {
-  simulationRunning = false;
-  initDrones(simConfig);
-  drones.forEach((d) => {
-    d.x = 0;
-    d.y = 0;
-    d.z = 10;
-    d.heading = 0;
-    d.speed = 0;
-    d.task = 'exploring';
-    d.status = 'active';
-    d.battery = 100;
-  });
-  pushAlert('warning', 'Swarm reset to central launchpad (0,0).');
-  io.emit('sitlSnapshot', drones);
-  res.json({ ok: true, message: 'Swarm reset to center' });
+// ─── 3D Map Interactive Endpoints ──────────────────────────────────────────
+app.post('/api/mission/add-survivor', (req, res) => {
+  const { x, y, severity } = req.body || {};
+  const newSurv = {
+    id: `SRV-${String((hiddenSurvivors ? hiddenSurvivors.length : 0) + (foundSurvivors ? foundSurvivors.length : 0) + 1).padStart(3, '0')}`,
+    x: Number(x) || 0,
+    y: Number(y) || 0,
+    status: 'unrescued',
+    severity: severity || 'critical',
+    found: false,
+  };
+  if (!Array.isArray(hiddenSurvivors)) hiddenSurvivors = [];
+  hiddenSurvivors.push(newSurv);
+  pushAlert('info', `Target survivor deployed manually at [x: ${newSurv.x.toFixed(1)}, y: ${newSurv.y.toFixed(1)}].`);
+  io.emit('telemetrySnapshot', buildFrontendPayload(lastSnapshot || {}));
+  res.json({ ok: true, survivor: newSurv });
+});
+
+app.post('/api/mission/add-jammer', (req, res) => {
+  const { cx, cy, radius } = req.body || {};
+  const count = Array.isArray(GPS_DENIAL_ZONES) ? GPS_DENIAL_ZONES.length : 0;
+  const newJammer = {
+    id: `GDZ-${String.fromCharCode(65 + (count % 26))}`,
+    cx: Number(cx) || 0,
+    cy: Number(cy) || 0,
+    radius: Number(radius) || 45,
+  };
+  if (Array.isArray(GPS_DENIAL_ZONES)) {
+    GPS_DENIAL_ZONES.push(newJammer);
+  }
+  pushAlert('warning', `RF Jammer deployed at [cx: ${newJammer.cx.toFixed(1)}, cy: ${newJammer.cy.toFixed(1)}], radius: ${newJammer.radius}m.`);
+  io.emit('telemetrySnapshot', buildFrontendPayload(lastSnapshot || {}));
+  res.json({ ok: true, jammer: newJammer });
+});
+
+app.post('/api/mission/kill-drone', (req, res) => {
+  const activeDrone = drones.find(d => d.status === 'active');
+  if (activeDrone) {
+    activeDrone.status = 'failed';
+    activeDrone.task = 'crashed';
+    activeDrone.battery = 0;
+    pushAlert('critical', `⚡ EMP BLAST TRIGGERED! Drone ${activeDrone.id} experienced catastrophic failure.`);
+    io.emit('sitlSnapshot', drones);
+    io.emit('telemetrySnapshot', buildFrontendPayload(lastSnapshot || {}));
+    res.json({ ok: true, killedDrone: activeDrone.id });
+  } else {
+    res.status(404).json({ ok: false, error: 'No active drone available to disable.' });
+  }
 });
 
 // Inject telemetry from ArduPilot SITL!
@@ -1133,8 +1208,30 @@ app.post('/api/mission/reset', async (req, res) => {
   simulationRunning = false;
   stopTick();
   startedAt = null;
-  await pyReset(currentScenarioId, currentSeed);
-  lastSnapshot = await pySnapshot();
+
+  // Reset JS drone swarm to starting positions
+  initDrones(simConfig);
+  drones.forEach((d) => {
+    d.x = 0;
+    d.y = 0;
+    d.z = 10;
+    d.heading = 0;
+    d.speed = 0;
+    d.task = 'exploring';
+    d.status = 'active';
+    d.battery = 100;
+  });
+
+  try {
+    await pyReset(currentScenarioId, currentSeed);
+    lastSnapshot = await pySnapshot();
+  } catch (e) {
+    console.warn('[Sim] pyReset note:', e.message);
+  }
+
+  pushAlert('warning', 'Swarm simulation reset to central launchpad (0,0).');
+  io.emit('sitlSnapshot', drones);
+  io.emit('telemetrySnapshot', buildFrontendPayload(lastSnapshot || {}));
   console.log(`[Sim] RESET — scenario=${currentScenarioId}`);
   res.json({ ok: true, message: 'Simulation reset' });
 });

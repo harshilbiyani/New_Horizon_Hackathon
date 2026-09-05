@@ -3,6 +3,11 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 const proxyConfig = {
+  '/api/vlm': {
+    target: 'http://localhost:5001',
+    changeOrigin: true,
+    rewrite: (path: string) => path.replace(/^\/api\/vlm/, ''),
+  },
   '/api': {
     target: 'http://localhost:3001',
     changeOrigin: true,

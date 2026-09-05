@@ -131,6 +131,10 @@ export default function Dashboard() {
       setAlerts((previous) => [alert, ...previous].slice(0, 250));
     });
 
+    socket.on('newAlert', (alert: Alert) => {
+      setAlerts((previous) => [alert, ...previous].slice(0, 250));
+    });
+
     socket.on('sitlSnapshot', (data: any[]) => {
       setSitlDrones(data);
     });

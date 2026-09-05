@@ -85,14 +85,19 @@ def _load_clip():
     if _model is not None:
         return
     log.info("Loading CLIP ViT-B/32 (first call — may take ~10s) ...")
-    import torch
-    import clip as openai_clip
+    try:
+        import torch
+        import clip as openai_clip
 
-    _device = "cuda" if torch.cuda.is_available() else "cpu"
-    log.info(f"Using device: {_device}")
-    _model, _preprocess = openai_clip.load("ViT-B/32", device=_device)
-    _model.eval()
-    log.info("CLIP loaded ✓")
+        _device = "cuda" if torch.cuda.is_available() else "cpu"
+        log.info(f"Using device: {_device}")
+        _model, _preprocess = openai_clip.load("ViT-B/32", device=_device)
+        _model.eval()
+        log.info("CLIP loaded ✓")
+    except Exception as e:
+        log.error(f"Failed to load CLIP model: {e}")
+        _model = None
+        _preprocess = None
 
 
 def _load_index():
@@ -160,9 +165,15 @@ CORS(app)
 @app.before_request
 def ensure_loaded():
     """Ensure CLIP + FAISS are loaded before any request."""
-    _load_clip()
+    try:
+        _load_clip()
+    except Exception as e:
+        log.warning(f"CLIP load deferred: {e}")
     if _index is None:
-        _load_index()
+        try:
+            _load_index()
+        except Exception as e:
+            log.warning(f"Index load deferred: {e}")
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
@@ -557,6 +568,12 @@ if __name__ == "__main__":
     port = int(os.environ.get("VLM_PORT", 5001))
     log.info(f"Starting VLM service on port {port} ...")
     # Pre-load on startup so first request is fast
-    _load_clip()
-    _load_index()
+    try:
+        _load_clip()
+    except Exception as e:
+        log.warning(f"CLIP startup load deferred: {e}")
+    try:
+        _load_index()
+    except Exception as e:
+        log.warning(f"Index startup load deferred: {e}")
     app.run(host="0.0.0.0", port=port, debug=False)
