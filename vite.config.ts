@@ -6,8 +6,8 @@ const proxyConfig = {
   '/api': {
     target: 'http://localhost:3001',
     changeOrigin: true,
-    configure: (proxy) => {
-      proxy.on('error', (err, _req, res) => {
+    configure: (proxy: any) => {
+      proxy.on('error', (err: any, _req: any, res: any) => {
         if (res && !res.headersSent && res.writeHead) {
           res.writeHead(502, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'Backend Gateway Unavailable', detail: err.message }));
@@ -18,7 +18,7 @@ const proxyConfig = {
   '/socket.io': {
     target: 'http://localhost:3001',
     ws: true,
-    configure: (proxy) => {
+    configure: (proxy: any) => {
       proxy.on('error', () => {});
     },
   },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCcw, Compass, Radio } from 'lucide-react';
 import type { Drone, HiddenSurvivor, MeshLink, Obstacle, Survivor } from '../types/telemetry';
 
@@ -149,11 +149,11 @@ export default function MissionMap({
   }, []);
 
   const defaultDrones: Drone[] = React.useMemo(() => [
-    { id: 'DRN-001', x: -55, y: 55, z: 85, heading: 45, speed: 40, task: 'exploring', status: 'active', battery: 95, signalStrength: 92, trail: [] },
-    { id: 'DRN-002', x: 65, y: 65, z: 90, heading: 120, speed: 42, task: 'exploring', status: 'active', battery: 98, signalStrength: 95, trail: [] },
-    { id: 'DRN-003', x: -65, y: -55, z: 75, heading: 210, speed: 38, task: 'exploring', status: 'active', battery: 92, signalStrength: 88, trail: [] },
-    { id: 'DRN-004', x: 60, y: -60, z: 95, heading: 300, speed: 45, task: 'exploring', status: 'active', battery: 96, signalStrength: 94, trail: [] },
-    { id: 'DRN-005', x: 15, y: 25, z: 80, heading: 15, speed: 35, task: 'exploring', status: 'active', battery: 100, signalStrength: 99, trail: [] }
+    { id: 'DRN-001', x: -55, y: 55, z: 85, heading: 45, speed: 40, task: 'exploring', status: 'active', battery: 95, signalStrength: 92, trail: [], distanceTraveled: 120, lastSeen: new Date().toISOString() },
+    { id: 'DRN-002', x: 65, y: 65, z: 90, heading: 120, speed: 42, task: 'exploring', status: 'active', battery: 98, signalStrength: 95, trail: [], distanceTraveled: 140, lastSeen: new Date().toISOString() },
+    { id: 'DRN-003', x: -65, y: -55, z: 75, heading: 210, speed: 38, task: 'exploring', status: 'active', battery: 92, signalStrength: 88, trail: [], distanceTraveled: 110, lastSeen: new Date().toISOString() },
+    { id: 'DRN-004', x: 60, y: -60, z: 95, heading: 300, speed: 45, task: 'exploring', status: 'active', battery: 96, signalStrength: 94, trail: [], distanceTraveled: 160, lastSeen: new Date().toISOString() },
+    { id: 'DRN-005', x: 15, y: 25, z: 80, heading: 15, speed: 35, task: 'exploring', status: 'active', battery: 100, signalStrength: 99, trail: [], distanceTraveled: 80, lastSeen: new Date().toISOString() }
   ], []);
 
   const displayDrones = (drones && drones.length > 0) ? drones : defaultDrones;

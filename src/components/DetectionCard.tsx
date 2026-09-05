@@ -70,7 +70,7 @@ function SimilarityRing({ value }: { value: number }) {
 
 interface Props {
   detection: Detection;
-  rank: number;
+  rank?: number;
 }
 
 export default function DetectionCard({ detection, rank }: Props) {
@@ -81,9 +81,11 @@ export default function DetectionCard({ detection, rank }: Props) {
   return (
     <div className="group relative rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md overflow-hidden hover:border-[#00ffcc]/40 hover:shadow-[0_0_32px_rgba(0,255,204,0.12)] transition-all duration-300 hover:-translate-y-1 flex flex-col">
       {/* Rank badge */}
-      <div className="absolute top-3 left-3 z-10 w-7 h-7 rounded-full bg-[#000814]/80 border border-white/20 flex items-center justify-center text-[11px] font-bold text-[#00ffcc] backdrop-blur-sm">
-        #{rank}
-      </div>
+      {rank !== undefined && (
+        <div className="absolute top-3 left-3 z-10 w-7 h-7 rounded-full bg-[#000814]/80 border border-white/20 flex items-center justify-center text-[11px] font-bold text-[#00ffcc] backdrop-blur-sm">
+          #{rank}
+        </div>
+      )}
 
       {/* Drone ID badge */}
       <div className="absolute top-3 right-3 z-10 px-2.5 py-1 rounded-full bg-[#000814]/80 border border-[#00ffcc]/30 text-[10px] font-mono text-[#00ffcc] backdrop-blur-sm uppercase tracking-widest">
