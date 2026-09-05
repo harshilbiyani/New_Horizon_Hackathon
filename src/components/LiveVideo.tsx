@@ -14,8 +14,8 @@ export default function LiveVideo({ selectedDrone, connectionState, drones = [],
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Iframe URL for the 3D map following the selected drone from above
-  const followUrl = selectedDrone 
-    ? `/map/index.html?follow=${selectedDrone.id}` 
+  const followUrl = selectedDrone
+    ? `/map/index.html?follow=${selectedDrone.id}`
     : '/map/index.html';
 
   return (
@@ -29,7 +29,7 @@ export default function LiveVideo({ selectedDrone, connectionState, drones = [],
         <span className="text-[9px] text-yellow-300/60 tracking-wider uppercase border border-yellow-400/20 px-1.5 py-0.5 rounded">
           Simulated Feed · Placeholder for camera integration
         </span>
-        
+
         {/* Drone Selector Dropdown */}
         <div className="relative">
           <button
@@ -40,7 +40,7 @@ export default function LiveVideo({ selectedDrone, connectionState, drones = [],
             {selectedDrone?.id || 'Select Drone'}
             <ChevronDown size={12} className={`transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
           </button>
-          
+
           {dropdownOpen && drones.length > 0 && (
             <div className="absolute right-0 top-full mt-1 bg-[#0a0e1a]/95 backdrop-blur-md border border-white/10 rounded-lg overflow-hidden shadow-2xl z-50 min-w-[180px]">
               {drones.map((drone) => (
@@ -50,18 +50,15 @@ export default function LiveVideo({ selectedDrone, connectionState, drones = [],
                     onSelectDrone?.(drone.id);
                     setDropdownOpen(false);
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium transition-all cursor-pointer hover:bg-white/5 ${
-                    drone.id === selectedDrone?.id ? 'bg-[#00ffcc]/10 text-[#00ffcc]' : 'text-gray-300'
-                  }`}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium transition-all cursor-pointer hover:bg-white/5 ${drone.id === selectedDrone?.id ? 'bg-[#00ffcc]/10 text-[#00ffcc]' : 'text-gray-300'
+                    }`}
                 >
-                  <span className={`w-2 h-2 rounded-full ${
-                    drone.status === 'active' ? 'bg-green-400 animate-pulse' : 'bg-red-400'
-                  }`}></span>
+                  <span className={`w-2 h-2 rounded-full ${drone.status === 'active' ? 'bg-green-400 animate-pulse' : 'bg-red-400'
+                    }`}></span>
                   <span className="flex-1 text-left">{drone.id}</span>
                   <span className="text-[10px] text-gray-500">{drone.battery.toFixed(0)}%</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                    drone.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-                  }`}>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${drone.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                    }`}>
                     {drone.status.toUpperCase()}
                   </span>
                 </button>
@@ -102,15 +99,15 @@ export default function LiveVideo({ selectedDrone, connectionState, drones = [],
 
         {/* Telemetry bottom-left */}
         <div className="absolute bottom-4 left-4 text-[#00ffcc] font-mono text-[10px] leading-relaxed bg-black/40 px-2 py-1 rounded">
-          ALT: {selectedDrone ? `${selectedDrone.z.toFixed(0)}M` : '--'} | 
-          SPD: {selectedDrone ? `${selectedDrone.speed.toFixed(1)}` : '--'} | 
+          ALT: {selectedDrone ? `${selectedDrone.z.toFixed(0)}M` : '--'} |
+          SPD: {selectedDrone ? `${selectedDrone.speed.toFixed(1)}` : '--'} |
           {selectedDrone?.task?.toUpperCase() || 'IDLE'}
         </div>
 
         {/* Telemetry bottom-right */}
         <div className="absolute bottom-4 right-4 text-[#00ffcc] font-mono text-[10px] text-right leading-relaxed bg-black/40 px-2 py-1 rounded">
-          X:{selectedDrone ? selectedDrone.x.toFixed(1) : '--'} Y:{selectedDrone ? selectedDrone.y.toFixed(1) : '--'} | 
-          BATT:{selectedDrone ? `${selectedDrone.battery.toFixed(0)}%` : '--'} | 
+          X:{selectedDrone ? selectedDrone.x.toFixed(1) : '--'} Y:{selectedDrone ? selectedDrone.y.toFixed(1) : '--'} |
+          BATT:{selectedDrone ? `${selectedDrone.battery.toFixed(0)}%` : '--'} |
           SIG:{selectedDrone ? `${selectedDrone.signalStrength.toFixed(0)}%` : '--'}
         </div>
 

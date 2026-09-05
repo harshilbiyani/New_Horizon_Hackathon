@@ -7,10 +7,10 @@ import EventLogs from '../components/EventLogs';
 import LiveVideo from '../components/LiveVideo';
 import ChartsPanel from '../components/ChartsPanel';
 import MissionMap from '../components/MissionMap';
-import MissionControls from '../components/MissionControls';
+import Map2D from '../components/Map2D';
+import AdminPanel from '../components/AdminPanel';
 import type {
   Alert,
-  AiInsights,
   Drone,
   HiddenSurvivor,
   MissionData,
@@ -35,6 +35,8 @@ const EMPTY_MISSION_DATA: MissionData = {
 export default function Dashboard() {
   const [missionData, setMissionData] = useState<MissionData>(EMPTY_MISSION_DATA);
   const [drones, setDrones] = useState<Drone[]>([]);
+  const [sitlDrones, setSitlDrones] = useState<any[]>([]);
+  const [activeMap, setActiveMap] = useState<'3d' | '2d'>('3d');
   const [survivors, setSurvivors] = useState<Survivor[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
@@ -45,7 +47,6 @@ export default function Dashboard() {
   const [connectionState, setConnectionState] = useState<'connected' | 'disconnected'>('disconnected');
   const [lastSnapshotAt, setLastSnapshotAt] = useState<string | null>(null);
   const [selectedDroneId, setSelectedDroneId] = useState<string>();
-  const [, setAiInsights] = useState<AiInsights | null>(null);
 
   useEffect(() => {
     const socket = io('http://localhost:3001', {
@@ -75,9 +76,6 @@ export default function Dashboard() {
       setObstacles(snapshot.obstacles);
       setHiddenSurvivors(snapshot.hiddenSurvivors);
       setMeshLinks(snapshot.meshLinks ?? []);
-      if (snapshot.aiInsights) {
-        setAiInsights(snapshot.aiInsights);
-      }
       setLastSnapshotAt(snapshot.timestamp);
 
       const timeKey = new Date(snapshot.timestamp).toLocaleTimeString('en-US', {
@@ -133,8 +131,8 @@ export default function Dashboard() {
       setAlerts((previous) => [alert, ...previous].slice(0, 250));
     });
 
-    socket.on('aiInsights', (insights: AiInsights) => {
-      setAiInsights(insights);
+    socket.on('sitlSnapshot', (data: any[]) => {
+      setSitlDrones(data);
     });
 
     return () => {
@@ -186,11 +184,11 @@ export default function Dashboard() {
 
           <div className="grid grid-cols-1 xl:grid-cols-[2.3fr_1fr] gap-6 h-[420px]">
             <LiveVideo
-                selectedDrone={selectedDrone}
-                connectionState={connectionState}
-                drones={drones}
-                onSelectDrone={setSelectedDroneId}
-              />
+              selectedDrone={selectedDrone}
+              connectionState={connectionState}
+              drones={drones}
+              onSelectDrone={setSelectedDroneId}
+            />
             <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-5 overflow-hidden flex flex-col h-full">
               <h2 className="text-lg font-semibold mb-4 text-[#ff4a1c]">Live Detections</h2>
               <SurvivorFeed survivors={survivors} />
@@ -212,20 +210,43 @@ export default function Dashboard() {
             <ChartsPanel historyData={coverageHistory} batteryHistory={batteryHistory} drones={drones} />
           </div>
 
-          <div className="h-[360px]">
-            <MissionMap
-              drones={drones}
-              obstacles={obstacles}
-              foundSurvivors={survivors}
-              hiddenSurvivors={hiddenSurvivors}
-              meshLinks={meshLinks}
-              scannedCells={scannedCellKeys}
-              selectedDroneId={selectedDroneId}
-              onSelectDrone={setSelectedDroneId}
-            />
+
+          <div className="h-[430px] flex flex-col">
+            <div className="flex items-center justify-between gap-4 mb-2">
+              <div className="flex gap-3">
+                <button
+                  className={`px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${activeMap === '3d' ? 'bg-[#00ff00] text-black shadow-[0_0_10px_rgba(0,255,0,0.5)]' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}
+                  onClick={() => setActiveMap('3d')}
+                >
+                  3D Tactical Swarm Map
+                </button>
+                <button
+                  className={`px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${activeMap === '2d' ? 'bg-[#00ff00] text-black shadow-[0_0_10px_rgba(0,255,0,0.5)]' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}
+                  onClick={() => setActiveMap('2d')}
+                >
+                  2D Map (ArduPilot Sectors)
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 relative bg-white/5 border border-white/10 rounded-xl overflow-hidden shadow-2xl">
+              {activeMap === '3d' ? (
+                <MissionMap
+                  drones={drones}
+                  obstacles={obstacles}
+                  foundSurvivors={survivors}
+                  hiddenSurvivors={hiddenSurvivors}
+                  meshLinks={meshLinks}
+                  scannedCells={scannedCellKeys}
+                  selectedDroneId={selectedDroneId}
+                  onSelectDrone={setSelectedDroneId}
+                />
+              ) : (
+                <Map2D sitlDrones={sitlDrones} />
+              )}
+            </div>
           </div>
 
-          <MissionControls />
+          <AdminPanel />
 
           <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-5 overflow-hidden flex flex-col min-h-[320px]">
             <h2 className="text-lg font-semibold mb-4 text-gray-300">System Logs</h2>

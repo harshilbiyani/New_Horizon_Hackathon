@@ -212,11 +212,10 @@ export default function PersonSearch() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setSearchMode('description')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
-                    searchMode === 'description'
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${searchMode === 'description'
                       ? 'bg-[#00ffcc]/15 text-[#00ffcc] border border-[#00ffcc]/30 shadow-[0_0_15px_rgba(0,255,204,0.12)]'
                       : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
-                  }`}
+                    }`}
                 >
                   <FileText size={14} />
                   Search with Description
@@ -224,11 +223,10 @@ export default function PersonSearch() {
 
                 <button
                   onClick={() => setSearchMode('image')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
-                    searchMode === 'image'
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${searchMode === 'image'
                       ? 'bg-[#00ffcc]/15 text-[#00ffcc] border border-[#00ffcc]/30 shadow-[0_0_15px_rgba(0,255,204,0.12)]'
                       : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
-                  }`}
+                    }`}
                 >
                   <Camera size={14} />
                   Search from Image (Suspect Upload)
@@ -245,11 +243,10 @@ export default function PersonSearch() {
                     <button
                       key={kVal}
                       onClick={() => handleTopKChange(kVal)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold transition-all ${
-                        topK === kVal
+                      className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold transition-all ${topK === kVal
                           ? 'bg-[#00ffcc] text-[#000814] shadow-[0_0_12px_rgba(0,255,204,0.35)]'
                           : 'text-gray-400 hover:text-white hover:bg-white/5'
-                      }`}
+                        }`}
                     >
                       {kVal}
                     </button>

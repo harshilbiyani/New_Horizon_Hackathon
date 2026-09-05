@@ -1,3 +1,4 @@
+import React from 'react';
 import { Play, Square, RotateCcw, Crosshair, Zap, ShieldAlert } from 'lucide-react';
 
 export default function MissionControls() {
@@ -39,23 +40,23 @@ export default function MissionControls() {
       <div className="flex flex-col gap-4">
         {/* Core Engine Controls */}
         <div className="grid grid-cols-3 gap-2">
-          <button 
+          <button
             onClick={() => triggerEndpoint('start')}
             className="flex flex-col items-center justify-center gap-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 rounded-lg p-3 transition-colors cursor-pointer"
           >
             <Play size={18} />
             <span className="text-[10px] uppercase tracking-wider font-bold">Start</span>
           </button>
-          
-          <button 
+
+          <button
             onClick={() => triggerEndpoint('stop')}
             className="flex flex-col items-center justify-center gap-2 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-400 rounded-lg p-3 transition-colors cursor-pointer"
           >
             <Square size={18} />
             <span className="text-[10px] uppercase tracking-wider font-bold">Stop</span>
           </button>
-          
-          <button 
+
+          <button
             onClick={() => triggerEndpoint('reset')}
             className="flex flex-col items-center justify-center gap-2 bg-gray-500/20 hover:bg-gray-500/30 border border-gray-500/30 text-gray-400 rounded-lg p-3 transition-colors cursor-pointer"
           >
@@ -69,7 +70,7 @@ export default function MissionControls() {
 
         {/* Dynamic Chaos Controls */}
         <div className="grid grid-cols-1 gap-3">
-          <button 
+          <button
             onClick={() => triggerEndpoint('kill-drone')}
             className="flex items-center gap-3 bg-[#ff4a1c]/10 hover:bg-[#ff4a1c]/20 border border-[#ff4a1c]/30 text-[#ff4a1c] rounded-lg p-3 transition-colors w-full cursor-pointer text-left"
           >
@@ -82,7 +83,7 @@ export default function MissionControls() {
             </div>
           </button>
 
-          <button 
+          <button
             onClick={addRandomSurvivor}
             className="flex items-center gap-3 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 rounded-lg p-3 transition-colors w-full cursor-pointer text-left"
           >
@@ -95,7 +96,7 @@ export default function MissionControls() {
             </div>
           </button>
 
-          <button 
+          <button
             onClick={addRandomJammer}
             className="flex items-center gap-3 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-400 rounded-lg p-3 transition-colors w-full cursor-pointer text-left"
           >

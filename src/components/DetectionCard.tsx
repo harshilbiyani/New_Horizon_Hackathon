@@ -75,9 +75,7 @@ interface Props {
 
 export default function DetectionCard({ detection, rank }: Props) {
   const [imgError, setImgError] = useState(false);
-  const imgSrc = detection.image_path.startsWith('http') 
-    ? detection.image_path 
-    : `${SERVER}/${detection.image_path}`;
+  const imgSrc = `${SERVER}/${detection.image_path}`;
   const confColor = confidenceColor(detection.confidence);
 
   return (
@@ -150,15 +148,10 @@ export default function DetectionCard({ detection, rank }: Props) {
           </div>
 
           {/* Coordinates */}
-          <div className="col-span-2 flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
-            <div className="flex items-center gap-2">
-              <MapPin size={12} className="text-[#00ffcc]/60 flex-shrink-0" />
-              <span className="font-mono">
-                {detection.lat.toFixed(5)}, {detection.lon.toFixed(5)}
-              </span>
-            </div>
-            <span className="text-[9px] font-mono tracking-wider text-gray-400 bg-white/5 px-2 py-0.5 rounded border border-white/10 uppercase">
-              {detection.is_simulated_gps !== false ? 'SIM GPS (REAL IN DRONE)' : 'DRONE GPS'}
+          <div className="col-span-2 flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2">
+            <MapPin size={12} className="text-[#00ffcc]/60 flex-shrink-0" />
+            <span className="font-mono">
+              {detection.lat.toFixed(5)}, {detection.lon.toFixed(5)}
             </span>
           </div>
 
