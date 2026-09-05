@@ -9,8 +9,8 @@
     <script type="importmap">
         {
             "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+                "three": "./libs/three.module.js",
+                "three/addons/": "./libs/jsm/"
             }
         }
     </script>
@@ -24,7 +24,15 @@
                 <span class="hud-label" id="hud-drone-count">🚁 5 Drones Active</span>
             </div>
             <div class="hud-center">
-                <span class="hud-title">TACTICAL MOUNTAIN THEATER</span>
+                <span class="hud-title">TACTICAL 3D CITY THEATER</span>
+                <div class="drone-quick-bar" id="drone-quick-bar">
+                    <button class="drone-cam-btn active" data-drone="free">🌐 Free Cam</button>
+                    <button class="drone-cam-btn" data-drone="DRN-001">🚁 DRN-1</button>
+                    <button class="drone-cam-btn" data-drone="DRN-002">🚁 DRN-2</button>
+                    <button class="drone-cam-btn" data-drone="DRN-003">🚁 DRN-3</button>
+                    <button class="drone-cam-btn" data-drone="DRN-004">🚁 DRN-4</button>
+                    <button class="drone-cam-btn" data-drone="DRN-005">🚁 DRN-5</button>
+                </div>
             </div>
             <div class="hud-right">
                 <span class="hud-label" id="hud-survivors">👤 Targets: 8</span>

@@ -315,3 +315,45 @@ body {
 .radio-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #cbd5e1; }
 .mt-2 { margin-top: 8px; }
 .sidebar-footer { text-align: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; }
+
+/* Drone Camera Quick Switcher */
+.hud-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.drone-quick-bar {
+    display: flex;
+    gap: 6px;
+    pointer-events: auto;
+}
+
+.drone-cam-btn {
+    background: rgba(4, 18, 32, 0.85);
+    border: 1px solid rgba(0, 255, 204, 0.35);
+    color: #88ffea;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(8px);
+}
+
+.drone-cam-btn:hover {
+    background: rgba(0, 255, 204, 0.2);
+    border-color: #00ffcc;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 0 8px rgba(0, 255, 204, 0.4);
+}
+
+.drone-cam-btn.active {
+    background: #00ffcc;
+    color: #00121d;
+    border-color: #00ffcc;
+    box-shadow: 0 0 12px rgba(0, 255, 204, 0.6);
+}

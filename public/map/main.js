@@ -22,8 +22,8 @@ _droneLoader.load('../drone.glb', (gltf) => {
 
 // --- Follow Mode Detection ---
 const urlParams = new URLSearchParams(window.location.search);
-const followDroneId = urlParams.get('follow');
-const isFollowMode = !!followDroneId;
+let followDroneId = urlParams.get('follow');
+let isFollowMode = !!followDroneId;
 let followTarget = { x: 0, y: 80, z: 0 };
 
 if (isFollowMode) {
@@ -37,8 +37,13 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xd9ebfa); // Matches horizon
 // Fog completely removed!
 
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2500);
-camera.position.set(0, 250, 150);
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 3000);
+if (isFollowMode) {
+    camera.position.set(0, 60, 40);
+} else {
+    // High tactical overview so all drones across the city are visible
+    camera.position.set(0, 420, 380);
+}
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1)); // PERFORMANCE: Capped at 1 to prevent lag on 4K/Retina displays
@@ -71,6 +76,28 @@ const bloomPass = new UnrealBloomPass(
 );
 composer.addPass(bloomPass);
 composer.addPass(new OutputPass());
+
+// --- Instant Cyber Ground Grid (Guarantees visual base immediately) ---
+const groundDisc = new THREE.Mesh(
+    new THREE.CircleGeometry(650, 64),
+    new THREE.MeshStandardMaterial({ color: 0x07111e, roughness: 0.85, metalness: 0.15 })
+);
+groundDisc.rotation.x = -Math.PI / 2;
+groundDisc.position.y = -0.1;
+groundDisc.receiveShadow = true;
+scene.add(groundDisc);
+
+const tacticalGrid = new THREE.GridHelper(1200, 60, 0x00ffcc, 0x0b2535);
+tacticalGrid.position.y = 0.1;
+scene.add(tacticalGrid);
+
+const outerBoundaryRing = new THREE.Mesh(
+    new THREE.RingGeometry(345, 350, 64),
+    new THREE.MeshBasicMaterial({ color: 0x00ffcc, side: THREE.DoubleSide, transparent: true, opacity: 0.4 })
+);
+outerBoundaryRing.rotation.x = -Math.PI / 2;
+outerBoundaryRing.position.y = 0.2;
+scene.add(outerBoundaryRing);
 
 // --- Lighting ---
 // Clean, bright daytime lighting
@@ -699,65 +726,154 @@ function updateObstacles(obsList) {
 // --- Drone System ---
 const droneMeshes = {};
 
-function createDroneGroup() {
+function createDroneGroup(droneId) {
     const group = new THREE.Group();
+    group.userData.id = droneId;
 
-    if (loadedDroneModel) {
-        const customDrone = loadedDroneModel.clone();
-        customDrone.traverse((node) => {
-            if (node.isMesh) {
-                node.castShadow = true;
-                node.receiveShadow = true;
-            }
-        });
-        group.add(customDrone);
-    } else {
-        // Fallback box if model hasn't loaded yet
-        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-        const mainBody = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 3.5), bodyMat);
-        group.add(mainBody);
-        group.userData.isFallback = true;
-    }
+    // 1. High-Detail Quadcopter Base (Instantly visible with crisp geometric shapes)
+    const droneChassis = new THREE.Group();
+    droneChassis.userData.isChassis = true;
 
-    // Downward Spotlight - much softer and realistic
-    const light = new THREE.SpotLight(0xaaddff, 3, 100, Math.PI / 6, 0.6, 1.5);
-    light.position.set(0, -0.5, 1.2);
-    light.target.position.set(0, -40, 1.2);
+    // Aerodynamic Central Body
+    const bodyMat = new THREE.MeshStandardMaterial({
+        color: 0x0a192f,
+        roughness: 0.25,
+        metalness: 0.85,
+        emissive: 0x001828
+    });
+    const mainBody = new THREE.Mesh(new THREE.BoxGeometry(4.0, 1.3, 4.8), bodyMat);
+    mainBody.castShadow = true;
+    mainBody.receiveShadow = true;
+    droneChassis.add(mainBody);
+
+    // Glowing Neon Core Canopy
+    const canopyMat = new THREE.MeshStandardMaterial({
+        color: 0x00ffcc,
+        emissive: 0x00ffcc,
+        emissiveIntensity: 0.9,
+        roughness: 0.1
+    });
+    const canopy = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.5, 0.7, 16), canopyMat);
+    canopy.position.y = 0.85;
+    droneChassis.add(canopy);
+
+    // 4 Diagonal Motor Arms with Rotors & LED Beacons
+    const armPositions = [
+        { x: 3.2, z: 3.2, color: 0x00ff88 },   // Front Right (Green)
+        { x: -3.2, z: 3.2, color: 0x00ff88 },  // Front Left (Green)
+        { x: 3.2, z: -3.2, color: 0xff3344 },  // Rear Right (Red)
+        { x: -3.2, z: -3.2, color: 0xff3344 }, // Rear Left (Red)
+    ];
+
+    const armMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.9, roughness: 0.2 });
+    const rotorMat = new THREE.MeshBasicMaterial({ color: 0x6bfaf4, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+
+    armPositions.forEach((pos, idx) => {
+        // Arm rod
+        const armGeo = new THREE.CylinderGeometry(0.2, 0.2, 4.4, 8);
+        const arm = new THREE.Mesh(armGeo, armMat);
+        arm.position.set(pos.x * 0.5, 0.15, pos.z * 0.5);
+        arm.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(pos.x, 0, pos.z).normalize());
+        droneChassis.add(arm);
+
+        // Motor pod
+        const motorGeo = new THREE.CylinderGeometry(0.65, 0.65, 0.9, 12);
+        const motor = new THREE.Mesh(motorGeo, armMat);
+        motor.position.set(pos.x, 0.35, pos.z);
+        droneChassis.add(motor);
+
+        // Spinning Rotor Blade
+        const rotorGeo = new THREE.CircleGeometry(2.3, 16);
+        const rotor = new THREE.Mesh(rotorGeo, rotorMat);
+        rotor.rotation.x = -Math.PI / 2;
+        rotor.position.set(pos.x, 0.9, pos.z);
+        rotor.userData.isRotor = true;
+        rotor.userData.rotorSpeed = (idx % 2 === 0 ? 1 : -1) * (0.35 + Math.random() * 0.08);
+        droneChassis.add(rotor);
+
+        // Arm LED Nav Light
+        const ledGeo = new THREE.SphereGeometry(0.28, 8, 8);
+        const ledMat = new THREE.MeshBasicMaterial({ color: pos.color });
+        const led = new THREE.Mesh(ledGeo, ledMat);
+        led.position.set(pos.x, -0.2, pos.z);
+        droneChassis.add(led);
+    });
+
+    group.add(droneChassis);
+
+    // 2. Towering Sky Beacon Pillar (Shoots 110 units into sky, visible over all skyscrapers)
+    const skyBeaconGeo = new THREE.CylinderGeometry(0.4, 2.8, 100, 16, 1, true);
+    const skyBeaconMat = new THREE.MeshBasicMaterial({
+        color: 0x00ffcc,
+        transparent: true,
+        opacity: 0.22,
+        side: THREE.DoubleSide,
+        depthWrite: false
+    });
+    const skyBeacon = new THREE.Mesh(skyBeaconGeo, skyBeaconMat);
+    skyBeacon.position.y = 50;
+    skyBeacon.userData.isSkyBeacon = true;
+    group.add(skyBeacon);
+
+    // 3. High-Visibility Floating HUD Badge (Rendered in front of all geometry)
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 72;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'rgba(2, 14, 28, 0.92)';
+    ctx.roundRect(4, 4, 248, 64, 14);
+    ctx.fill();
+    ctx.strokeStyle = '#00ffcc';
+    ctx.lineWidth = 3.5;
+    ctx.stroke();
+    ctx.font = 'bold 32px monospace';
+    ctx.fillStyle = '#00ffcc';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(droneId || 'DRONE', 128, 36);
+
+    const badgeTex = new THREE.CanvasTexture(canvas);
+    const badgeMat = new THREE.SpriteMaterial({ map: badgeTex, transparent: true, depthTest: false });
+    const badgeSprite = new THREE.Sprite(badgeMat);
+    badgeSprite.scale.set(22, 6.2, 1);
+    badgeSprite.position.set(0, 8.5, 0);
+    badgeSprite.renderOrder = 9999;
+    group.add(badgeSprite);
+
+    // 3. Searchlight & Downward Target Acquisition Beam
+    const light = new THREE.SpotLight(0x00ffcc, 4.0, 180, Math.PI / 5, 0.4, 1.2);
+    light.position.set(0, -0.5, 0);
+    light.target.position.set(0, -60, 0);
     group.add(light);
     group.add(light.target);
 
-    // Drone Navigation Light (Red/Green blinking)
-    const navGeo = new THREE.SphereGeometry(0.15, 8, 8);
-    const navMat = new THREE.MeshBasicMaterial({ color: 0xff1111 });
-    const navLight = new THREE.Mesh(navGeo, navMat);
-    navLight.position.set(0, 0.6, -1.5);
-    navLight.userData.isNavLight = true;
-    group.add(navLight);
-
-    const scanRingGeo = new THREE.RingGeometry(2.2, 2.7, 36);
-    const scanRingMat = new THREE.MeshBasicMaterial({
-        color: 0x6bfaf4,
+    // Downward Targeting Beam Column
+    const beamGeo = new THREE.CylinderGeometry(0.3, 3.5, 45, 16, 1, true);
+    const beamMat = new THREE.MeshBasicMaterial({
+        color: 0x00ffcc,
         transparent: true,
-        opacity: 0.25,
+        opacity: 0.16,
+        side: THREE.DoubleSide,
+        depthWrite: false
+    });
+    const beam = new THREE.Mesh(beamGeo, beamMat);
+    beam.position.y = -22.5;
+    beam.userData.isBeam = true;
+    group.add(beam);
+
+    // Animated Ground Scan Ring
+    const scanRingGeo = new THREE.RingGeometry(3.5, 4.4, 32);
+    const scanRingMat = new THREE.MeshBasicMaterial({
+        color: 0x00ffcc,
+        transparent: true,
+        opacity: 0.35,
         side: THREE.DoubleSide,
     });
     const scanRing = new THREE.Mesh(scanRingGeo, scanRingMat);
     scanRing.rotation.x = -Math.PI / 2;
-    scanRing.position.y = -0.8;
+    scanRing.position.y = -1.2;
     scanRing.userData.isScanRing = true;
     group.add(scanRing);
-
-    const beamGeo = new THREE.CylinderGeometry(0.18, 1.8, 26, 16, 1, true);
-    const beamMat = new THREE.MeshBasicMaterial({
-        color: 0x55f5ff,
-        transparent: true,
-        opacity: 0.15,
-        side: THREE.DoubleSide,
-    });
-    const beam = new THREE.Mesh(beamGeo, beamMat);
-    beam.position.y = -13;
-    beam.userData.isBeam = true;
-    group.add(beam);
 
     return group;
 }
@@ -771,34 +887,19 @@ function updateDrones(drones) {
         }
     }
 
-    drones.forEach(d => {
+    drones.forEach((d, index) => {
         if (!droneMeshes[d.id]) {
-            const group = createDroneGroup();
+            const group = createDroneGroup(d.id);
             scene.add(group);
             droneMeshes[d.id] = group;
         }
 
         const droneGroup = droneMeshes[d.id];
 
-        // Upgrade fallback drones once the custom model finishes downloading!
-        if (loadedDroneModel && droneGroup.userData.isFallback) {
-            const fallback = droneGroup.children.find(c => c.geometry && c.geometry.type === 'BoxGeometry');
-            if (fallback) droneGroup.remove(fallback);
-
-            const customDrone = loadedDroneModel.clone();
-            customDrone.traverse((node) => {
-                if (node.isMesh) {
-                    node.castShadow = true;
-                    node.receiveShadow = true;
-                }
-            });
-            droneGroup.add(customDrone);
-            droneGroup.userData.isFallback = false;
-        }
-        // Smooth position lerp for fluid drone motion in 3D map
+        // Position coordinates: x is X, y is Z (ground plane), z is Y (altitude)
         const targetX = d.x;
         const targetZ = d.y;
-        const targetY = Math.max(d.z || 25, 20);
+        const targetY = Math.max(d.z ? d.z * 1.35 : 45, 42);
 
         if (!droneGroup.userData.initialized) {
             droneGroup.position.set(targetX, targetY, targetZ);
@@ -809,39 +910,17 @@ function updateDrones(drones) {
             droneGroup.position.y += (targetY - droneGroup.position.y) * 0.35;
         }
 
-        // Drone heading smoothly mapped
+        // Drone heading
         const rad = (-d.heading * Math.PI) / 180 + Math.PI / 2;
         droneGroup.rotation.y = rad;
 
-        // Visual indicator based on Python role
-        let indicatorLight = droneGroup.children.find(c => c.isPointLight);
-        if (!indicatorLight) {
-            indicatorLight = new THREE.PointLight(0xffffff, 1.5, 30);
-            indicatorLight.position.set(0, -2, 0);
-            droneGroup.add(indicatorLight);
-        }
+        // Dynamic Role coloring
+        const isFollowed = (followDroneId && d.id.toLowerCase() === followDroneId.toLowerCase()) ||
+                           (followDroneId && d.id.replace(/-/g, '') === followDroneId.replace(/-/g, '')) ||
+                           (!followDroneId && index === 0);
 
-        let mesh = droneGroup.children.find(c => c.isMesh && !c.userData.isNavLight && !c.userData.isScanRing && !c.userData.isBeam);
-
-        if (d.status === 'failed' || d.task === 'crashed') {
-            indicatorLight.color.setHex(0xff0000);
-            indicatorLight.intensity = 0.8;
-            if (mesh) mesh.material.color.setHex(0x222222); // Make it dark gray
-        } else if (d.task === 'relay') {
-            indicatorLight.color.setHex(0xffaa00); // Orange for relay
-            indicatorLight.intensity = 1.0;
-            if (mesh) mesh.material.color.setHex(0xe8e9ed);
-        } else if (d.task === 'exploring' || d.task === 'searcher') {
-            indicatorLight.color.setHex(0x00ffcc); // Cyan/Green for searcher
-            indicatorLight.intensity = 1.0;
-            if (mesh) mesh.material.color.setHex(0xe8e9ed);
-        } else {
-            indicatorLight.color.setHex(0xaaaaaa);
-            if (mesh) mesh.material.color.setHex(0xe8e9ed);
-        }
-
-        if (isFollowMode && d.id === followDroneId) {
-            followTarget = { x: d.x, y: Math.max(d.z, 20), z: d.y };
+        if (isFollowMode && isFollowed) {
+            followTarget = { x: targetX, y: targetY, z: targetZ };
         }
     });
 }
@@ -1076,23 +1155,23 @@ function animate() {
     for (const id in droneMeshes) {
         const group = droneMeshes[id];
         const seed = droneSeed(id);
-        group.position.y += Math.sin(elapsed * 4 + seed) * 0.05;
-        group.rotation.x = Math.sin(elapsed * 2 + seed) * 0.05;
+        group.position.y += Math.sin(elapsed * 4 + seed) * 0.04;
+        group.rotation.x = Math.sin(elapsed * 2 + seed) * 0.03;
 
-        group.children.forEach(child => {
+        group.traverse(child => {
             if (child.userData.isRotor) {
-                child.rotation.y += 0.4;
+                child.rotation.z += child.userData.rotorSpeed || 0.45;
             }
             if (child.userData.isNavLight) {
-                child.material.color.setHex((Math.floor(elapsed * 2) % 2 === 0) ? 0xff0000 : 0x00ff00);
+                child.material.color.setHex((Math.floor(elapsed * 2.5 + seed) % 2 === 0) ? 0xff2222 : 0x00ff88);
             }
             if (child.userData.isScanRing) {
                 const pulse = 1 + (Math.sin(elapsed * 3 + seed) + 1) * 0.25;
                 child.scale.setScalar(pulse);
-                child.material.opacity = 0.18 + Math.sin(elapsed * 3 + seed) * 0.08;
+                child.material.opacity = 0.22 + Math.sin(elapsed * 3 + seed) * 0.1;
             }
-            if (child.userData.isBeam) {
-                child.material.opacity = 0.08 + (Math.sin(elapsed * 2.4 + seed) + 1) * 0.05;
+            if (child.userData.isBeam || child.userData.isSkyBeacon) {
+                child.material.opacity = 0.14 + (Math.sin(elapsed * 2.5 + seed) + 1) * 0.06;
             }
         });
     }
@@ -1108,14 +1187,16 @@ function animate() {
     pPos.needsUpdate = true;
 
     if (isFollowMode) {
+        controls.enabled = false;
         const camTargetX = followTarget.x;
+        const camTargetY = followTarget.y;
         const camTargetZ = followTarget.z;
-        if (followTarget) {
-            // Camera target smoothly interpolates to the drone's position
-            controls.target.lerp(new THREE.Vector3(camTargetX, followTarget.y, camTargetZ), 0.1);
-            controls.update();
-        }
+        // Smooth 3rd-person chase camera right behind and above the drone
+        const idealCamPos = new THREE.Vector3(camTargetX, camTargetY + 20, camTargetZ + 32);
+        camera.position.lerp(idealCamPos, 0.12);
+        camera.lookAt(camTargetX, camTargetY + 2, camTargetZ);
     } else {
+        controls.enabled = true;
         controls.update();
     }
 
@@ -1252,3 +1333,38 @@ function scanCityMesh() {
         .catch(err => console.error('Failed to sync survivor positions:', err));
 }
 
+
+// --- Interactive Drone Camera Switcher & Hotkeys ---
+window.setCameraFollow = function(droneId) {
+    if (!droneId || droneId === 'free') {
+        followDroneId = null;
+        isFollowMode = false;
+        controls.enabled = true;
+        controls.target.set(0, 15, 0);
+        document.querySelectorAll('.drone-cam-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.drone === 'free');
+        });
+    } else {
+        followDroneId = droneId;
+        isFollowMode = true;
+        controls.enabled = false;
+        document.querySelectorAll('.drone-cam-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.drone === droneId);
+        });
+    }
+};
+
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.drone-cam-btn');
+    if (btn && btn.dataset.drone) {
+        window.setCameraFollow(btn.dataset.drone);
+    }
+});
+
+window.addEventListener('keydown', (e) => {
+    if (e.key === '0' || e.key === 'Escape' || e.key.toLowerCase() === 'c') {
+        window.setCameraFollow('free');
+    } else if (['1', '2', '3', '4', '5'].includes(e.key)) {
+        window.setCameraFollow(`DRN-00${e.key}`);
+    }
+});

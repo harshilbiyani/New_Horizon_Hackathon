@@ -73,8 +73,13 @@ export default function MissionMap({
   const [isEnlarged, setIsEnlarged] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1.0);
 
-  // Fixed boundary scale so the canvas coordinate grid stays completely stationary while drones move
-  const WORLD_BOUNDARY = 175 / zoomLevel;
+  // Dynamic boundary scale (minimum 350m) to guarantee all drones and waypoints fit inside map bounds
+  const maxDroneCoord = React.useMemo(() => {
+    if (!drones || drones.length === 0) return 350;
+    return Math.max(350, ...drones.map((d) => Math.max(Math.abs(d.x || 0), Math.abs(d.y || 0)) + 45));
+  }, [drones]);
+
+  const WORLD_BOUNDARY = maxDroneCoord / zoomLevel;
 
   const toPct = (val: number) => worldToPercent(val, WORLD_BOUNDARY);
   const toPt = (x: number, y: number) => toSvgPoint(x, y, WORLD_BOUNDARY);
