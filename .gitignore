@@ -44,3 +44,7 @@ data/test_person.jpg
 .env
 .env.*
 !.env.example
+
+# Large video files
+*.mp4
+data/test_video*
