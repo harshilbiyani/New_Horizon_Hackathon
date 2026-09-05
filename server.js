@@ -3,7 +3,8 @@ import http from 'http';
 import https from 'node:https';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import { spawnSync } from 'node:child_process';
+import { spawnSync, spawn } from 'node:child_process';
+import { createInterface } from 'node:readline';
 import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -160,8 +161,6 @@ const AI_INSIGHTS_TTL_MS = 2500;
 const AI_BRIDGE_SCRIPT = path.join(process.cwd(), 'simulation', 'ai_bridge.py');
 const PYTHON_EXECUTABLE = process.env.PYTHON_EXECUTABLE || 'python';
 
-import { spawn } from 'node:child_process';
-import { createInterface } from 'node:readline';
 
 const pyProcess = spawn(PYTHON_EXECUTABLE, ['simulation/sim_server.py'], {
   stdio: ['pipe', 'pipe', 'inherit']
