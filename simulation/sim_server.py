@@ -31,6 +31,7 @@ class NumpyEncoder(json.JSONEncoder):
             return list(obj)
         return super().default(obj)
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'archive'))
 sys.path.insert(0, os.path.dirname(__file__))
 
 from main import DroneSwarmSimulation
