@@ -44,6 +44,8 @@ logging.basicConfig(
 log = logging.getLogger("video_stream")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 DATA_DIR = BASE_DIR / "data"
 VIDEOS_DIR = DATA_DIR / "videos"
 VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
@@ -124,7 +126,10 @@ class VideoStreamReader:
         self.error: str | None = None
 
         # Determine source type
-        from drone_swarm.yolo_stream import parse_source
+        try:
+            from drone_swarm.yolo_stream import parse_source
+        except ImportError:
+            from yolo_stream import parse_source
         self._is_camera, self._camera_idx = parse_source(source)
         self._is_synthetic = (source == "synthetic" or source == "") and not self._is_camera
         self._is_rtsp = str(source).lower().startswith("rtsp://")
@@ -136,7 +141,10 @@ class VideoStreamReader:
             self._init_srt()
 
         # FrameCaptureService
-        from drone_swarm.frame_capture import FrameCaptureService
+        try:
+            from drone_swarm.frame_capture import FrameCaptureService
+        except ImportError:
+            from frame_capture import FrameCaptureService
         self._capture = FrameCaptureService(vlm_base=vlm_base)
 
     def _init_srt(self):
@@ -148,7 +156,10 @@ class VideoStreamReader:
         if not srt_path.exists():
             srt_path = video_path.with_suffix(".srt")
         if srt_path.exists():
-            from drone_swarm.srt_parser import SRTParser
+            try:
+                from drone_swarm.srt_parser import SRTParser
+            except ImportError:
+                from srt_parser import SRTParser
             self._srt = SRTParser(srt_path)
             log.info(f"Loaded SRT: {srt_path.name} ({self._srt.block_count} blocks)")
         else:
@@ -218,8 +229,14 @@ class VideoStreamReader:
             log.error(self.error)
             return
 
-        from drone_swarm.srt_parser import synthetic_gps_walk
-        from drone_swarm.yolo_stream import get_yolo_model, CameraManager
+        try:
+            from drone_swarm.srt_parser import synthetic_gps_walk
+        except ImportError:
+            from srt_parser import synthetic_gps_walk
+        try:
+            from drone_swarm.yolo_stream import get_yolo_model, CameraManager
+        except ImportError:
+            from yolo_stream import get_yolo_model, CameraManager
 
         cam_mgr = CameraManager.get_instance(self._camera_idx)
         cam_mgr.acquire()
@@ -277,7 +294,10 @@ class VideoStreamReader:
 
     def _run_synthetic(self):
         """Generate synthetic frames at the sample interval."""
-        from drone_swarm.srt_parser import synthetic_gps_walk
+        try:
+            from drone_swarm.srt_parser import synthetic_gps_walk
+        except ImportError:
+            from srt_parser import synthetic_gps_walk
         frame_idx = 0
         while not self._stop_event.is_set():
             img = _make_synthetic_frame(frame_idx)
@@ -299,7 +319,10 @@ class VideoStreamReader:
             log.error(self.error)
             return
 
-        from drone_swarm.srt_parser import synthetic_gps_walk
+        try:
+            from drone_swarm.srt_parser import synthetic_gps_walk
+        except ImportError:
+            from srt_parser import synthetic_gps_walk
 
         source = self.source
         if self._is_file and not Path(source).is_absolute():
@@ -321,7 +344,10 @@ class VideoStreamReader:
 
             log.info(f"Opened video: fps={fps:.1f} total_frames={total_frames} sample_every={sample_every_n}")
 
-            from drone_swarm.yolo_stream import get_yolo_model
+            try:
+                from drone_swarm.yolo_stream import get_yolo_model
+            except ImportError:
+                from yolo_stream import get_yolo_model
             model = get_yolo_model()
 
             while not self._stop_event.is_set():

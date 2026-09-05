@@ -7,7 +7,6 @@ import EventLogs from '../components/EventLogs';
 import LiveVideo from '../components/LiveVideo';
 import ChartsPanel from '../components/ChartsPanel';
 import MissionMap from '../components/MissionMap';
-import AICommandPanel from '../components/AICommandPanel';
 import MissionControls from '../components/MissionControls';
 import type {
   Alert,
@@ -46,7 +45,7 @@ export default function Dashboard() {
   const [connectionState, setConnectionState] = useState<'connected' | 'disconnected'>('disconnected');
   const [lastSnapshotAt, setLastSnapshotAt] = useState<string | null>(null);
   const [selectedDroneId, setSelectedDroneId] = useState<string>();
-  const [aiInsights, setAiInsights] = useState<AiInsights | null>(null);
+  const [, setAiInsights] = useState<AiInsights | null>(null);
 
   useEffect(() => {
     const socket = io('http://localhost:3001', {

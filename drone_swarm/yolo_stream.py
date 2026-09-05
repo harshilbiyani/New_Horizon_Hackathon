@@ -38,7 +38,7 @@ _model = None
 
 
 class CameraManager:
-    """Thread-safe webcam frame grabber singleton that prevents device locking."""
+    """Thread-safe webcam frame grabber singleton with auto-reconnect on USB disconnect."""
     _instances = {}
     _lock = threading.Lock()
 
@@ -75,7 +75,7 @@ class CameraManager:
         start = time.time()
         while time.time() - start < timeout:
             with self.lock:
-                if self.latest_frame is not None:
+                if self.latest_frame is not None and (time.time() - self.last_frame_time < 3.0):
                     return self.latest_frame.copy()
             time.sleep(0.02)
         return None
@@ -87,21 +87,19 @@ class CameraManager:
             cap = cv2.VideoCapture(self.cam_idx)
 
         if not cap.isOpened():
-            print(f"[CameraManager] Could not open camera {self.cam_idx}")
-            with self.lock:
-                self.running = False
-            return
+            print(f"[CameraManager] Could not immediately open camera {self.cam_idx}, waiting for connection...")
 
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-        self.cap = cap
-
-        # Warm up sensor: read 3 frames
-        for _ in range(3):
-            cap.read()
-            time.sleep(0.02)
+        if cap.isOpened():
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+            self.cap = cap
+            for _ in range(3):
+                cap.read()
+                time.sleep(0.02)
 
         idle_start = None
+        fail_count = 0
+
         while self.running:
             with self.lock:
                 refs = self.ref_count
@@ -111,22 +109,62 @@ class CameraManager:
                 if idle_start is None:
                     idle_start = time.time()
                 elif time.time() - idle_start > 20.0:
-                    print("[CameraManager] Camera idle timeout reached. Releasing hardware.")
+                    print(f"[CameraManager] Camera {self.cam_idx} idle timeout reached. Releasing hardware.")
                     break
             else:
                 idle_start = None
 
-            ret, frame = cap.read()
-            if ret and frame is not None:
-                with self.lock:
-                    self.latest_frame = frame
-                    self.last_frame_time = time.time()
+            if cap is not None and cap.isOpened():
+                ret, frame = cap.read()
+                if ret and frame is not None:
+                    fail_count = 0
+                    with self.lock:
+                        self.latest_frame = frame
+                        self.last_frame_time = time.time()
+                else:
+                    fail_count += 1
             else:
-                time.sleep(0.04)
+                fail_count += 1
 
-            time.sleep(0.01)
+            # Handle USB disconnect or failed reads gracefully
+            if fail_count >= 15:
+                if cap is not None:
+                    try:
+                        cap.release()
+                    except Exception:
+                        pass
+                    cap = None
+                    self.cap = None
+                    with self.lock:
+                        self.latest_frame = None
+                
+                # Try to re-open / reconnect to camera
+                time.sleep(0.8)
+                try:
+                    new_cap = cv2.VideoCapture(self.cam_idx, cv2.CAP_DSHOW)
+                    if not new_cap.isOpened():
+                        new_cap = cv2.VideoCapture(self.cam_idx)
+                    if new_cap.isOpened():
+                        ret_test, frame_test = new_cap.read()
+                        if ret_test and frame_test is not None:
+                            print(f"[CameraManager] Camera {self.cam_idx} reconnected successfully!")
+                            new_cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+                            new_cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                            cap = new_cap
+                            self.cap = cap
+                            fail_count = 0
+                            with self.lock:
+                                self.latest_frame = frame_test
+                                self.last_frame_time = time.time()
+                        else:
+                            new_cap.release()
+                except Exception as e:
+                    print(f"[CameraManager] Reconnect error on camera {self.cam_idx}: {e}")
 
-        cap.release()
+            time.sleep(0.015)
+
+        if cap is not None:
+            cap.release()
         self.cap = None
         with self.lock:
             self.running = False
@@ -163,16 +201,55 @@ def get_yolo_model(model_name="yolov8n.pt"):
     return _model
 
 
-def list_available_videos() -> list[dict]:
-    """Finds all video files available in data/videos and data/ plus live camera option."""
-    vids = [
+def detect_connected_cameras() -> list[dict]:
+    """
+    Safely lists connected cameras without opening conflicting DirectShow handles
+    on already-streaming camera devices.
+    """
+    cams = [
         {
-            "name": "Live Laptop Camera",
+            "name": "Built-in Laptop Camera (Camera 0)",
             "path": "webcam",
             "size_mb": 0.0,
             "is_camera": True
         }
     ]
+
+    # Check if Camera 1 (Phone USB) is already running or probe safely
+    cam1_active = False
+    with CameraManager._lock:
+        if 1 in CameraManager._instances and CameraManager._instances[1].running:
+            cam1_active = True
+
+    if cam1_active:
+        cams.append({
+            "name": "Mobile Phone Camera via USB (Camera 1)",
+            "path": "cam:1",
+            "size_mb": 0.0,
+            "is_camera": True
+        })
+    else:
+        try:
+            cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+            if cap.isOpened():
+                ret, _ = cap.read()
+                if ret:
+                    cams.append({
+                        "name": "Mobile Phone Camera via USB (Camera 1)",
+                        "path": "cam:1",
+                        "size_mb": 0.0,
+                        "is_camera": True
+                    })
+                cap.release()
+        except Exception:
+            pass
+
+    return cams
+
+
+def list_available_videos() -> list[dict]:
+    """Finds all video files available in data/videos and data/ plus all detected camera options."""
+    vids = detect_connected_cameras()
     seen = set()
 
     for p in list(VIDEOS_DIR.glob("*.mp4")) + list(VIDEOS_DIR.glob("*.webm")) + list(DATA_DIR.glob("*.mp4")) + list(DATA_DIR.glob("*.webm")):

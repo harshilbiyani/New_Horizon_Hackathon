@@ -1,5 +1,5 @@
 import { useState, useRef, type DragEvent, type ChangeEvent } from 'react';
-import { UploadCloud, Image as ImageIcon, X, Loader2, Camera, Scan, ShieldAlert } from 'lucide-react';
+import { UploadCloud, Image as ImageIcon, X, Loader2, Camera, Scan } from 'lucide-react';
 
 interface Props {
   onSearchImage: (file: File) => void;

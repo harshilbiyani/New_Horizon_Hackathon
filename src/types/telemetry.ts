@@ -1,4 +1,4 @@
-export type DroneTask = 'exploring' | 'idle' | 'reassigned' | 'returning';
+export type DroneTask = 'exploring' | 'idle' | 'reassigned' | 'returning' | 'relay';
 export type DroneStatus = 'active' | 'failed';
 
 export interface TrailPoint {

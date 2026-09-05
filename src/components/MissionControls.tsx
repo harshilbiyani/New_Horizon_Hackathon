@@ -1,4 +1,3 @@
-import React from 'react';
 import { Play, Square, RotateCcw, Crosshair, Zap, ShieldAlert } from 'lucide-react';
 
 export default function MissionControls() {

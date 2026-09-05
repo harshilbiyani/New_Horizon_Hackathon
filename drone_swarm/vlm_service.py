@@ -38,8 +38,22 @@ from PIL import Image
 
 # ─── Paths ───────────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).resolve().parent.parent
+CURRENT_DIR = Path(__file__).resolve().parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
+if str(CURRENT_DIR) not in sys.path:
+    sys.path.insert(0, str(CURRENT_DIR))
+
+# Stream & YOLO imports with fallback
+try:
+    from drone_swarm.video_stream import start_stream, stop_stream, get_active_stream, drain_sse_events
+except ImportError:
+    from video_stream import start_stream, stop_stream, get_active_stream, drain_sse_events
+
+try:
+    from drone_swarm.yolo_stream import generate_yolo_mjpeg, list_available_videos
+except ImportError:
+    from yolo_stream import generate_yolo_mjpeg, list_available_videos
 
 DATA_DIR = BASE_DIR / "data"
 DETECTIONS_DIR = DATA_DIR / "detections"
@@ -445,8 +459,6 @@ def stream_start():
             "sample_interval": 3.0,
             "drone_id": "drone-1" }
     """
-    from drone_swarm.video_stream import start_stream
-
     data = request.get_json(force=True) or {}
     source = data.get("source", "synthetic")
     interval = float(data.get("sample_interval", 3.0))
@@ -459,14 +471,12 @@ def stream_start():
 
 @app.post("/stream/stop")
 def stream_stop():
-    from drone_swarm.video_stream import stop_stream
     stop_stream()
     return jsonify({"ok": True, "message": "Stream stopped"})
 
 
 @app.get("/stream/status")
 def stream_status():
-    from drone_swarm.video_stream import get_active_stream
     stream = get_active_stream()
     if not stream:
         return jsonify({"running": False, "frames_processed": 0, "source": "",
@@ -483,7 +493,6 @@ def stream_events():
     """
     import json as _json
     from flask import Response, stream_with_context
-    from drone_swarm.video_stream import drain_sse_events
 
     since = int(request.args.get("since", 0))
 
@@ -518,11 +527,9 @@ def stream_yolo_feed():
     Accepts ?source=path/to/video.mp4&conf=0.35
     """
     from flask import Response
-    from drone_swarm.yolo_stream import generate_yolo_mjpeg, list_available_videos
 
     source = request.args.get("source")
     if not source or source == "synthetic":
-        from drone_swarm.video_stream import get_active_stream
         active = get_active_stream()
         if active and active.source and active.source != "synthetic":
             source = active.source
@@ -542,7 +549,6 @@ def stream_yolo_feed():
 @app.get("/stream/videos")
 def stream_available_videos():
     """Returns list of video files available in data/ and data/videos/."""
-    from drone_swarm.yolo_stream import list_available_videos
     return jsonify({"ok": True, "videos": list_available_videos()})
 
 
