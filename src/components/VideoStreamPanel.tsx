@@ -137,7 +137,7 @@ export default function VideoStreamPanel({
   onStop,
   onClearEvents,
 }: Props) {
-  const [source, setSource] = useState('cam:1');
+  const [source, setSource] = useState('webcam');
   const [expanded, setExpanded] = useState(true);
   const [availableVideos, setAvailableVideos] = useState<AvailableVideo[]>([]);
   const [feedKey, setFeedKey] = useState(Date.now());
@@ -160,7 +160,7 @@ export default function VideoStreamPanel({
     }
   }, [feedKey, feedLoading]);
 
-  // Fetch available camera/video sources and prioritize USB mobile camera
+  // Fetch available camera/video sources and prioritize USB mobile camera if connected
   useEffect(() => {
     fetch(`${API_BASE}/api/vlm/stream/videos`)
       .then((res) => res.json())
@@ -170,8 +170,8 @@ export default function VideoStreamPanel({
           const hasPhoneCam = data.videos.some((v: AvailableVideo) => v.path === 'cam:1');
           if (hasPhoneCam) {
             setSource('cam:1');
-          } else if (data.videos.length > 0 && !data.videos.some((v: AvailableVideo) => v.path === 'cam:1')) {
-            setSource(data.videos[0].path);
+          } else {
+            setSource('webcam');
           }
         }
       })
